@@ -8,6 +8,7 @@ import { Sidebar } from "./ui/sidebar";
 import { Controls } from "./ui/controls";
 import { AnimPanel } from "./ui/animPanel";
 import { ExportPanel } from "./ui/exportPanel";
+import { FrameController } from "./ui/frameController";
 import { AnimationEngine } from "./anim/engine";
 import { ClearAll } from "./commands/sceneCommands";
 import { loadUserAssets } from "./store/persistence";
@@ -58,7 +59,7 @@ const initial: SceneState = {
     idleAmount: 0.6,
   },
   orderPath: [],
-  frame: { aspect: "1:1", ...fitFrame(camera0, "1:1"), outWidth: 1080, show: false },
+  frame: { aspect: "1:1", ...fitFrame(camera0, "1:1"), outWidth: 1080, show: false, snap: true },
   camera: camera0,
 };
 
@@ -115,6 +116,7 @@ new Sidebar(sidebarEl, store, library, renderer);
 new Controls(sidebarEl, store, library, history);
 new AnimPanel(sidebarEl, store);
 new ExportPanel(sidebarEl, store, library);
+new FrameController(store, renderer);
 
 // Restore user-uploaded assets from IndexedDB (async, after first paint).
 loadUserAssets().then((assets) => {

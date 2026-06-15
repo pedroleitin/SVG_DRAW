@@ -1,7 +1,7 @@
 import type { Store } from "../store/store";
 import type { Library } from "../features/library";
 import type { SceneState } from "../scene/types";
-import { ASPECT_IDS, fitFrame, outSize } from "../export/frame";
+import { ASPECT_IDS, fitFrame, outSize, snapFrame } from "../export/frame";
 import type { AspectId } from "../export/frame";
 import { buildSceneSVG } from "../export/svgExport";
 import { svgBlob, downloadBlob, svgToPngBlob } from "../export/raster";
@@ -14,6 +14,7 @@ export class ExportPanel {
   private aspectSel!: HTMLSelectElement;
   private resSel!: HTMLSelectElement;
   private showChk!: HTMLInputElement;
+  private snapChk!: HTMLInputElement;
   private dims!: HTMLElement;
 
   constructor(host: HTMLElement, private store: Store, private library: Library) {
@@ -24,13 +25,16 @@ export class ExportPanel {
       <h2>Export</h2>
       <div class="select-grid">
         <label class="sel"><span>Aspect</span>
-          <select id="exp-aspect">${ASPECT_IDS.map((a) => `<option value="${a}">${a}</option>`).join("")}</select>
+          <select id="exp-aspect">${ASPECT_IDS.map((a) => `<option value="${a}">${a === "free" ? "Free Form" : a}</option>`).join("")}</select>
         </label>
         <label class="sel"><span>Resolution</span>
           <select id="exp-res">${RESOLUTIONS.map((r) => `<option value="${r}">${r}px</option>`).join("")}</select>
         </label>
       </div>
-      <label class="chk"><input type="checkbox" id="exp-show" /> Show frame</label>
+      <div class="exp-toggles">
+        <label class="chk"><input type="checkbox" id="exp-show" /> Show frame</label>
+        <label class="chk"><input type="checkbox" id="exp-snap" /> Snap to grid</label>
+      </div>
       <div class="exp-dims" id="exp-dims"></div>
       <div class="noise-actions">
         <button id="exp-fit">Fit to view</button>
@@ -44,11 +48,13 @@ export class ExportPanel {
     this.aspectSel = panel.querySelector("#exp-aspect") as HTMLSelectElement;
     this.resSel = panel.querySelector("#exp-res") as HTMLSelectElement;
     this.showChk = panel.querySelector("#exp-show") as HTMLInputElement;
+    this.snapChk = panel.querySelector("#exp-snap") as HTMLInputElement;
     this.dims = panel.querySelector("#exp-dims") as HTMLElement;
 
     this.aspectSel.addEventListener("change", () => this.changeAspect(this.aspectSel.value as AspectId));
     this.resSel.addEventListener("change", () => this.setFrame({ outWidth: Number(this.resSel.value) }));
     this.showChk.addEventListener("change", () => this.setFrame({ show: this.showChk.checked }));
+    this.snapChk.addEventListener("change", () => this.toggleSnap(this.snapChk.checked));
     panel.querySelector("#exp-fit")!.addEventListener("click", () => this.fit());
     panel.querySelector("#exp-svg")!.addEventListener("click", () => this.exportSVG());
     panel.querySelector("#exp-png")!.addEventListener("click", () => this.exportPNG());
@@ -63,13 +69,27 @@ export class ExportPanel {
 
   /** Changing aspect re-fits the frame to the current view and shows it. */
   private changeAspect(aspect: AspectId): void {
-    const cam = this.store.get().camera;
-    this.setFrame({ aspect, ...fitFrame(cam, aspect), show: true });
+    const s = this.store.get();
+    let box = fitFrame(s.camera, aspect);
+    if (s.frame.snap && aspect === "free") box = snapFrame(box, s.cellSize);
+    this.setFrame({ aspect, ...box, show: true });
   }
 
   private fit(): void {
     const s = this.store.get();
-    this.setFrame({ ...fitFrame(s.camera, s.frame.aspect), show: true });
+    let box = fitFrame(s.camera, s.frame.aspect);
+    if (s.frame.snap && s.frame.aspect === "free") box = snapFrame(box, s.cellSize);
+    this.setFrame({ ...box, show: true });
+  }
+
+  /** Turning snap on immediately aligns the current frame to the grid. */
+  private toggleSnap(on: boolean): void {
+    const s = this.store.get();
+    if (on && s.frame.aspect === "free") {
+      this.setFrame({ snap: on, ...snapFrame(s.frame, s.cellSize) });
+    } else {
+      this.setFrame({ snap: on });
+    }
   }
 
   private exportSVG(): void {
@@ -89,6 +109,7 @@ export class ExportPanel {
     if (this.aspectSel.value !== s.frame.aspect) this.aspectSel.value = s.frame.aspect;
     if (Number(this.resSel.value) !== s.frame.outWidth) this.resSel.value = String(s.frame.outWidth);
     this.showChk.checked = s.frame.show;
+    this.snapChk.checked = s.frame.snap;
     const { outW, outH } = outSize(s.frame);
     this.dims.textContent = `${outW} × ${outH}px`;
   }

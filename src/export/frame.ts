@@ -12,6 +12,24 @@ export interface ExportFrame {
   outWidth: number;
   /** Show the letterbox overlay + border on the canvas. */
   show: boolean;
+  /** Snap frame edges to cell boundaries so it never cuts a cell. */
+  snap: boolean;
+}
+
+/** Round a world value to the nearest cell boundary. */
+export const snapToCell = (v: number, cellSize: number): number =>
+  Math.round(v / cellSize) * cellSize;
+
+/** Snap a frame's edges to whole cells (size stays >= 1 cell). */
+export function snapFrame(
+  f: { x: number; y: number; w: number; h: number },
+  cellSize: number,
+): { x: number; y: number; w: number; h: number } {
+  const x = snapToCell(f.x, cellSize);
+  const y = snapToCell(f.y, cellSize);
+  const w = Math.max(cellSize, snapToCell(f.w, cellSize));
+  const h = Math.max(cellSize, snapToCell(f.h, cellSize));
+  return { x, y, w, h };
 }
 
 export type AspectId = "16:9" | "1:1" | "9:16" | "4:5" | "4:3" | "free";

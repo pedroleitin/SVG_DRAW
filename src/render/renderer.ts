@@ -28,7 +28,6 @@ export class Renderer {
   private pathFinish: SVGTextElement;
   private frameLayer: SVGGElement;
   private frameRects: SVGRectElement[] = [];
-  private frameBorder: SVGRectElement;
   private nodes = new Map<string, SVGUseElement>(); // cellKey -> <use>
   private registeredSymbols = new Set<string>();
 
@@ -71,10 +70,6 @@ export class Renderer {
       this.frameRects.push(rect);
       this.frameLayer.appendChild(rect);
     }
-    this.frameBorder = document.createElementNS(SVGNS, "rect");
-    this.frameBorder.setAttribute("fill", "none");
-    this.frameBorder.setAttribute("stroke", "#4dabf7");
-    this.frameLayer.appendChild(this.frameBorder);
 
     this.svg.append(
       this.defs,
@@ -135,8 +130,6 @@ export class Renderer {
     set(this.frameRects[1], cam.x, f.y + f.h, cam.w, cam.y + cam.h - (f.y + f.h));
     set(this.frameRects[2], cam.x, f.y, f.x - cam.x, f.h);
     set(this.frameRects[3], f.x + f.w, f.y, cam.x + cam.w - (f.x + f.w), f.h);
-    set(this.frameBorder, f.x, f.y, f.w, f.h);
-    this.frameBorder.setAttribute("stroke-width", String(1.5 / (this.hostSize.width / cam.w)));
   }
 
   private makeLabel(text: string, color: string): SVGTextElement {

@@ -404,11 +404,20 @@ body {
   color: var(--accent);
 }
 
+.exp-toggles {
+  display: flex;
+  gap: 16px;
+}
+
 .exp-dims {
   font-size: 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   margin: 8px 0 2px;
+}
+
+.frame-ui {
+  touch-action: none;
 }
 
 .noise-actions {

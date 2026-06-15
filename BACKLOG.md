@@ -112,9 +112,11 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   letterbox + Fit to view (overlay). SVG/PNG já respeitam o frame.
 - [ ] 🔴 **Export animado (Phase 6b)** — sequência **PNG** (JSZip) e **MP4**
   (WebCodecs + mp4-muxer), amostrando a animação pura por frame.
-- [ ] 🟡 **Frame reposicionável/escalável** — arrastar/redimensionar com handles
-  (hoje só "Fit to view"); e opção de "limitar o grid ao frame" (recorte) além do
-  letterbox.
+- [x] 🟡 **Frame reposicionável/escalável** — arrastar a borda (move) + handles
+  (cantos = scale; laterais = esticar H/V no Free Form; aspectos fixos travam a
+  proporção) + **snap to grid** (Free Form nunca corta célula). Free → "Free Form".
+  - Pendente: snap exato em aspectos fixos (hoje mantém a proporção, podendo não
+    alinhar à célula) e opção de "limitar o grid ao frame" (recorte) além do letterbox.
 - [ ] 🟡 **Cor de fundo no export** — hoje o fundo é transparente (formas claras
   somem em fundo branco). Liga com o item 5 (cor de fundo).
 

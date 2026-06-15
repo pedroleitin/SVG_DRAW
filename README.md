@@ -76,7 +76,9 @@ the foundation for frame-accurate export later.
 - [x] **Export frame** (Phase 6a): world-space crop with aspect presets (16:9, 1:1, 9:16, 4:5, 4:3, free)
       + output resolution; live letterbox overlay; "Fit to view"
 - [x] **Export SVG** (lossless vector — inlined symbols + `<use>`) and **PNG** (rasterized at output res)
-- [x] Verified via headless Chrome (downloads captured: SVG viewBox = frame, PNG = 1080×608 for 16:9 — no errors)
+- [x] **Interactive frame**: drag the border to move, resize handles (corners scale; edges stretch on
+      Free Form, fixed aspects keep ratio), and **snap-to-grid** so Free Form never cuts a cell
+- [x] Verified via headless Chrome (SVG viewBox = frame, PNG = 1080×608 for 16:9; drag/resize/snap — no errors)
 
 **Next phases:**
 
