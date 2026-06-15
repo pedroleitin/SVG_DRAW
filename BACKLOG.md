@@ -28,6 +28,13 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 - [ ] ⚪ **Status (cell/placed) sem caixa** — tirar o box/borda do canto inf. esquerdo
   (texto solto) e **remover a palavra "placed"** (deixar só `cell x,y · N`).
   - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (`buildStatus`), [src/ui/styles/app.css](src/ui/styles/app.css) (`#status`).
+- [ ] 🟡 **Transições suaves** — animar a troca de **modo**, abrir/fechar **menus de
+  contexto** e como o **conteúdo aparece** (fade/slide/scale, com easing). Cuidar
+  para não atrapalhar performance do canvas.
+  - Arquivos: [src/ui/styles/app.css](src/ui/styles/app.css), [src/ui/shell.ts](src/ui/shell.ts) (classes de estado/transição).
+- [ ] 🟡 **Micro-interações de hover** — animações de hover em botões e outros itens
+  (transition de cor/escala/sombra), consistentes em toda a UI.
+  - Arquivos: [src/ui/styles/app.css](src/ui/styles/app.css).
 
 ## 2. Grid
 
