@@ -110,8 +110,11 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 - [x] 🔴 **Controle de proporção (frame) para export** — presets + resolução +
   letterbox + Fit to view (overlay). SVG/PNG já respeitam o frame.
-- [ ] 🔴 **Export animado (Phase 6b)** — sequência **PNG** (JSZip) e **MP4**
-  (WebCodecs + mp4-muxer), amostrando a animação pura por frame.
+- [x] 🔴 **Export animado (Phase 6b)** — sequência **PNG** (.zip via JSZip) e **MP4**
+  (WebCodecs H.264 + mp4-muxer), amostrando a animação pura por frame; controles de
+  fps/duração + "loop length" + progresso.
+  - Arquivos: [src/export/sequence.ts](src/export/sequence.ts), [src/export/video.ts](src/export/video.ts), [src/ui/exportPanel.ts](src/ui/exportPanel.ts)
+  - Pendente: WebM/GIF, encode em worker (hoje no main thread), e cancelar export.
 - [x] 🟡 **Frame reposicionável/escalável** — arrastar a borda (move) + handles
   (cantos = scale; laterais = esticar H/V no Free Form; aspectos fixos travam a
   proporção) + **snap to grid** (Free Form nunca corta célula). Free → "Free Form".

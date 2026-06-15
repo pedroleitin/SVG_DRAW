@@ -152,6 +152,13 @@ export function mapCycleTime(c: AnimationConfig, T: number): number {
   return m;
 }
 
+/** Natural real-time duration (seconds) of one full animation pass — a clean
+ *  loop length for export. Ping-pong takes a forward + back pass. */
+export function loopDuration(c: AnimationConfig): number {
+  const base = cycleLength(c) / Math.max(0.0001, c.speed);
+  return c.playback === "pingpong" ? base * 2 : base;
+}
+
 export interface LifeOutput extends AnimOutput {
   hidden?: boolean;
 }

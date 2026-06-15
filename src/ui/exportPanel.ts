@@ -5,8 +5,12 @@ import { ASPECT_IDS, fitFrame, outSize, snapFrame } from "../export/frame";
 import type { AspectId } from "../export/frame";
 import { buildSceneSVG } from "../export/svgExport";
 import { svgBlob, downloadBlob, svgToPngBlob } from "../export/raster";
+import { exportPngSequence } from "../export/sequence";
+import { exportMp4, isVideoExportSupported } from "../export/video";
+import { loopDuration } from "../anim/animations";
 
 const RESOLUTIONS = [720, 1080, 1440, 2160];
+const FPS_OPTIONS = [24, 30, 60];
 
 /** Export panel: choose an aspect-ratio frame + output resolution, preview it
  *  as a letterbox on the canvas, and export the framed scene to SVG / PNG. */
@@ -16,6 +20,12 @@ export class ExportPanel {
   private showChk!: HTMLInputElement;
   private snapChk!: HTMLInputElement;
   private dims!: HTMLElement;
+  private fpsSel!: HTMLSelectElement;
+  private durInput!: HTMLInputElement;
+  private progress!: HTMLElement;
+  private fps = 30;
+  private duration = 2;
+  private busy = false;
 
   constructor(host: HTMLElement, private store: Store, private library: Library) {
     const panel = document.createElement("section");
@@ -42,7 +52,24 @@ export class ExportPanel {
       <div class="noise-actions">
         <button id="exp-svg">⬇ SVG</button>
         <button id="exp-png">⬇ PNG</button>
-      </div>`;
+      </div>
+      <h3 class="exp-sub">Animated</h3>
+      <div class="select-grid">
+        <label class="sel"><span>FPS</span>
+          <select id="exp-fps">${FPS_OPTIONS.map((f) => `<option value="${f}">${f}</option>`).join("")}</select>
+        </label>
+        <label class="sel"><span>Duration (s)</span>
+          <input id="exp-dur" type="number" min="0.2" max="30" step="0.1" />
+        </label>
+      </div>
+      <div class="noise-actions">
+        <button id="exp-loop" title="Set duration to one animation loop">↺ Loop length</button>
+      </div>
+      <div class="noise-actions">
+        <button id="exp-seq">⬇ PNG Seq</button>
+        <button id="exp-mp4">⬇ MP4</button>
+      </div>
+      <div class="exp-progress" id="exp-progress"></div>`;
     host.appendChild(panel);
 
     this.aspectSel = panel.querySelector("#exp-aspect") as HTMLSelectElement;
@@ -50,14 +77,31 @@ export class ExportPanel {
     this.showChk = panel.querySelector("#exp-show") as HTMLInputElement;
     this.snapChk = panel.querySelector("#exp-snap") as HTMLInputElement;
     this.dims = panel.querySelector("#exp-dims") as HTMLElement;
+    this.fpsSel = panel.querySelector("#exp-fps") as HTMLSelectElement;
+    this.durInput = panel.querySelector("#exp-dur") as HTMLInputElement;
+    this.progress = panel.querySelector("#exp-progress") as HTMLElement;
+
+    this.duration = clampDur(loopDuration(this.store.get().animation));
+    this.fpsSel.value = String(this.fps);
+    this.durInput.value = this.duration.toFixed(1);
 
     this.aspectSel.addEventListener("change", () => this.changeAspect(this.aspectSel.value as AspectId));
     this.resSel.addEventListener("change", () => this.setFrame({ outWidth: Number(this.resSel.value) }));
     this.showChk.addEventListener("change", () => this.setFrame({ show: this.showChk.checked }));
     this.snapChk.addEventListener("change", () => this.toggleSnap(this.snapChk.checked));
+    this.fpsSel.addEventListener("change", () => (this.fps = Number(this.fpsSel.value)));
+    this.durInput.addEventListener("change", () => (this.duration = clampDur(Number(this.durInput.value))));
     panel.querySelector("#exp-fit")!.addEventListener("click", () => this.fit());
     panel.querySelector("#exp-svg")!.addEventListener("click", () => this.exportSVG());
     panel.querySelector("#exp-png")!.addEventListener("click", () => this.exportPNG());
+    panel.querySelector("#exp-loop")!.addEventListener("click", () => this.setLoopDuration());
+    panel.querySelector("#exp-seq")!.addEventListener("click", () => this.runExport("seq"));
+    const mp4Btn = panel.querySelector("#exp-mp4") as HTMLButtonElement;
+    mp4Btn.addEventListener("click", () => this.runExport("mp4"));
+    if (!isVideoExportSupported()) {
+      mp4Btn.disabled = true;
+      mp4Btn.title = "MP4 needs WebCodecs (use Chrome/Edge). PNG Seq works everywhere.";
+    }
 
     this.sync(store.get());
     store.subscribe((s) => this.sync(s));
@@ -105,6 +149,31 @@ export class ExportPanel {
     downloadBlob(png, `svg-grid-${outW}x${outH}.png`);
   }
 
+  private setLoopDuration(): void {
+    this.duration = clampDur(loopDuration(this.store.get().animation));
+    this.durInput.value = this.duration.toFixed(1);
+  }
+
+  /** Run an animated export (PNG sequence or MP4) with a progress readout. */
+  private async runExport(kind: "seq" | "mp4"): Promise<void> {
+    if (this.busy) return;
+    this.busy = true;
+    const onProgress = (done: number, total: number) => {
+      this.progress.textContent = `Rendering ${done}/${total}…`;
+    };
+    try {
+      const state = this.store.get();
+      const opts = { fps: this.fps, duration: this.duration, onProgress };
+      if (kind === "seq") await exportPngSequence(state, this.library, opts);
+      else await exportMp4(state, this.library, opts);
+      this.progress.textContent = "Done ✓";
+    } catch (err) {
+      this.progress.textContent = `Export failed: ${(err as Error).message ?? err}`;
+    } finally {
+      this.busy = false;
+    }
+  }
+
   private sync(s: SceneState): void {
     if (this.aspectSel.value !== s.frame.aspect) this.aspectSel.value = s.frame.aspect;
     if (Number(this.resSel.value) !== s.frame.outWidth) this.resSel.value = String(s.frame.outWidth);
@@ -114,3 +183,5 @@ export class ExportPanel {
     this.dims.textContent = `${outW} × ${outH}px`;
   }
 }
+
+const clampDur = (v: number): number => Math.min(30, Math.max(0.2, Math.round(v * 10) / 10 || 2));

@@ -79,9 +79,11 @@ the foundation for frame-accurate export later.
 - [x] **Interactive frame**: drag the border to move, resize handles (corners scale; edges stretch on
       Free Form, fixed aspects keep ratio), and **snap-to-grid** so Free Form never cuts a cell
 - [x] Verified via headless Chrome (SVG viewBox = frame, PNG = 1080×608 for 16:9; drag/resize/snap — no errors)
+- [x] **Animated export** (Phase 6b): **PNG sequence** (.zip via JSZip) and **MP4** (WebCodecs H.264 +
+      mp4-muxer), sampling the pure animation timeline per frame; fps + duration + "loop length" + progress
+- [x] Verified via headless Chrome (14 distinct 1080² PNGs in the zip; valid MP4 ftyp — no errors)
 
-**Next phases:**
-
-- [ ] Phase 6b — animated export: PNG sequence (JSZip) + MP4 (WebCodecs + mp4-muxer), sampling the pure animation per frame
-- [ ] (backlog) export background color, draggable/resizable frame
+All originally-requested features are now implemented (grid, random placement, library + upload,
+animation, palettes, draw/erase, infinite canvas + zoom, export SVG/PNG/MP4, noise mask). Remaining
+work is in [BACKLOG.md](BACKLOG.md) (image/video source + halftone, multi-cell scale, background color, …).
 - [ ] Phase 7 — save/load projects, bulk ops, performance tuning

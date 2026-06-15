@@ -26,6 +26,20 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
+/** Draw an SVG string onto an existing canvas (reused across frames). */
+export async function rasterizeSvg(svg: string, canvas: HTMLCanvasElement): Promise<void> {
+  const url = URL.createObjectURL(svgBlob(svg));
+  try {
+    const img = await loadImage(url);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("No 2D context");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export async function svgToPngBlob(svg: string, outW: number, outH: number): Promise<Blob> {
   const url = URL.createObjectURL(svgBlob(svg));
   try {

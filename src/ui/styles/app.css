@@ -416,6 +416,34 @@ body {
   margin: 8px 0 2px;
 }
 
+.exp-sub {
+  margin: 16px 0 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+#exp-dur {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 6px;
+  font-size: 12px;
+  width: 100%;
+}
+
+.exp-progress {
+  font-size: 12px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  min-height: 16px;
+  margin-top: 8px;
+}
+
 .frame-ui {
   touch-action: none;
 }
