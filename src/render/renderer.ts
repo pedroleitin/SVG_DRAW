@@ -255,7 +255,7 @@ export class Renderer {
     // Tile = one cell; a dot at the tile corner lands on every cell corner.
     this.gridPattern.setAttribute("width", String(cellSize));
     this.gridPattern.setAttribute("height", String(cellSize));
-    this.gridDot.setAttribute("r", String(1.3 / zoom)); // ~1.3 device px
+    this.gridDot.setAttribute("r", String(1.8 / zoom)); // ~1.8 device px
     // Cover the whole viewport with the dot fill.
     this.gridRect.setAttribute("x", String(cam.x));
     this.gridRect.setAttribute("y", String(cam.y));
