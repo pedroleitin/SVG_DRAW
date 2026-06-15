@@ -115,11 +115,18 @@ body {
 }
 
 .noise-body,
-.exp-cols {
+.exp-cols,
+.anim-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
   align-items: start;
+}
+
+.anim-left {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
 }
 
 .noise-left .mask-preview {

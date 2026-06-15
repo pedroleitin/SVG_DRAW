@@ -313,7 +313,7 @@ export class Shell {
     // Context menu visibility. Noise & Export use a wider 2-column layout.
     const open = s.contextPanel;
     this.contextEl.classList.toggle("hidden", open === null);
-    this.contextEl.classList.toggle("wide", open === "noise" || open === "export");
+    this.contextEl.classList.toggle("wide", open === "noise" || open === "export" || open === "animate");
     for (const [key, host] of this.ctxHosts) host.classList.toggle("hidden", key !== open);
 
     // Pan + zoom.
