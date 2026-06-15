@@ -35,47 +35,53 @@ export class ExportPanel {
     panel.id = "export-panel";
     panel.innerHTML = `
       <h2>Export</h2>
-      <div class="select-grid">
-        <label class="sel"><span>Aspect</span>
-          <select id="exp-aspect">${ASPECT_IDS.map((a) => `<option value="${a}">${a === "free" ? "Free Form" : a}</option>`).join("")}</select>
-        </label>
-        <label class="sel"><span>Resolution</span>
-          <select id="exp-res">${RESOLUTIONS.map((r) => `<option value="${r}">${r}px</option>`).join("")}</select>
-        </label>
-      </div>
-      <div class="exp-toggles">
-        <label class="chk"><input type="checkbox" id="exp-show" /> Show frame</label>
-        <label class="chk"><input type="checkbox" id="exp-snap" /> Snap to grid</label>
-      </div>
-      <div class="exp-bg-row">
-        <label class="chk" title="Canvas + export background"><input type="color" id="exp-bg" /> Background</label>
-        <label class="chk"><input type="checkbox" id="exp-transp" /> Transparent export</label>
-      </div>
-      <div class="exp-dims" id="exp-dims"></div>
-      <div class="noise-actions">
-        <button id="exp-fit">Fit to view</button>
-      </div>
-      <div class="noise-actions">
-        <button id="exp-svg">⬇ SVG</button>
-        <button id="exp-png">⬇ PNG</button>
-      </div>
-      <h3 class="exp-sub">Animated</h3>
-      <div class="select-grid">
-        <label class="sel"><span>FPS</span>
-          <select id="exp-fps">${FPS_OPTIONS.map((f) => `<option value="${f}">${f}</option>`).join("")}</select>
-        </label>
-        <label class="sel"><span>Duration (s)</span>
-          <input id="exp-dur" type="number" min="0.2" max="30" step="0.1" />
-        </label>
-      </div>
-      <div class="noise-actions">
-        <button id="exp-loop" title="Set duration to one animation loop">↺ Loop length</button>
-      </div>
-      <div class="noise-actions">
-        <button id="exp-seq">⬇ PNG Seq</button>
-        <button id="exp-mp4">⬇ MP4</button>
-      </div>
-      <div class="exp-progress" id="exp-progress"></div>`;
+      <div class="exp-cols">
+       <div class="exp-col">
+        <div class="select-grid">
+          <label class="sel"><span>Aspect</span>
+            <select id="exp-aspect">${ASPECT_IDS.map((a) => `<option value="${a}">${a === "free" ? "Free Form" : a}</option>`).join("")}</select>
+          </label>
+          <label class="sel"><span>Resolution</span>
+            <select id="exp-res">${RESOLUTIONS.map((r) => `<option value="${r}">${r}px</option>`).join("")}</select>
+          </label>
+        </div>
+        <div class="exp-toggles">
+          <label class="chk"><input type="checkbox" id="exp-show" /> Show frame</label>
+          <label class="chk"><input type="checkbox" id="exp-snap" /> Snap to grid</label>
+        </div>
+        <div class="exp-bg-row">
+          <label class="chk" title="Canvas + export background"><input type="color" id="exp-bg" /> Background</label>
+          <label class="chk"><input type="checkbox" id="exp-transp" /> Transparent</label>
+        </div>
+        <div class="exp-dims" id="exp-dims"></div>
+        <div class="noise-actions">
+          <button id="exp-fit">Fit to view</button>
+        </div>
+        <div class="noise-actions">
+          <button id="exp-svg">⬇ SVG</button>
+          <button id="exp-png">⬇ PNG</button>
+        </div>
+       </div>
+       <div class="exp-col">
+        <h3 class="exp-sub">Animated</h3>
+        <div class="select-grid">
+          <label class="sel"><span>FPS</span>
+            <select id="exp-fps">${FPS_OPTIONS.map((f) => `<option value="${f}">${f}</option>`).join("")}</select>
+          </label>
+          <label class="sel"><span>Duration (s)</span>
+            <input id="exp-dur" type="number" min="0.2" max="30" step="0.1" />
+          </label>
+        </div>
+        <div class="noise-actions">
+          <button id="exp-loop" title="Set duration to one animation loop">↺ Loop length</button>
+        </div>
+        <div class="noise-actions">
+          <button id="exp-seq">⬇ PNG Seq</button>
+          <button id="exp-mp4">⬇ MP4</button>
+        </div>
+        <div class="exp-progress" id="exp-progress"></div>
+       </div>
+      </div>`;
     host.appendChild(panel);
 
     this.aspectSel = panel.querySelector("#exp-aspect") as HTMLSelectElement;

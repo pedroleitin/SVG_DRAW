@@ -69,6 +69,9 @@ export class Shell {
   private setMode(mode: Mode): void {
     const patch: Partial<SceneState> = { mode, contextPanel: null };
     if (mode === "draw" || mode === "compose") patch.tool = "draw";
+    // Animate & Export keep their context menu open by default.
+    if (mode === "animate") patch.contextPanel = "animate";
+    if (mode === "export") patch.contextPanel = "export";
     // Export mode shows the frame as its working affordance.
     patch.frame = { ...this.store.get().frame, show: mode === "export" };
     this.store.set(patch);
@@ -140,10 +143,26 @@ export class Shell {
     return d;
   }
 
+  /** Undo / redo / clear — always present in the central bottom bar. */
+  private editActions(): HTMLElement[] {
+    return [
+      this.btn("↶", { title: "Undo (⌘Z)", onClick: () => this.history.undo() }),
+      this.btn("↷", { title: "Redo (⌘⇧Z)", onClick: () => this.history.redo() }),
+      this.btn("Clear", {
+        title: "Clear all",
+        onClick: () => {
+          if (Object.keys(this.store.get().instances).length) this.history.dispatch(new ClearAll());
+        },
+      }),
+      this.sep(),
+    ];
+  }
+
   private buildToolbox(s: SceneState): void {
     const tb = this.toolboxEl;
     tb.innerHTML = "";
     const add = (...els: HTMLElement[]) => els.forEach((e) => tb.appendChild(e));
+    add(...this.editActions());
 
     switch (s.mode) {
       case "draw":
@@ -175,8 +194,6 @@ export class Shell {
             onClick: () => this.store.set({ animation: { ...s.animation, playing: !playing } }),
           }),
           this.toolBtn("🧭 Order", "path", s, "Draw reveal order: START→FINISH"),
-          this.sep(),
-          this.ctxBtn("⚙ Settings", "animate", s, "Animation settings"),
         );
         break;
       }
@@ -187,8 +204,6 @@ export class Shell {
             title: "Toggle export frame",
             onClick: () => this.store.set({ frame: { ...s.frame, show: !s.frame.show } }),
           }),
-          this.sep(),
-          this.ctxBtn("⬇ Export", "export", s, "Output settings + save"),
         );
         break;
     }
@@ -196,18 +211,7 @@ export class Shell {
 
   // ---- Status (bottom-left) ----
   private buildStatus(): void {
-    this.statusEl.innerHTML = `
-      <div class="status-actions">
-        <button id="sh-undo" title="Undo (⌘Z)">↶</button>
-        <button id="sh-redo" title="Redo (⌘⇧Z)">↷</button>
-        <button id="sh-clear" title="Clear all">Clear</button>
-      </div>
-      <div class="status-info"><span id="sh-coords">cell 0,0</span> · <span id="sh-count">0 placed</span></div>`;
-    this.statusEl.querySelector("#sh-undo")!.addEventListener("click", () => this.history.undo());
-    this.statusEl.querySelector("#sh-redo")!.addEventListener("click", () => this.history.redo());
-    this.statusEl.querySelector("#sh-clear")!.addEventListener("click", () => {
-      if (Object.keys(this.store.get().instances).length) this.history.dispatch(new ClearAll());
-    });
+    this.statusEl.innerHTML = `<span id="sh-coords">cell 0,0</span> · <span id="sh-count">0 placed</span>`;
   }
 
   setCoords(col: number, row: number): void {
@@ -216,11 +220,8 @@ export class Shell {
   }
 
   private refreshStatus(): void {
-    const s = this.store.get();
     const count = this.statusEl.querySelector("#sh-count");
-    if (count) count.textContent = `${Object.keys(s.instances).length} placed`;
-    (this.statusEl.querySelector("#sh-undo") as HTMLButtonElement).disabled = !this.history.canUndo();
-    (this.statusEl.querySelector("#sh-redo") as HTMLButtonElement).disabled = !this.history.canRedo();
+    if (count) count.textContent = `${Object.keys(this.store.get().instances).length} placed`;
   }
 
   // ---- Zoom (bottom-right) ----
@@ -261,9 +262,10 @@ export class Shell {
       this.buildToolbox(s);
     }
 
-    // Context menu visibility.
+    // Context menu visibility. Noise & Export use a wider 2-column layout.
     const open = s.contextPanel;
     this.contextEl.classList.toggle("hidden", open === null);
+    this.contextEl.classList.toggle("wide", open === "noise" || open === "export");
     for (const [key, host] of this.ctxHosts) host.classList.toggle("hidden", key !== open);
 
     // Pan + zoom.
