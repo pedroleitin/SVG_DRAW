@@ -45,36 +45,38 @@ export class Controls {
     private store: Store,
     private library: Library,
     private history: History,
-    previewHost: HTMLElement,
   ) {
-    // The pixel preview lives in its own floating box (above the context).
-    previewHost.innerHTML = `
-      <canvas class="mask-preview" width="${PREVIEW_RES}" height="${PREVIEW_RES}"
-        title="Drag to move the noise"></canvas>
-      <div class="mask-preview-row">
-        <label class="chk"><input type="checkbox" id="mask-live" /> Preview on canvas</label>
-        <label class="chk"><input type="checkbox" id="mask-bw" /> B/W</label>
-      </div>`;
-
     const panel = document.createElement("section");
     panel.className = "panel";
     panel.id = "mask-panel";
     panel.innerHTML = `
       <h2>Noise mask</h2>
-      <div class="sliders" id="mask-sliders"></div>
-      <div class="noise-actions">
-        <button id="mask-apply">Apply to view</button>
-        <button id="mask-reseed">🎲 Reseed</button>
+      <div class="noise-body">
+        <div class="noise-left">
+          <canvas class="mask-preview" width="${PREVIEW_RES}" height="${PREVIEW_RES}"
+            title="Drag to move the noise"></canvas>
+          <div class="mask-preview-row">
+            <label class="chk"><input type="checkbox" id="mask-live" /> Preview on canvas</label>
+            <label class="chk"><input type="checkbox" id="mask-bw" /> B/W</label>
+          </div>
+        </div>
+        <div class="noise-right">
+          <div class="sliders" id="mask-sliders"></div>
+          <div class="noise-actions">
+            <button id="mask-apply">Apply to view</button>
+            <button id="mask-reseed">🎲 Reseed</button>
+          </div>
+        </div>
       </div>`;
     host.appendChild(panel);
 
-    this.canvas = previewHost.querySelector(".mask-preview") as HTMLCanvasElement;
+    this.canvas = panel.querySelector(".mask-preview") as HTMLCanvasElement;
     this.buildSliders(panel.querySelector("#mask-sliders")!, MASK_SLIDERS, (k, v) => this.setMask(k, v), this.maskInputs);
 
-    const live = previewHost.querySelector("#mask-live") as HTMLInputElement;
+    const live = panel.querySelector("#mask-live") as HTMLInputElement;
     live.checked = this.store.get().maskPreview;
     live.addEventListener("change", () => this.store.set({ maskPreview: live.checked }));
-    const bw = previewHost.querySelector("#mask-bw") as HTMLInputElement;
+    const bw = panel.querySelector("#mask-bw") as HTMLInputElement;
     bw.addEventListener("change", () => {
       this.previewBW = bw.checked;
       this.drawPreview(this.store.get());

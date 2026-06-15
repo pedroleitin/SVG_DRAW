@@ -17,7 +17,6 @@ const FPS_OPTIONS = [24, 30, 60];
 export class ExportPanel {
   private aspectSel!: HTMLSelectElement;
   private resSel!: HTMLSelectElement;
-  private showChk!: HTMLInputElement;
   private snapChk!: HTMLInputElement;
   private transpChk!: HTMLInputElement;
   private dims!: HTMLElement;
@@ -44,16 +43,13 @@ export class ExportPanel {
             <select id="exp-res">${RESOLUTIONS.map((r) => `<option value="${r}">${r}px</option>`).join("")}</select>
           </label>
         </div>
+        <div class="exp-dims" id="exp-dims"></div>
         <div class="exp-toggles">
-          <label class="chk"><input type="checkbox" id="exp-show" /> Show frame</label>
           <label class="chk"><input type="checkbox" id="exp-snap" /> Snap to grid</label>
+          <label class="chk"><input type="checkbox" id="exp-transp" /> Background transparent</label>
         </div>
         <div class="noise-actions">
           <button id="exp-fit">Fit to view</button>
-        </div>
-        <div class="exp-out">
-          <span class="exp-dims" id="exp-dims"></span>
-          <label class="chk"><input type="checkbox" id="exp-transp" /> Background transparent</label>
         </div>
         <div class="noise-actions exp-save">
           <button id="exp-svg">⬇ SVG</button>
@@ -84,7 +80,6 @@ export class ExportPanel {
 
     this.aspectSel = panel.querySelector("#exp-aspect") as HTMLSelectElement;
     this.resSel = panel.querySelector("#exp-res") as HTMLSelectElement;
-    this.showChk = panel.querySelector("#exp-show") as HTMLInputElement;
     this.snapChk = panel.querySelector("#exp-snap") as HTMLInputElement;
     this.transpChk = panel.querySelector("#exp-transp") as HTMLInputElement;
     this.dims = panel.querySelector("#exp-dims") as HTMLElement;
@@ -98,7 +93,6 @@ export class ExportPanel {
 
     this.aspectSel.addEventListener("change", () => this.changeAspect(this.aspectSel.value as AspectId));
     this.resSel.addEventListener("change", () => this.setFrame({ outWidth: Number(this.resSel.value) }));
-    this.showChk.addEventListener("change", () => this.setFrame({ show: this.showChk.checked }));
     this.snapChk.addEventListener("change", () => this.toggleSnap(this.snapChk.checked));
     this.transpChk.addEventListener("change", () => this.store.set({ exportTransparent: this.transpChk.checked }));
     this.fpsSel.addEventListener("change", () => (this.fps = Number(this.fpsSel.value)));
@@ -195,11 +189,10 @@ export class ExportPanel {
   private sync(s: SceneState): void {
     if (this.aspectSel.value !== s.frame.aspect) this.aspectSel.value = s.frame.aspect;
     if (Number(this.resSel.value) !== s.frame.outWidth) this.resSel.value = String(s.frame.outWidth);
-    this.showChk.checked = s.frame.show;
     this.snapChk.checked = s.frame.snap;
     this.transpChk.checked = s.exportTransparent;
     const { outW, outH } = outSize(s.frame);
-    this.dims.textContent = `${outW} × ${outH}px`;
+    this.dims.textContent = `Output: ${outW} × ${outH} px`;
   }
 }
 
