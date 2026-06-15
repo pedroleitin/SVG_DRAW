@@ -10,11 +10,10 @@ export interface Command {
 export class History {
   private undoStack: Command[] = [];
   private redoStack: Command[] = [];
-  private onChange?: () => void;
+  /** Called after any history change; the UI shell wires this up. */
+  onChange?: () => void;
 
-  constructor(private store: Store, onChange?: () => void) {
-    this.onChange = onChange;
-  }
+  constructor(private store: Store) {}
 
   dispatch(cmd: Command): void {
     cmd.apply(this.store);

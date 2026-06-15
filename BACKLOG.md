@@ -10,19 +10,15 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 ## 1. Interface (UI/UX)
 
-- [~] 🟡 **Revisão do layout da interface** — _em andamento._
-  Feito: tema **creme + accent dourado** (igual grid.leit.in) e **fundo de pontos**
-  (no lugar das linhas). Falta: reorganizar/agrupar controles, painéis colapsáveis,
-  abas, responsividade, e tema claro/escuro.
-  - Arquivos: [index.html](index.html), [src/ui/](src/ui/), [src/ui/styles/app.css](src/ui/styles/app.css)
-- [ ] 🔴 **Agrupar as funções por tipo** — definir uma taxonomia clara e refletir
-  na UI. Grupos identificados até agora:
-  - **Ferramentas de cena**: pintar (draw), apagar (erase), pan, desenhar ordem (path).
-  - **Geração**: máscara de noise, escala multi-célula, fill/reseed.
-  - **Aparência**: cores/paleta, formas/biblioteca, overlays (máscara, grid, ordem).
-  - **Animação**: ciclo de vida, ordem, playback.
-  - **Controles de tela / projeto**: undo/redo, zoom, clear, export, salvar/carregar.
-  - Decidir o que vai na toolbar (topo), no sidebar (painéis) e em barras contextuais.
+- [~] 🟡 **Revisão do layout da interface** — _grande parte feita._
+  Feito: tema **creme + accent dourado** (igual grid.leit.in), **fundo de pontos**,
+  e a **UI flutuante**: modos no topo (Draw/Compose/Animate/Export), toolbox por modo
+  embaixo, **context menus** acima da toolbox (Shapes, Colors, Noise, Animate, Export),
+  status (cell/placed + undo/redo/clear) no canto inf. esquerdo e zoom no direito.
+  Falta: responsividade fina, tema claro/escuro, e refino visual.
+  - Arquivos: [index.html](index.html), [src/ui/shell.ts](src/ui/shell.ts), [src/ui/](src/ui/), [src/ui/styles/app.css](src/ui/styles/app.css)
+- [x] 🔴 **Agrupar as funções por tipo** — feito via os 4 modos + context menus
+  compartilhados (Shapes/Colors). Refinamentos futuros: subgrupos dentro dos modos.
 
 ## 2. Grid
 

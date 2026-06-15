@@ -10,6 +10,12 @@ export type { ExportFrame };
 
 export type ToolId = "draw" | "erase" | "pan" | "path";
 
+/** Top-level UI mode (selected in the floating modes bar). */
+export type Mode = "draw" | "compose" | "animate" | "export";
+
+/** Which context menu is open, or null. */
+export type ContextPanel = "shapes" | "colors" | "noise" | "animate" | "export" | null;
+
 export interface Point {
   x: number;
   y: number;
@@ -64,6 +70,8 @@ export interface Camera {
 }
 
 export interface SceneState {
+  mode: Mode;
+  contextPanel: ContextPanel;
   tool: ToolId;
   cellSize: number;
   /** Active brush asset id, or "random" to pick from the library. */
