@@ -11,6 +11,7 @@ import { instanceGeom } from "../scene/geom";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 const EMPTY_ANIM: AnimOutput = {};
+const ORDER_COLOR = "#e03131";
 
 /** Translates scene state into live SVG. Source of truth stays in the store;
  *  this only reflects it, applying minimal add/remove/update diffs and
@@ -28,6 +29,8 @@ export class Renderer {
   private pathLine: SVGPolylineElement;
   private pathStart: SVGTextElement;
   private pathFinish: SVGTextElement;
+  private pathDotStart: SVGCircleElement;
+  private pathDotFinish: SVGCircleElement;
   private frameLayer: SVGGElement;
   private frameRects: SVGRectElement[] = [];
   private nodes = new Map<string, SVGUseElement>(); // cellKey -> <use>
@@ -70,9 +73,17 @@ export class Renderer {
     this.pathLayer.setAttribute("class", "order-path");
     this.pathLayer.style.pointerEvents = "none";
     this.pathLine = document.createElementNS(SVGNS, "polyline");
-    this.pathStart = this.makeLabel("START", "#37b24d");
-    this.pathFinish = this.makeLabel("FINISH", "#f03e3e");
-    this.pathLayer.append(this.pathLine, this.pathStart, this.pathFinish);
+    this.pathDotStart = this.makeDot();
+    this.pathDotFinish = this.makeDot();
+    this.pathStart = this.makeLabel("START");
+    this.pathFinish = this.makeLabel("FINISH");
+    this.pathLayer.append(
+      this.pathLine,
+      this.pathDotStart,
+      this.pathDotFinish,
+      this.pathStart,
+      this.pathFinish,
+    );
 
     // Export-frame overlay: 4 dark rects (letterbox) + a border on the frame.
     this.frameLayer = document.createElementNS(SVGNS, "g");
@@ -147,16 +158,20 @@ export class Renderer {
     set(this.frameRects[3], f.x + f.w, f.y, cam.x + cam.w - (f.x + f.w), f.h);
   }
 
-  private makeLabel(text: string, color: string): SVGTextElement {
+  private makeLabel(text: string): SVGTextElement {
     const t = document.createElementNS(SVGNS, "text");
     t.textContent = text;
-    t.setAttribute("fill", color);
-    t.setAttribute("stroke", "#000");
-    t.setAttribute("paint-order", "stroke");
-    t.setAttribute("font-weight", "700");
+    t.setAttribute("fill", ORDER_COLOR);
+    t.setAttribute("font-weight", "600");
     t.setAttribute("font-family", "system-ui, sans-serif");
     t.setAttribute("text-anchor", "middle");
     return t;
+  }
+
+  private makeDot(): SVGCircleElement {
+    const c = document.createElementNS(SVGNS, "circle");
+    c.setAttribute("fill", ORDER_COLOR);
+    return c;
   }
 
   /** Draw the hand-drawn reveal path (world coords) with START/FINISH labels. */
@@ -173,21 +188,31 @@ export class Renderer {
     const px = 1 / (this.hostSize.width / cam.w); // world units per device px
     this.pathLine.setAttribute("points", path.map((p) => `${p.x},${p.y}`).join(" "));
     this.pathLine.setAttribute("fill", "none");
-    this.pathLine.setAttribute("stroke", "#1c3980");
-    this.pathLine.setAttribute("stroke-width", String(3 * px));
+    this.pathLine.setAttribute("stroke", ORDER_COLOR);
+    this.pathLine.setAttribute("stroke-width", String(2.5 * px));
     this.pathLine.setAttribute("stroke-linejoin", "round");
     this.pathLine.setAttribute("stroke-linecap", "round");
-    this.pathLine.setAttribute("stroke-dasharray", `${6 * px} ${5 * px}`);
+    this.pathLine.removeAttribute("stroke-dasharray"); // solid line
 
-    const fs = state.cellSize * 0.45;
+    const start = path[0];
+    const finish = path[path.length - 1];
+    const dotR = 4.5 * px;
+    const dot = (c: SVGCircleElement, p: { x: number; y: number }) => {
+      c.setAttribute("cx", String(p.x));
+      c.setAttribute("cy", String(p.y));
+      c.setAttribute("r", String(dotR));
+    };
+    dot(this.pathDotStart, start);
+    dot(this.pathDotFinish, finish);
+
+    const fs = 14 * px; // ~14 screen px regardless of zoom
     const place = (el: SVGTextElement, p: { x: number; y: number }) => {
       el.setAttribute("x", String(p.x));
-      el.setAttribute("y", String(p.y - fs * 0.5));
+      el.setAttribute("y", String(p.y - dotR - 5 * px));
       el.setAttribute("font-size", String(fs));
-      el.setAttribute("stroke-width", String(px * 3));
     };
-    place(this.pathStart, path[0]);
-    place(this.pathFinish, path[path.length - 1]);
+    place(this.pathStart, start);
+    place(this.pathFinish, finish);
   }
 
   /** Live mask preview: shade visible cells by the fractal field (grayscale)
