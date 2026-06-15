@@ -19,7 +19,6 @@ export class ExportPanel {
   private resSel!: HTMLSelectElement;
   private showChk!: HTMLInputElement;
   private snapChk!: HTMLInputElement;
-  private bgInput!: HTMLInputElement;
   private transpChk!: HTMLInputElement;
   private dims!: HTMLElement;
   private fpsSel!: HTMLSelectElement;
@@ -34,9 +33,9 @@ export class ExportPanel {
     panel.className = "panel";
     panel.id = "export-panel";
     panel.innerHTML = `
-      <h2>Export</h2>
       <div class="exp-cols">
        <div class="exp-col">
+        <h3 class="exp-sub">Export</h3>
         <div class="select-grid">
           <label class="sel"><span>Aspect</span>
             <select id="exp-aspect">${ASPECT_IDS.map((a) => `<option value="${a}">${a === "free" ? "Free Form" : a}</option>`).join("")}</select>
@@ -49,13 +48,12 @@ export class ExportPanel {
           <label class="chk"><input type="checkbox" id="exp-show" /> Show frame</label>
           <label class="chk"><input type="checkbox" id="exp-snap" /> Snap to grid</label>
         </div>
-        <div class="exp-bg-row">
-          <label class="chk" title="Canvas + export background"><input type="color" id="exp-bg" /> Background</label>
-          <label class="chk"><input type="checkbox" id="exp-transp" /> Transparent</label>
-        </div>
-        <div class="exp-dims" id="exp-dims"></div>
         <div class="noise-actions">
           <button id="exp-fit">Fit to view</button>
+        </div>
+        <div class="exp-out">
+          <span class="exp-dims" id="exp-dims"></span>
+          <label class="chk"><input type="checkbox" id="exp-transp" /> Transparent</label>
         </div>
         <div class="noise-actions">
           <button id="exp-svg">⬇ SVG</button>
@@ -88,7 +86,6 @@ export class ExportPanel {
     this.resSel = panel.querySelector("#exp-res") as HTMLSelectElement;
     this.showChk = panel.querySelector("#exp-show") as HTMLInputElement;
     this.snapChk = panel.querySelector("#exp-snap") as HTMLInputElement;
-    this.bgInput = panel.querySelector("#exp-bg") as HTMLInputElement;
     this.transpChk = panel.querySelector("#exp-transp") as HTMLInputElement;
     this.dims = panel.querySelector("#exp-dims") as HTMLElement;
     this.fpsSel = panel.querySelector("#exp-fps") as HTMLSelectElement;
@@ -103,7 +100,6 @@ export class ExportPanel {
     this.resSel.addEventListener("change", () => this.setFrame({ outWidth: Number(this.resSel.value) }));
     this.showChk.addEventListener("change", () => this.setFrame({ show: this.showChk.checked }));
     this.snapChk.addEventListener("change", () => this.toggleSnap(this.snapChk.checked));
-    this.bgInput.addEventListener("input", () => this.store.set({ bgColor: this.bgInput.value }));
     this.transpChk.addEventListener("change", () => this.store.set({ exportTransparent: this.transpChk.checked }));
     this.fpsSel.addEventListener("change", () => (this.fps = Number(this.fpsSel.value)));
     this.durInput.addEventListener("change", () => (this.duration = clampDur(Number(this.durInput.value))));
@@ -201,7 +197,6 @@ export class ExportPanel {
     if (Number(this.resSel.value) !== s.frame.outWidth) this.resSel.value = String(s.frame.outWidth);
     this.showChk.checked = s.frame.show;
     this.snapChk.checked = s.frame.snap;
-    if (this.bgInput.value.toLowerCase() !== s.bgColor.toLowerCase()) this.bgInput.value = s.bgColor;
     this.transpChk.checked = s.exportTransparent;
     const { outW, outH } = outSize(s.frame);
     this.dims.textContent = `${outW} × ${outH}px`;

@@ -3,22 +3,44 @@ import type { Renderer } from "../render/renderer";
 import type { Palette, SceneState } from "../scene/types";
 import { paletteById } from "../features/palette";
 
-/** Colors context panel: palette picker + swatch editor. */
+const DEFAULT_BG = "#f7f5ef";
+
+/** Colors context panel: palette picker + swatch editor (left) and the canvas
+ *  background color with a reset (right). */
 export class ColorsPanel {
   private root: HTMLElement;
+  private bgInput!: HTMLInputElement;
   private sig = "";
 
   constructor(host: HTMLElement, private store: Store, private renderer: Renderer) {
     this.root = host;
     this.root.innerHTML = `
       <h2>Colors</h2>
-      <div class="palette-list"></div>
-      <div class="swatches"></div>`;
+      <div class="colors-cols">
+        <div class="colors-left">
+          <h3 class="exp-sub">Palette</h3>
+          <div class="palette-list"></div>
+          <div class="swatches"></div>
+        </div>
+        <div class="colors-right">
+          <h3 class="exp-sub">Background</h3>
+          <div class="bg-row">
+            <input type="color" id="bg-color" title="Canvas + export background" />
+            <button id="bg-reset" class="tool-btn">Reset</button>
+          </div>
+        </div>
+      </div>`;
+    this.bgInput = this.root.querySelector("#bg-color") as HTMLInputElement;
+    this.bgInput.addEventListener("input", () => this.store.set({ bgColor: this.bgInput.value }));
+    this.root.querySelector("#bg-reset")!.addEventListener("click", () =>
+      this.store.set({ bgColor: DEFAULT_BG }),
+    );
     this.render(store.get());
     store.subscribe((s) => this.render(s));
   }
 
   private render(s: SceneState): void {
+    if (this.bgInput.value.toLowerCase() !== s.bgColor.toLowerCase()) this.bgInput.value = s.bgColor;
     const sig = [s.activePaletteId, s.activeColorIndex, JSON.stringify(s.palettes.map((p) => p.colors))].join("|");
     if (sig === this.sig) return;
     this.sig = sig;
