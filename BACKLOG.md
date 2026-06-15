@@ -35,6 +35,11 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 - [ ] 🟡 **Micro-interações de hover** — animações de hover em botões e outros itens
   (transition de cor/escala/sombra), consistentes em toda a UI.
   - Arquivos: [src/ui/styles/app.css](src/ui/styles/app.css).
+- [ ] 🟡 **Cursor por estado/ferramenta** — o ponteiro do mouse muda conforme o modo
+  e a função ativa (ex.: crosshair no Draw, borracha no Erase, grab/grabbing no Pan,
+  cursor de caminho no Order, move/resize no frame, brush quando houver brush size).
+  - Hoje o `#stage` é sempre `crosshair`. Aplicar via classe no stage conforme `tool`/`mode`.
+  - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (classe no stage), [src/ui/styles/app.css](src/ui/styles/app.css).
 
 ## 2. Grid
 
