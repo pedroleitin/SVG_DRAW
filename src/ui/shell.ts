@@ -5,6 +5,8 @@ import type { Renderer } from "../render/renderer";
 import type { Mode, ContextPanel, SceneState, ToolId } from "../scene/types";
 import { ClearAll } from "../commands/sceneCommands";
 import { makeCamera, zoomOf, zoomAt } from "../scene/camera";
+import { createDropdown } from "./widgets";
+import type { DropdownHandle } from "./widgets";
 import { ShapesPanel } from "./shapesPanel";
 import { ColorsPanel } from "./colorsPanel";
 import { Controls } from "./controls";
@@ -37,8 +39,7 @@ export class Shell {
   private toolboxEl: HTMLElement;
   private editsEl: HTMLElement;
   private settingsEl: HTMLElement;
-  private sizeNum?: HTMLElement;
-  private sizeMenu?: HTMLElement;
+  private sizeDD?: DropdownHandle;
   private contextEl: HTMLElement;
   private ctxAboveEl: HTMLElement;
   private statusEl: HTMLElement;
@@ -69,7 +70,6 @@ export class Shell {
     this.mountContexts(library);
 
     history.onChange = () => this.refreshStatus();
-    document.addEventListener("click", () => this.sizeMenu?.classList.add("hidden"));
     this.store.subscribe((s) => this.sync(s));
     this.sync(store.get());
   }
@@ -165,45 +165,13 @@ export class Shell {
         if (Object.keys(this.store.get().instances).length) this.history.dispatch(new ClearAll());
       },
     });
-    this.settingsEl.append(this.sizeDropdown(), clear);
-  }
-
-  /** Custom "Size N" dropdown (styled pill + floating list). */
-  private sizeDropdown(): HTMLElement {
-    const dd = document.createElement("div");
-    dd.className = "size-dd";
-    const btn = document.createElement("button");
-    btn.className = "tool-btn size-btn";
-    btn.innerHTML = `Size <b>${this.store.get().cellSize}</b>`;
-    this.sizeNum = btn.querySelector("b") as HTMLElement;
-    const menu = document.createElement("div");
-    menu.className = "size-menu hidden";
-    for (const size of [128, 64, 32, 16]) {
-      const opt = document.createElement("button");
-      opt.textContent = String(size);
-      opt.dataset.size = String(size);
-      opt.addEventListener("click", () => {
-        this.store.set({ cellSize: size });
-        menu.classList.add("hidden");
-      });
-      menu.appendChild(opt);
-    }
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      menu.classList.toggle("hidden");
-      this.syncSizeMenu();
-    });
-    this.sizeMenu = menu;
-    dd.append(btn, menu);
-    return dd;
-  }
-
-  private syncSizeMenu(): void {
-    const cell = this.store.get().cellSize;
-    if (this.sizeNum) this.sizeNum.textContent = String(cell);
-    this.sizeMenu?.querySelectorAll<HTMLButtonElement>("button").forEach((b) =>
-      b.classList.toggle("active", Number(b.dataset.size) === cell),
+    this.sizeDD = createDropdown(
+      [128, 64, 32, 16].map((n) => ({ value: String(n) })),
+      String(this.store.get().cellSize),
+      (v) => this.store.set({ cellSize: Number(v) }),
+      { prefix: "Size" },
     );
+    this.settingsEl.append(this.sizeDD.el, clear);
   }
 
   private buildToolbox(s: SceneState): void {
@@ -324,7 +292,7 @@ export class Shell {
     for (const [key, host] of this.ctxHosts) host.classList.toggle("hidden", key !== open);
 
     // Pan + zoom.
-    this.syncSizeMenu();
+    this.sizeDD?.setValue(String(s.cellSize));
     this.zoomEl.querySelector("#sh-pan")!.classList.toggle("active", s.tool === "pan");
     const zl = this.zoomEl.querySelector("#sh-zlabel");
     if (zl) zl.textContent = `${Math.round(zoomOf(s.camera, this.renderer.hostSize) * 100)}%`;

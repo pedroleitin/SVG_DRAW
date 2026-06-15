@@ -8,6 +8,8 @@ import {
   IDLE_IDS,
 } from "../anim/animations";
 import type { AnimationConfig } from "../anim/animations";
+import { createDropdown, paintRange } from "./widgets";
+import type { DropdownHandle } from "./widgets";
 
 /** Animation panel — lifecycle + order + playback.
  *  - Order: how SVGs are sequenced in (linear/radial/sequential/random/free).
@@ -15,7 +17,7 @@ import type { AnimationConfig } from "../anim/animations";
  *  - Playback: loop / ping-pong / once.
  *  Toggling Play flips animation.playing; main.ts runs the engine. */
 export class AnimPanel {
-  private selects = new Map<keyof AnimationConfig, HTMLSelectElement>();
+  private dropdowns = new Map<keyof AnimationConfig, { dd: DropdownHandle; wrap: HTMLElement }>();
   private sliders = new Map<keyof AnimationConfig, { range: HTMLInputElement; out: HTMLElement }>();
 
   constructor(host: HTMLElement, private store: Store) {
@@ -58,18 +60,17 @@ export class AnimPanel {
     options: readonly string[],
     labels: Record<string, string> = {},
   ): void {
-    const wrap = document.createElement("label");
+    const wrap = document.createElement("div");
     wrap.className = "sel";
-    wrap.innerHTML = `
-      <span>${label}</span>
-      <select>${options
-        .map((o) => `<option value="${o}">${labels[o] ?? o}</option>`)
-        .join("")}</select>`;
-    const sel = wrap.querySelector("select")!;
-    sel.addEventListener("change", () =>
-      this.set({ [key]: sel.value } as Partial<AnimationConfig>),
+    const span = document.createElement("span");
+    span.textContent = label;
+    const dd = createDropdown(
+      options.map((o) => ({ value: o, label: labels[o] ?? o })),
+      String(this.store.get().animation[key]),
+      (v) => this.set({ [key]: v } as Partial<AnimationConfig>),
     );
-    this.selects.set(key, sel);
+    wrap.append(span, dd.el);
+    this.dropdowns.set(key, { dd, wrap });
     host.appendChild(wrap);
   }
 
@@ -89,9 +90,10 @@ export class AnimPanel {
       <span class="slider-val"></span>`;
     const range = row.querySelector("input")!;
     const out = row.querySelector(".slider-val") as HTMLElement;
-    range.addEventListener("input", () =>
-      this.set({ [key]: Number(range.value) } as Partial<AnimationConfig>),
-    );
+    range.addEventListener("input", () => {
+      paintRange(range);
+      this.set({ [key]: Number(range.value) } as Partial<AnimationConfig>);
+    });
     this.sliders.set(key, { range, out });
     host.appendChild(row);
   }
@@ -116,17 +118,14 @@ export class AnimPanel {
 
   private sync(s: SceneState): void {
     const a = s.animation;
-    for (const [key, sel] of this.selects) {
-      const v = String(a[key]);
-      if (sel.value !== v) sel.value = v;
-    }
+    for (const [key, { dd }] of this.dropdowns) dd.setValue(String(a[key]));
     // Direction only matters for linear order — dim it otherwise.
-    const dirSel = this.selects.get("direction")!;
-    (dirSel.closest(".sel") as HTMLElement).style.opacity = a.order === "linear" ? "1" : "0.4";
+    this.dropdowns.get("direction")!.wrap.style.opacity = a.order === "linear" ? "1" : "0.4";
 
     for (const [key, { range, out }] of this.sliders) {
       const v = a[key] as number;
       if (Number(range.value) !== v) range.value = String(v);
+      paintRange(range);
       out.textContent = v.toFixed(2);
     }
   }

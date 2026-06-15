@@ -6,6 +6,7 @@ import { ApplyMaskCommand } from "../commands/sceneCommands";
 import { applyMask } from "../features/placement";
 import { maskField, sampleMask } from "../features/noise";
 import { visibleCellRange } from "../scene/grid";
+import { paintRange } from "./widgets";
 
 type MaskKey = keyof MaskParams;
 
@@ -105,7 +106,10 @@ export class Controls {
         <span class="slider-val"></span>`;
       const range = row.querySelector("input")!;
       const out = row.querySelector(".slider-val") as HTMLElement;
-      range.addEventListener("input", () => onInput(def.key, Number(range.value)));
+      range.addEventListener("input", () => {
+        paintRange(range);
+        onInput(def.key, Number(range.value));
+      });
       map.set(def.key, { range, out });
       host.appendChild(row);
     }
@@ -121,6 +125,7 @@ export class Controls {
       const e = this.maskInputs.get(def.key)!;
       const v = s.mask[def.key];
       if (Number(e.range.value) !== v) e.range.value = String(v);
+      paintRange(e.range);
       e.out.textContent = def.format ? def.format(v) : v.toFixed(2);
     }
     this.drawPreview(s);

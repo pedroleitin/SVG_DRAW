@@ -8,6 +8,8 @@ import { svgBlob, downloadBlob, svgToPngBlob } from "../export/raster";
 import { exportPngSequence } from "../export/sequence";
 import { exportMp4, isVideoExportSupported } from "../export/video";
 import { loopDuration } from "../anim/animations";
+import { createDropdown } from "./widgets";
+import type { DropdownHandle } from "./widgets";
 
 const RESOLUTIONS = [720, 1080, 1440, 2160];
 const FPS_OPTIONS = [24, 30, 60];
@@ -15,12 +17,11 @@ const FPS_OPTIONS = [24, 30, 60];
 /** Export panel: choose an aspect-ratio frame + output resolution, preview it
  *  as a letterbox on the canvas, and export the framed scene to SVG / PNG. */
 export class ExportPanel {
-  private aspectSel!: HTMLSelectElement;
-  private resSel!: HTMLSelectElement;
+  private aspectDD!: DropdownHandle;
+  private resDD!: DropdownHandle;
   private snapChk!: HTMLInputElement;
   private transpChk!: HTMLInputElement;
   private dims!: HTMLElement;
-  private fpsSel!: HTMLSelectElement;
   private durInput!: HTMLInputElement;
   private progress!: HTMLElement;
   private fps = 30;
@@ -39,12 +40,8 @@ export class ExportPanel {
        <div class="exp-col">
         <h3 class="exp-sub">Static</h3>
         <div class="select-grid">
-          <label class="sel"><span>Aspect</span>
-            <select id="exp-aspect">${ASPECT_IDS.map((a) => `<option value="${a}">${a === "free" ? "Free Form" : a}</option>`).join("")}</select>
-          </label>
-          <label class="sel"><span>Resolution</span>
-            <select id="exp-res">${RESOLUTIONS.map((r) => `<option value="${r}">${r}px</option>`).join("")}</select>
-          </label>
+          <div class="sel" id="exp-aspect-slot"><span>Aspect</span></div>
+          <div class="sel" id="exp-res-slot"><span>Resolution</span></div>
         </div>
         <div class="exp-toggles">
           <label class="chk"><input type="checkbox" id="exp-snap" /> Snap to grid</label>
@@ -61,9 +58,7 @@ export class ExportPanel {
        <div class="exp-col">
         <h3 class="exp-sub">Animated</h3>
         <div class="select-grid">
-          <label class="sel"><span>FPS</span>
-            <select id="exp-fps">${FPS_OPTIONS.map((f) => `<option value="${f}">${f}</option>`).join("")}</select>
-          </label>
+          <div class="sel" id="exp-fps-slot"><span>FPS</span></div>
           <label class="sel"><span>Duration (s)</span>
             <input id="exp-dur" type="number" min="0.2" max="30" step="0.1" />
           </label>
@@ -80,24 +75,37 @@ export class ExportPanel {
       </div>`;
     host.appendChild(panel);
 
-    this.aspectSel = panel.querySelector("#exp-aspect") as HTMLSelectElement;
-    this.resSel = panel.querySelector("#exp-res") as HTMLSelectElement;
     this.snapChk = panel.querySelector("#exp-snap") as HTMLInputElement;
     this.transpChk = panel.querySelector("#exp-transp") as HTMLInputElement;
     this.dims = aboveHost.querySelector("#exp-dims") as HTMLElement;
-    this.fpsSel = panel.querySelector("#exp-fps") as HTMLSelectElement;
     this.durInput = panel.querySelector("#exp-dur") as HTMLInputElement;
     this.progress = panel.querySelector("#exp-progress") as HTMLElement;
 
+    const f = this.store.get().frame;
+    this.aspectDD = createDropdown(
+      ASPECT_IDS.map((a) => ({ value: a, label: a === "free" ? "Free Form" : a })),
+      f.aspect,
+      (v) => this.changeAspect(v as AspectId),
+    );
+    panel.querySelector("#exp-aspect-slot")!.append(this.aspectDD.el);
+    this.resDD = createDropdown(
+      RESOLUTIONS.map((r) => ({ value: String(r), label: `${r}px` })),
+      String(f.outWidth),
+      (v) => this.setFrame({ outWidth: Number(v) }),
+    );
+    panel.querySelector("#exp-res-slot")!.append(this.resDD.el);
+    const fpsDD = createDropdown(
+      FPS_OPTIONS.map((x) => ({ value: String(x) })),
+      String(this.fps),
+      (v) => (this.fps = Number(v)),
+    );
+    panel.querySelector("#exp-fps-slot")!.append(fpsDD.el);
+
     this.duration = clampDur(loopDuration(this.store.get().animation));
-    this.fpsSel.value = String(this.fps);
     this.durInput.value = this.duration.toFixed(1);
 
-    this.aspectSel.addEventListener("change", () => this.changeAspect(this.aspectSel.value as AspectId));
-    this.resSel.addEventListener("change", () => this.setFrame({ outWidth: Number(this.resSel.value) }));
     this.snapChk.addEventListener("change", () => this.toggleSnap(this.snapChk.checked));
     this.transpChk.addEventListener("change", () => this.store.set({ exportTransparent: this.transpChk.checked }));
-    this.fpsSel.addEventListener("change", () => (this.fps = Number(this.fpsSel.value)));
     this.durInput.addEventListener("change", () => (this.duration = clampDur(Number(this.durInput.value))));
     panel.querySelector("#exp-fit")!.addEventListener("click", () => this.fit());
     panel.querySelector("#exp-svg")!.addEventListener("click", () => this.exportSVG());
@@ -189,8 +197,8 @@ export class ExportPanel {
   }
 
   private sync(s: SceneState): void {
-    if (this.aspectSel.value !== s.frame.aspect) this.aspectSel.value = s.frame.aspect;
-    if (Number(this.resSel.value) !== s.frame.outWidth) this.resSel.value = String(s.frame.outWidth);
+    this.aspectDD.setValue(s.frame.aspect);
+    this.resDD.setValue(String(s.frame.outWidth));
     this.snapChk.checked = s.frame.snap;
     this.transpChk.checked = s.exportTransparent;
     const { outW, outH } = outSize(s.frame);
