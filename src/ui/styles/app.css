@@ -109,6 +109,23 @@ body {
   border-radius: 16px;
 }
 
+/* Slot above the context, left-aligned (e.g. the Export output-size pill). */
+#ctx-above {
+  align-self: flex-start;
+}
+
+#ctx-above.hidden {
+  display: none;
+}
+
+.output-pill {
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Wider, more horizontal layout for Noise and Export contexts. */
 #context.wide {
   width: 560px;

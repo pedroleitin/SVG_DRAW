@@ -40,6 +40,7 @@ export class Shell {
   private sizeNum?: HTMLElement;
   private sizeMenu?: HTMLElement;
   private contextEl: HTMLElement;
+  private ctxAboveEl: HTMLElement;
   private statusEl: HTMLElement;
   private zoomEl: HTMLElement;
   private ctxHosts = new Map<string, HTMLElement>();
@@ -56,6 +57,7 @@ export class Shell {
     this.editsEl = document.getElementById("edits") as HTMLElement;
     this.settingsEl = document.getElementById("settings") as HTMLElement;
     this.contextEl = document.getElementById("context") as HTMLElement;
+    this.ctxAboveEl = document.getElementById("ctx-above") as HTMLElement;
     this.statusEl = document.getElementById("status") as HTMLElement;
     this.zoomEl = document.getElementById("zoombox") as HTMLElement;
 
@@ -110,7 +112,7 @@ export class Shell {
     new ColorsPanel(make("colors"), this.store, this.renderer);
     new Controls(make("noise"), this.store, library, this.history);
     new AnimPanel(make("animate"), this.store);
-    new ExportPanel(make("export"), this.store, library);
+    new ExportPanel(make("export"), this.store, library, this.ctxAboveEl);
   }
 
   private toggleContext(key: Exclude<ContextPanel, null>): void {
@@ -317,6 +319,8 @@ export class Shell {
       "wide",
       open === "noise" || open === "export" || open === "animate" || open === "colors",
     );
+    // The output-size pill above the context belongs to Export only.
+    this.ctxAboveEl.classList.toggle("hidden", open !== "export");
     for (const [key, host] of this.ctxHosts) host.classList.toggle("hidden", key !== open);
 
     // Pan + zoom.

@@ -27,7 +27,10 @@ export class ExportPanel {
   private duration = 2;
   private busy = false;
 
-  constructor(host: HTMLElement, private store: Store, private library: Library) {
+  constructor(host: HTMLElement, private store: Store, private library: Library, aboveHost: HTMLElement) {
+    // Output size shows as a left-aligned pill above the context menu.
+    aboveHost.innerHTML = `<div class="float output-pill"><span id="exp-dims"></span></div>`;
+
     const panel = document.createElement("section");
     panel.className = "panel";
     panel.id = "export-panel";
@@ -43,7 +46,6 @@ export class ExportPanel {
             <select id="exp-res">${RESOLUTIONS.map((r) => `<option value="${r}">${r}px</option>`).join("")}</select>
           </label>
         </div>
-        <div class="exp-dims" id="exp-dims"></div>
         <div class="exp-toggles">
           <label class="chk"><input type="checkbox" id="exp-snap" /> Snap to grid</label>
           <label class="chk"><input type="checkbox" id="exp-transp" /> Background transparent</label>
@@ -82,7 +84,7 @@ export class ExportPanel {
     this.resSel = panel.querySelector("#exp-res") as HTMLSelectElement;
     this.snapChk = panel.querySelector("#exp-snap") as HTMLInputElement;
     this.transpChk = panel.querySelector("#exp-transp") as HTMLInputElement;
-    this.dims = panel.querySelector("#exp-dims") as HTMLElement;
+    this.dims = aboveHost.querySelector("#exp-dims") as HTMLElement;
     this.fpsSel = panel.querySelector("#exp-fps") as HTMLSelectElement;
     this.durInput = panel.querySelector("#exp-dur") as HTMLInputElement;
     this.progress = panel.querySelector("#exp-progress") as HTMLElement;
