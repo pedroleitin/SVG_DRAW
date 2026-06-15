@@ -53,12 +53,12 @@ export class FrameController {
     this.layer = document.createElementNS(SVGNS, "g");
     this.layer.setAttribute("class", "frame-ui");
 
-    // Wide transparent hit-stroke for grabbing the border to MOVE.
+    // Transparent fill over the whole frame area = grab anywhere to MOVE.
+    // (Resize handles sit on top, so they still win at the edges/corners.)
     this.hit = document.createElementNS(SVGNS, "rect");
-    this.hit.setAttribute("fill", "none");
-    this.hit.setAttribute("stroke", "transparent");
+    this.hit.setAttribute("fill", "transparent");
     this.hit.style.cursor = "move";
-    this.hit.style.pointerEvents = "stroke";
+    this.hit.style.pointerEvents = "all";
     this.hit.dataset.mode = "move";
 
     this.border = document.createElementNS(SVGNS, "rect");
@@ -122,7 +122,6 @@ export class FrameController {
     set(this.border, f.x, f.y, f.w, f.h);
     this.border.setAttribute("stroke-width", String(1.5 * px));
     set(this.hit, f.x, f.y, f.w, f.h);
-    this.hit.setAttribute("stroke-width", String(10 * px));
 
     const hs = 9 * px; // handle size in world units
     for (const h of HANDLES) {
