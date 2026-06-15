@@ -1,12 +1,15 @@
 :root {
-  --bg: #1a1b1e;
-  --panel: #25262b;
-  --panel-2: #2f3036;
-  --line: #3a3b40;
-  --text: #e9ecef;
-  --muted: #909296;
-  --accent: #4dabf7;
-  --grid-line: #ffffff14;
+  --bg: #f7f5ef;
+  --panel: #f1eee7;
+  --panel-2: #ffffff;
+  --line: #d7d2c7;
+  --line-strong: #b1b1b1;
+  --text: #414141;
+  --muted: #978f7e;
+  --accent: #ffc800;
+  --accent-ink: #3a3526;
+  --hover: #ebe6db;
+  --grid-dot: #cdc7ba;
 }
 
 * {
@@ -77,12 +80,14 @@ body {
 }
 
 #toolbar button:hover {
-  background: #383942;
+  background: var(--hover);
 }
 
 #toolbar button.active {
+  background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
 }
 
 #toolbar button:disabled {
@@ -144,7 +149,7 @@ body {
 }
 
 .asset-btn:hover {
-  background: #383942;
+  background: var(--hover);
 }
 
 .asset-btn.active {
@@ -193,7 +198,7 @@ body {
 .dropzone:hover,
 .dropzone.over {
   border-color: var(--accent);
-  background: #2a3540;
+  background: var(--hover);
   color: var(--text);
 }
 
@@ -396,17 +401,35 @@ body {
 }
 
 #anim-play:hover {
-  background: #383942;
+  background: var(--hover);
 }
 
 #anim-play.playing {
+  background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .exp-toggles {
   display: flex;
   gap: 16px;
+}
+
+.exp-bg-row {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.exp-bg-row input[type="color"] {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
 }
 
 .exp-dims {
@@ -466,7 +489,7 @@ body {
 }
 
 .noise-actions button:hover {
-  background: #383942;
+  background: var(--hover);
   border-color: var(--accent);
 }
 
@@ -475,15 +498,12 @@ body {
   overflow: hidden;
   flex: 1;
   min-width: 0;
-  background:
-    radial-gradient(circle at 50% 40%, #202126 0%, var(--bg) 70%);
+  background: var(--bg);
   cursor: crosshair;
 }
 
-.grid-lines {
-  stroke: var(--grid-line);
-  fill: none;
-  vector-effect: non-scaling-stroke;
+.grid-dot {
+  fill: var(--grid-dot);
 }
 
 #statusbar {

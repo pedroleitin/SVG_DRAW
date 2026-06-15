@@ -60,11 +60,23 @@ const initial: SceneState = {
   },
   orderPath: [],
   frame: { aspect: "1:1", ...fitFrame(camera0, "1:1"), outWidth: 1080, show: false, snap: true },
+  bgColor: "#f7f5ef",
+  exportTransparent: false,
   camera: camera0,
 };
 
 const store = new Store(initial);
 const renderer = new Renderer(stage, library);
+
+// Live canvas background color.
+let prevBg = "";
+store.subscribe((s) => {
+  if (s.bgColor !== prevBg) {
+    prevBg = s.bgColor;
+    stage.style.backgroundColor = s.bgColor;
+  }
+});
+stage.style.backgroundColor = initial.bgColor;
 
 let prevPaletteId = initial.activePaletteId;
 const history = new History(store, refreshHistoryButtons);

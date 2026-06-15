@@ -8,6 +8,7 @@ import { outSize } from "./frame";
 export interface VideoOptions {
   fps: number;
   duration: number; // seconds
+  background?: string | null;
   onProgress?: (done: number, total: number) => void;
 }
 
@@ -36,7 +37,7 @@ export async function exportMp4(
   library: Library,
   opts: VideoOptions,
 ): Promise<void> {
-  const { fps, duration, onProgress } = opts;
+  const { fps, duration, background, onProgress } = opts;
   let { outW, outH } = outSize(state.frame);
   outW -= outW % 2; // H.264 needs even dimensions
   outH -= outH % 2;
@@ -60,9 +61,11 @@ export async function exportMp4(
   canvas.width = outW;
   canvas.height = outH;
 
+  // H.264 has no alpha, so always composite onto a solid background.
+  const bgFill = background ?? "#ffffff";
   for (let i = 0; i < total; i++) {
     if (encodeError) throw encodeError;
-    const svg = buildSceneSVG(state, library, i / fps);
+    const svg = buildSceneSVG(state, library, i / fps, bgFill);
     await rasterizeSvg(svg, canvas);
     const frame = new VideoFrame(canvas, {
       timestamp: Math.round((i * 1e6) / fps),

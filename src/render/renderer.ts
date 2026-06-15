@@ -18,7 +18,9 @@ const EMPTY_ANIM: AnimOutput = {};
 export class Renderer {
   readonly svg: SVGSVGElement;
   private defs: SVGDefsElement;
-  private gridPath: SVGPathElement;
+  private gridRect: SVGRectElement;
+  private gridDot: SVGCircleElement;
+  private gridPattern: SVGPatternElement;
   private content: SVGGElement;
   private maskLayer: SVGGElement;
   private maskRects: SVGRectElement[] = [];
@@ -42,8 +44,21 @@ export class Renderer {
     this.svg.style.touchAction = "none";
 
     this.defs = document.createElementNS(SVGNS, "defs");
-    this.gridPath = document.createElementNS(SVGNS, "path");
-    this.gridPath.setAttribute("class", "grid-lines");
+
+    // Dot-grid background: a <pattern> of a single dot tiled in world space, so
+    // the dots align to cell corners and pan/zoom with the content.
+    this.gridPattern = document.createElementNS(SVGNS, "pattern");
+    this.gridPattern.setAttribute("id", "grid-dots");
+    this.gridPattern.setAttribute("patternUnits", "userSpaceOnUse");
+    this.gridDot = document.createElementNS(SVGNS, "circle");
+    this.gridDot.setAttribute("cx", "0");
+    this.gridDot.setAttribute("cy", "0");
+    this.gridDot.setAttribute("class", "grid-dot");
+    this.gridPattern.appendChild(this.gridDot);
+    this.defs.appendChild(this.gridPattern);
+    this.gridRect = document.createElementNS(SVGNS, "rect");
+    this.gridRect.setAttribute("fill", "url(#grid-dots)");
+
     this.content = document.createElementNS(SVGNS, "g");
     this.content.setAttribute("class", "content");
     this.maskLayer = document.createElementNS(SVGNS, "g");
@@ -73,7 +88,7 @@ export class Renderer {
 
     this.svg.append(
       this.defs,
-      this.gridPath,
+      this.gridRect,
       this.content,
       this.maskLayer,
       this.pathLayer,
@@ -158,7 +173,7 @@ export class Renderer {
     const px = 1 / (this.hostSize.width / cam.w); // world units per device px
     this.pathLine.setAttribute("points", path.map((p) => `${p.x},${p.y}`).join(" "));
     this.pathLine.setAttribute("fill", "none");
-    this.pathLine.setAttribute("stroke", "#4dabf7");
+    this.pathLine.setAttribute("stroke", "#1c3980");
     this.pathLine.setAttribute("stroke-width", String(3 * px));
     this.pathLine.setAttribute("stroke-linejoin", "round");
     this.pathLine.setAttribute("stroke-linecap", "round");
@@ -230,25 +245,22 @@ export class Renderer {
 
   private renderGrid(state: SceneState): void {
     const { camera: cam, cellSize } = state;
-    const r = visibleCellRange(cam, cellSize, 0);
-    // Skip drawing lines when cells are sub-pixel to avoid moiré/overdraw.
     const zoom = this.hostSize.width / cam.w;
+    // Hide dots when cells get sub-pixel (zoomed far out) to avoid moiré.
     if (cellSize * zoom < 6) {
-      this.gridPath.setAttribute("d", "");
+      this.gridRect.setAttribute("fill", "none");
       return;
     }
-    let d = "";
-    for (let c = r.minCol; c <= r.maxCol; c++) {
-      const x = c * cellSize;
-      d += `M${x} ${cam.y} V${cam.y + cam.h} `;
-    }
-    for (let row = r.minRow; row <= r.maxRow; row++) {
-      const y = row * cellSize;
-      d += `M${cam.x} ${y} H${cam.x + cam.w} `;
-    }
-    this.gridPath.setAttribute("d", d);
-    // keep stroke ~1 device px regardless of zoom
-    this.gridPath.setAttribute("stroke-width", String(1 / zoom));
+    this.gridRect.setAttribute("fill", "url(#grid-dots)");
+    // Tile = one cell; a dot at the tile corner lands on every cell corner.
+    this.gridPattern.setAttribute("width", String(cellSize));
+    this.gridPattern.setAttribute("height", String(cellSize));
+    this.gridDot.setAttribute("r", String(1.3 / zoom)); // ~1.3 device px
+    // Cover the whole viewport with the dot fill.
+    this.gridRect.setAttribute("x", String(cam.x));
+    this.gridRect.setAttribute("y", String(cam.y));
+    this.gridRect.setAttribute("width", String(cam.w));
+    this.gridRect.setAttribute("height", String(cam.h));
   }
 
   private renderInstances(state: SceneState, time: number): void {

@@ -83,6 +83,10 @@ export interface SceneState {
   orderPath: Point[];
   /** Export frame (world-space crop + output resolution). */
   frame: ExportFrame;
+  /** Canvas/working background color. */
+  bgColor: string;
+  /** When true, exports omit the background (transparent). */
+  exportTransparent: boolean;
   camera: Camera;
 }
 

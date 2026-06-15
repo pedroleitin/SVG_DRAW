@@ -63,14 +63,14 @@ export class FrameController {
 
     this.border = document.createElementNS(SVGNS, "rect");
     this.border.setAttribute("fill", "none");
-    this.border.setAttribute("stroke", "#4dabf7");
+    this.border.setAttribute("stroke", "#1c3980");
     this.border.style.pointerEvents = "none";
 
     this.layer.append(this.hit, this.border);
 
     for (const h of HANDLES) {
       const rect = document.createElementNS(SVGNS, "rect");
-      rect.setAttribute("fill", "#4dabf7");
+      rect.setAttribute("fill", "#1c3980");
       rect.setAttribute("stroke", "#fff");
       rect.style.cursor = h.cursor;
       rect.style.pointerEvents = "all";

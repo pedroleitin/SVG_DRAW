@@ -8,6 +8,7 @@ import { outSize } from "./frame";
 export interface SeqOptions {
   fps: number;
   duration: number; // seconds
+  background?: string | null;
   onProgress?: (done: number, total: number) => void;
 }
 
@@ -18,7 +19,7 @@ export async function exportPngSequence(
   library: Library,
   opts: SeqOptions,
 ): Promise<void> {
-  const { fps, duration, onProgress } = opts;
+  const { fps, duration, background, onProgress } = opts;
   const { outW, outH } = outSize(state.frame);
   const total = Math.max(1, Math.round(duration * fps));
 
@@ -29,7 +30,7 @@ export async function exportPngSequence(
   const pad = String(total).length;
 
   for (let i = 0; i < total; i++) {
-    const svg = buildSceneSVG(state, library, i / fps);
+    const svg = buildSceneSVG(state, library, i / fps, background);
     await rasterizeSvg(svg, canvas);
     const blob = await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png"),

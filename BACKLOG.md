@@ -10,9 +10,10 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 ## 1. Interface (UI/UX)
 
-- [ ] 🟡 **Revisão do layout da interface** — reorganizar toolbar e sidebar,
-  agrupar controles por contexto, melhorar hierarquia visual e responsividade.
-  - Possível: painéis colapsáveis, abas (Grid / Pincel / Máscara / Export).
+- [~] 🟡 **Revisão do layout da interface** — _em andamento._
+  Feito: tema **creme + accent dourado** (igual grid.leit.in) e **fundo de pontos**
+  (no lugar das linhas). Falta: reorganizar/agrupar controles, painéis colapsáveis,
+  abas, responsividade, e tema claro/escuro.
   - Arquivos: [index.html](index.html), [src/ui/](src/ui/), [src/ui/styles/app.css](src/ui/styles/app.css)
 - [ ] 🔴 **Agrupar as funções por tipo** — definir uma taxonomia clara e refletir
   na UI. Grupos identificados até agora:
@@ -83,12 +84,11 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 ## 5. Cor
 
-- [ ] 🟡 **Cor de fundo + cor dos SVGs independentes** — controlar a cor de fundo
-  do canvas e a cor dos SVGs separadamente, com modos:
-  - SVG sempre da paleta ativa (atual);
-  - SVG sempre uma cor fixa;
-  - fundo fixo / fundo da paleta / fundo transparente (importa no export).
-  - Arquivos: [src/ui/sidebar.ts](src/ui/sidebar.ts), [src/render/renderer.ts](src/render/renderer.ts), [src/scene/types.ts](src/scene/types.ts)
+- [~] 🟡 **Cor de fundo + cor dos SVGs independentes** — _parcial._
+  Feito: controle de **cor de fundo** do canvas (ao vivo) + **export transparente**
+  (checkbox) no painel Export. Falta: modos de cor dos SVGs (sempre da paleta /
+  sempre cor fixa) independentes do fundo.
+  - Arquivos: [src/ui/exportPanel.ts](src/ui/exportPanel.ts), [src/export/svgExport.ts](src/export/svgExport.ts), [src/main.ts](src/main.ts)
 
 ## 6. Áudio
 

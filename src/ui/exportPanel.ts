@@ -19,6 +19,8 @@ export class ExportPanel {
   private resSel!: HTMLSelectElement;
   private showChk!: HTMLInputElement;
   private snapChk!: HTMLInputElement;
+  private bgInput!: HTMLInputElement;
+  private transpChk!: HTMLInputElement;
   private dims!: HTMLElement;
   private fpsSel!: HTMLSelectElement;
   private durInput!: HTMLInputElement;
@@ -44,6 +46,10 @@ export class ExportPanel {
       <div class="exp-toggles">
         <label class="chk"><input type="checkbox" id="exp-show" /> Show frame</label>
         <label class="chk"><input type="checkbox" id="exp-snap" /> Snap to grid</label>
+      </div>
+      <div class="exp-bg-row">
+        <label class="chk" title="Canvas + export background"><input type="color" id="exp-bg" /> Background</label>
+        <label class="chk"><input type="checkbox" id="exp-transp" /> Transparent export</label>
       </div>
       <div class="exp-dims" id="exp-dims"></div>
       <div class="noise-actions">
@@ -76,6 +82,8 @@ export class ExportPanel {
     this.resSel = panel.querySelector("#exp-res") as HTMLSelectElement;
     this.showChk = panel.querySelector("#exp-show") as HTMLInputElement;
     this.snapChk = panel.querySelector("#exp-snap") as HTMLInputElement;
+    this.bgInput = panel.querySelector("#exp-bg") as HTMLInputElement;
+    this.transpChk = panel.querySelector("#exp-transp") as HTMLInputElement;
     this.dims = panel.querySelector("#exp-dims") as HTMLElement;
     this.fpsSel = panel.querySelector("#exp-fps") as HTMLSelectElement;
     this.durInput = panel.querySelector("#exp-dur") as HTMLInputElement;
@@ -89,6 +97,8 @@ export class ExportPanel {
     this.resSel.addEventListener("change", () => this.setFrame({ outWidth: Number(this.resSel.value) }));
     this.showChk.addEventListener("change", () => this.setFrame({ show: this.showChk.checked }));
     this.snapChk.addEventListener("change", () => this.toggleSnap(this.snapChk.checked));
+    this.bgInput.addEventListener("input", () => this.store.set({ bgColor: this.bgInput.value }));
+    this.transpChk.addEventListener("change", () => this.store.set({ exportTransparent: this.transpChk.checked }));
     this.fpsSel.addEventListener("change", () => (this.fps = Number(this.fpsSel.value)));
     this.durInput.addEventListener("change", () => (this.duration = clampDur(Number(this.durInput.value))));
     panel.querySelector("#exp-fit")!.addEventListener("click", () => this.fit());
@@ -136,15 +146,21 @@ export class ExportPanel {
     }
   }
 
+  /** Background to bake into exports: null when "transparent export" is on. */
+  private bg(): string | null {
+    const s = this.store.get();
+    return s.exportTransparent ? null : s.bgColor;
+  }
+
   private exportSVG(): void {
-    const svg = buildSceneSVG(this.store.get(), this.library);
+    const svg = buildSceneSVG(this.store.get(), this.library, undefined, this.bg());
     downloadBlob(svgBlob(svg), "svg-grid.svg");
   }
 
   private async exportPNG(): Promise<void> {
     const state = this.store.get();
     const { outW, outH } = outSize(state.frame);
-    const svg = buildSceneSVG(state, this.library);
+    const svg = buildSceneSVG(state, this.library, undefined, this.bg());
     const png = await svgToPngBlob(svg, outW, outH);
     downloadBlob(png, `svg-grid-${outW}x${outH}.png`);
   }
@@ -163,7 +179,7 @@ export class ExportPanel {
     };
     try {
       const state = this.store.get();
-      const opts = { fps: this.fps, duration: this.duration, onProgress };
+      const opts = { fps: this.fps, duration: this.duration, background: this.bg(), onProgress };
       if (kind === "seq") await exportPngSequence(state, this.library, opts);
       else await exportMp4(state, this.library, opts);
       this.progress.textContent = "Done ✓";
@@ -179,6 +195,8 @@ export class ExportPanel {
     if (Number(this.resSel.value) !== s.frame.outWidth) this.resSel.value = String(s.frame.outWidth);
     this.showChk.checked = s.frame.show;
     this.snapChk.checked = s.frame.snap;
+    if (this.bgInput.value.toLowerCase() !== s.bgColor.toLowerCase()) this.bgInput.value = s.bgColor;
+    this.transpChk.checked = s.exportTransparent;
     const { outW, outH } = outSize(s.frame);
     this.dims.textContent = `${outW} × ${outH}px`;
   }

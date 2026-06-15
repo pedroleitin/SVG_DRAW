@@ -16,6 +16,7 @@ export function buildSceneSVG(
   state: SceneState,
   library: Library,
   time?: number,
+  background?: string | null,
 ): string {
   const f = state.frame;
   const { outW, outH } = outSize(f);
@@ -60,10 +61,14 @@ export function buildSceneSVG(
     })
     .join("");
 
+  const bg = background
+    ? `<rect x="${r(f.x)}" y="${r(f.y)}" width="${r(f.w)}" height="${r(f.h)}" fill="${background}"/>`
+    : "";
+
   return (
     `<svg xmlns="${SVGNS}" width="${outW}" height="${outH}" ` +
     `viewBox="${r(f.x)} ${r(f.y)} ${r(f.w)} ${r(f.h)}">` +
-    `<defs>${defs}</defs>${uses.join("")}</svg>`
+    `<defs>${defs}</defs>${bg}${uses.join("")}</svg>`
   );
 }
 
