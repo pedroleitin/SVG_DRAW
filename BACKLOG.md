@@ -104,23 +104,19 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 ## 8. Enquadramento / Export
 
-- [ ] 🔴 **Controle de proporção (frame) para export** — definir a área que será
-  exportada com presets de aspect ratio:
-  - **16:9** (landscape), **1:1** (quadrado), **9:16** (stories/reels),
-    **4:5** (feed vertical), **4:3** (clássico) e **forma livre** (arrastar/redimensionar).
-  - Resolução de saída configurável (ex.: 1080×1080, 1920×1080…), independente
-    do zoom atual da tela.
-  - **Como amostrar na tela** (decidir/oferecer opções):
-    - **Overlay/letterbox** — escurecer (máscara) tudo que está fora do frame,
-      mostrando só a área que entra no export (tipo "safe area" de vídeo).
-    - **Limitar o grid ao frame** — desenhar o grid apenas dentro do enquadramento,
-      recortando a cena à área exportável.
-    - Idealmente: frame reposicionável/escalável sobre o canvas infinito, com
-      handles, e o export usa exatamente os bounds desse frame.
-  - Liga direto com o Phase 6 (export): SVG/PNG/MP4 devem respeitar esse frame.
-  - Arquivos prováveis: [src/scene/types.ts](src/scene/types.ts) (estado do frame),
-    [src/render/renderer.ts](src/render/renderer.ts) (overlay/recorte),
-    `src/export/` (a criar no Phase 6).
+> **Phase 6a concluída:** frame em world-space com presets 16:9/1:1/9:16/4:5/4:3/free,
+> resolução de saída, overlay letterbox + "Fit to view", e export **SVG** e **PNG**.
+> Arquivos: [src/export/frame.ts](src/export/frame.ts), [src/export/svgExport.ts](src/export/svgExport.ts), [src/export/raster.ts](src/export/raster.ts), [src/ui/exportPanel.ts](src/ui/exportPanel.ts)
+
+- [x] 🔴 **Controle de proporção (frame) para export** — presets + resolução +
+  letterbox + Fit to view (overlay). SVG/PNG já respeitam o frame.
+- [ ] 🔴 **Export animado (Phase 6b)** — sequência **PNG** (JSZip) e **MP4**
+  (WebCodecs + mp4-muxer), amostrando a animação pura por frame.
+- [ ] 🟡 **Frame reposicionável/escalável** — arrastar/redimensionar com handles
+  (hoje só "Fit to view"); e opção de "limitar o grid ao frame" (recorte) além do
+  letterbox.
+- [ ] 🟡 **Cor de fundo no export** — hoje o fundo é transparente (formas claras
+  somem em fundo branco). Liga com o item 5 (cor de fundo).
 
 ## 9. Imagem / vídeo como fonte (halftone & dithering)
 

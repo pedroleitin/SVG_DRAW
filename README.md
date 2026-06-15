@@ -73,7 +73,13 @@ the foundation for frame-accurate export later.
 - [x] **Playback modes**: loop, ping-pong, once · plus optional idle motion (spin/pulse/bob/sway/orbit) during hold
 - [x] Verified via headless Chrome (staggered reveal 6→94 over time, pause = full static scene, no errors)
 
+- [x] **Export frame** (Phase 6a): world-space crop with aspect presets (16:9, 1:1, 9:16, 4:5, 4:3, free)
+      + output resolution; live letterbox overlay; "Fit to view"
+- [x] **Export SVG** (lossless vector — inlined symbols + `<use>`) and **PNG** (rasterized at output res)
+- [x] Verified via headless Chrome (downloads captured: SVG viewBox = frame, PNG = 1080×608 for 16:9 — no errors)
+
 **Next phases:**
 
-- [ ] Phase 6 — export: SVG (serialize), PNG sequence (canvas + JSZip), MP4 (WebCodecs + mp4-muxer)
+- [ ] Phase 6b — animated export: PNG sequence (JSZip) + MP4 (WebCodecs + mp4-muxer), sampling the pure animation per frame
+- [ ] (backlog) export background color, draggable/resizable frame
 - [ ] Phase 7 — save/load projects, bulk ops, performance tuning

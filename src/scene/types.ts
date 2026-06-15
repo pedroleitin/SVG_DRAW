@@ -3,8 +3,10 @@
 
 import type { MaskParams } from "../features/noise";
 import type { AnimationConfig } from "../anim/animations";
+import type { ExportFrame } from "../export/frame";
 export type { MaskParams };
 export type { AnimationConfig };
+export type { ExportFrame };
 
 export type ToolId = "draw" | "erase" | "pan" | "path";
 
@@ -79,6 +81,8 @@ export interface SceneState {
   animation: AnimationConfig;
   /** Hand-drawn path (world coords) defining the "free" reveal order. */
   orderPath: Point[];
+  /** Export frame (world-space crop + output resolution). */
+  frame: ExportFrame;
   camera: Camera;
 }
 

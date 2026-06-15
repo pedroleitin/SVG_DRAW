@@ -7,10 +7,12 @@ import { InputController } from "./tools/tools";
 import { Sidebar } from "./ui/sidebar";
 import { Controls } from "./ui/controls";
 import { AnimPanel } from "./ui/animPanel";
+import { ExportPanel } from "./ui/exportPanel";
 import { AnimationEngine } from "./anim/engine";
 import { ClearAll } from "./commands/sceneCommands";
 import { loadUserAssets } from "./store/persistence";
 import { STARTER_PALETTES } from "./features/palette";
+import { fitFrame } from "./export/frame";
 import { makeCamera, zoomOf, resizeCamera, zoomAt } from "./scene/camera";
 import type { SceneState, ToolId } from "./scene/types";
 
@@ -18,6 +20,7 @@ const stage = document.getElementById("stage") as HTMLElement;
 const library = new Library();
 
 const host = { width: stage.clientWidth, height: stage.clientHeight };
+const camera0 = makeCamera(host, 1);
 
 const initial: SceneState = {
   tool: "draw",
@@ -55,7 +58,8 @@ const initial: SceneState = {
     idleAmount: 0.6,
   },
   orderPath: [],
-  camera: makeCamera(host, 1),
+  frame: { aspect: "1:1", ...fitFrame(camera0, "1:1"), outWidth: 1080, show: false },
+  camera: camera0,
 };
 
 const store = new Store(initial);
@@ -110,6 +114,7 @@ const sidebarEl = document.getElementById("sidebar") as HTMLElement;
 new Sidebar(sidebarEl, store, library, renderer);
 new Controls(sidebarEl, store, library, history);
 new AnimPanel(sidebarEl, store);
+new ExportPanel(sidebarEl, store, library);
 
 // Restore user-uploaded assets from IndexedDB (async, after first paint).
 loadUserAssets().then((assets) => {

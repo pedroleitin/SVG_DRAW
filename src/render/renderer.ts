@@ -7,6 +7,7 @@ import { maskField, sampleMask } from "../features/noise";
 import { mapCycleTime, sampleLifecycle } from "../anim/animations";
 import type { AnimOutput } from "../anim/animations";
 import { buildOrderField } from "../anim/order";
+import { instanceGeom } from "../scene/geom";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 const EMPTY_ANIM: AnimOutput = {};
@@ -25,6 +26,9 @@ export class Renderer {
   private pathLine: SVGPolylineElement;
   private pathStart: SVGTextElement;
   private pathFinish: SVGTextElement;
+  private frameLayer: SVGGElement;
+  private frameRects: SVGRectElement[] = [];
+  private frameBorder: SVGRectElement;
   private nodes = new Map<string, SVGUseElement>(); // cellKey -> <use>
   private registeredSymbols = new Set<string>();
 
@@ -56,7 +60,30 @@ export class Renderer {
     this.pathFinish = this.makeLabel("FINISH", "#f03e3e");
     this.pathLayer.append(this.pathLine, this.pathStart, this.pathFinish);
 
-    this.svg.append(this.defs, this.gridPath, this.content, this.maskLayer, this.pathLayer);
+    // Export-frame overlay: 4 dark rects (letterbox) + a border on the frame.
+    this.frameLayer = document.createElementNS(SVGNS, "g");
+    this.frameLayer.setAttribute("class", "export-frame");
+    this.frameLayer.style.pointerEvents = "none";
+    for (let i = 0; i < 4; i++) {
+      const rect = document.createElementNS(SVGNS, "rect");
+      rect.setAttribute("fill", "#000");
+      rect.setAttribute("fill-opacity", "0.55");
+      this.frameRects.push(rect);
+      this.frameLayer.appendChild(rect);
+    }
+    this.frameBorder = document.createElementNS(SVGNS, "rect");
+    this.frameBorder.setAttribute("fill", "none");
+    this.frameBorder.setAttribute("stroke", "#4dabf7");
+    this.frameLayer.appendChild(this.frameBorder);
+
+    this.svg.append(
+      this.defs,
+      this.gridPath,
+      this.content,
+      this.maskLayer,
+      this.pathLayer,
+      this.frameLayer,
+    );
     this.host.appendChild(this.svg);
   }
 
@@ -85,6 +112,31 @@ export class Renderer {
     this.renderInstances(state, time);
     this.renderMask(state);
     this.renderOrderPath(state);
+    this.renderFrame(state);
+  }
+
+  /** Letterbox overlay: darken everything outside the export frame + outline it. */
+  private renderFrame(state: SceneState): void {
+    const f = state.frame;
+    if (!f.show) {
+      this.frameLayer.style.display = "none";
+      return;
+    }
+    this.frameLayer.style.display = "";
+    const cam = state.camera;
+    const set = (rect: SVGRectElement, x: number, y: number, w: number, h: number) => {
+      rect.setAttribute("x", String(x));
+      rect.setAttribute("y", String(y));
+      rect.setAttribute("width", String(Math.max(0, w)));
+      rect.setAttribute("height", String(Math.max(0, h)));
+    };
+    // top, bottom, left, right bands around the frame, clipped to the viewport.
+    set(this.frameRects[0], cam.x, cam.y, cam.w, f.y - cam.y);
+    set(this.frameRects[1], cam.x, f.y + f.h, cam.w, cam.y + cam.h - (f.y + f.h));
+    set(this.frameRects[2], cam.x, f.y, f.x - cam.x, f.h);
+    set(this.frameRects[3], f.x + f.w, f.y, cam.x + cam.w - (f.x + f.w), f.h);
+    set(this.frameBorder, f.x, f.y, f.w, f.h);
+    this.frameBorder.setAttribute("stroke-width", String(1.5 / (this.hostSize.width / cam.w)));
   }
 
   private makeLabel(text: string, color: string): SVGTextElement {
@@ -258,18 +310,14 @@ export class Renderer {
     anim: AnimOutput,
   ): void {
     node.setAttribute("href", `#sym-${inst.assetId}`);
-    const size = cellSize * inst.scale * (anim.scaleMul ?? 1);
-    const cx = (inst.col + 0.5 + inst.dx + (anim.dx ?? 0)) * cellSize;
-    const cy = (inst.row + 0.5 + inst.dy + (anim.dy ?? 0)) * cellSize;
-    node.setAttribute("x", String(cx - size / 2));
-    node.setAttribute("y", String(cy - size / 2));
-    node.setAttribute("width", String(size));
-    node.setAttribute("height", String(size));
+    const g = instanceGeom(inst, cellSize, anim);
+    node.setAttribute("x", String(g.x));
+    node.setAttribute("y", String(g.y));
+    node.setAttribute("width", String(g.size));
+    node.setAttribute("height", String(g.size));
     node.style.color = color; // drives currentColor in the symbol
-    const rot = inst.rotation + (anim.rotate ?? 0);
-    node.setAttribute("transform", rot ? `rotate(${rot} ${cx} ${cy})` : "");
-    const op = anim.opacity ?? 1;
-    if (op < 1) node.setAttribute("opacity", op.toFixed(3));
+    node.setAttribute("transform", g.rot ? `rotate(${g.rot} ${g.cx} ${g.cy})` : "");
+    if (g.opacity < 1) node.setAttribute("opacity", g.opacity.toFixed(3));
     else node.removeAttribute("opacity");
     node.dataset.instId = inst.id;
   }

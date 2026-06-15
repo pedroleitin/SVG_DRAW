@@ -404,6 +404,13 @@ body {
   color: var(--accent);
 }
 
+.exp-dims {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin: 8px 0 2px;
+}
+
 .noise-actions {
   display: flex;
   gap: 8px;
