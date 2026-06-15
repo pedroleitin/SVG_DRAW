@@ -148,14 +148,22 @@ body {
   color: var(--muted);
 }
 
-#toolbox {
+#dock-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 28px);
+}
+
+#toolbox,
+#edits {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   padding: 8px 10px;
-  max-width: calc(100vw - 28px);
 }
 
 .tool-btn {

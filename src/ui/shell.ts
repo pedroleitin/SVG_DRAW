@@ -25,6 +25,7 @@ const MODES: { id: Mode; label: string }[] = [
 export class Shell {
   private modesEl: HTMLElement;
   private toolboxEl: HTMLElement;
+  private editsEl: HTMLElement;
   private contextEl: HTMLElement;
   private statusEl: HTMLElement;
   private zoomEl: HTMLElement;
@@ -39,11 +40,13 @@ export class Shell {
   ) {
     this.modesEl = document.getElementById("modes") as HTMLElement;
     this.toolboxEl = document.getElementById("toolbox") as HTMLElement;
+    this.editsEl = document.getElementById("edits") as HTMLElement;
     this.contextEl = document.getElementById("context") as HTMLElement;
     this.statusEl = document.getElementById("status") as HTMLElement;
     this.zoomEl = document.getElementById("zoombox") as HTMLElement;
 
     this.buildModes();
+    this.buildEdits();
     this.buildStatus();
     this.buildZoom();
     this.mountContexts(library);
@@ -143,9 +146,10 @@ export class Shell {
     return d;
   }
 
-  /** Undo / redo / clear — always present in the central bottom bar. */
-  private editActions(): HTMLElement[] {
-    return [
+  /** Undo / redo / clear — a separate floating box beside the toolbox. */
+  private buildEdits(): void {
+    this.editsEl.innerHTML = "";
+    this.editsEl.append(
       this.btn("↶", { title: "Undo (⌘Z)", onClick: () => this.history.undo() }),
       this.btn("↷", { title: "Redo (⌘⇧Z)", onClick: () => this.history.redo() }),
       this.btn("Clear", {
@@ -154,15 +158,13 @@ export class Shell {
           if (Object.keys(this.store.get().instances).length) this.history.dispatch(new ClearAll());
         },
       }),
-      this.sep(),
-    ];
+    );
   }
 
   private buildToolbox(s: SceneState): void {
     const tb = this.toolboxEl;
     tb.innerHTML = "";
     const add = (...els: HTMLElement[]) => els.forEach((e) => tb.appendChild(e));
-    add(...this.editActions());
 
     switch (s.mode) {
       case "draw":
