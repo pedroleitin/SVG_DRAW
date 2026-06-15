@@ -1,0 +1,282 @@
+import type { SceneState, Instance } from "../scene/types";
+import { cellKey } from "../scene/types";
+import { visibleCellRange } from "../scene/grid";
+import type { Library } from "../features/library";
+import { paletteById, colorAt } from "../features/palette";
+import { maskField, sampleMask } from "../features/noise";
+import { mapCycleTime, sampleLifecycle } from "../anim/animations";
+import type { AnimOutput } from "../anim/animations";
+import { buildOrderField } from "../anim/order";
+
+const SVGNS = "http://www.w3.org/2000/svg";
+const EMPTY_ANIM: AnimOutput = {};
+
+/** Translates scene state into live SVG. Source of truth stays in the store;
+ *  this only reflects it, applying minimal add/remove/update diffs and
+ *  virtualizing to the visible cell range so the plane can be "infinite". */
+export class Renderer {
+  readonly svg: SVGSVGElement;
+  private defs: SVGDefsElement;
+  private gridPath: SVGPathElement;
+  private content: SVGGElement;
+  private maskLayer: SVGGElement;
+  private maskRects: SVGRectElement[] = [];
+  private pathLayer: SVGGElement;
+  private pathLine: SVGPolylineElement;
+  private pathStart: SVGTextElement;
+  private pathFinish: SVGTextElement;
+  private nodes = new Map<string, SVGUseElement>(); // cellKey -> <use>
+  private registeredSymbols = new Set<string>();
+
+  constructor(
+    private host: HTMLElement,
+    private library: Library,
+  ) {
+    this.svg = document.createElementNS(SVGNS, "svg");
+    this.svg.setAttribute("width", "100%");
+    this.svg.setAttribute("height", "100%");
+    this.svg.style.display = "block";
+    this.svg.style.touchAction = "none";
+
+    this.defs = document.createElementNS(SVGNS, "defs");
+    this.gridPath = document.createElementNS(SVGNS, "path");
+    this.gridPath.setAttribute("class", "grid-lines");
+    this.content = document.createElementNS(SVGNS, "g");
+    this.content.setAttribute("class", "content");
+    this.maskLayer = document.createElementNS(SVGNS, "g");
+    this.maskLayer.setAttribute("class", "mask-overlay");
+    this.maskLayer.style.pointerEvents = "none";
+
+    // Order-path overlay: the drawn reveal line with START / FINISH labels.
+    this.pathLayer = document.createElementNS(SVGNS, "g");
+    this.pathLayer.setAttribute("class", "order-path");
+    this.pathLayer.style.pointerEvents = "none";
+    this.pathLine = document.createElementNS(SVGNS, "polyline");
+    this.pathStart = this.makeLabel("START", "#37b24d");
+    this.pathFinish = this.makeLabel("FINISH", "#f03e3e");
+    this.pathLayer.append(this.pathLine, this.pathStart, this.pathFinish);
+
+    this.svg.append(this.defs, this.gridPath, this.content, this.maskLayer, this.pathLayer);
+    this.host.appendChild(this.svg);
+  }
+
+  get hostSize() {
+    return { width: this.host.clientWidth, height: this.host.clientHeight };
+  }
+
+  /** Register an asset as a <symbol> once; instanced via <use href="#sym-…">. */
+  private ensureSymbol(assetId: string): void {
+    if (this.registeredSymbols.has(assetId)) return;
+    const asset = this.library.get(assetId);
+    if (!asset) return;
+    const sym = document.createElementNS(SVGNS, "symbol");
+    sym.setAttribute("id", `sym-${assetId}`);
+    sym.setAttribute("viewBox", asset.viewBox);
+    sym.setAttribute("overflow", "visible");
+    sym.innerHTML = asset.markup;
+    this.defs.appendChild(sym);
+    this.registeredSymbols.add(assetId);
+  }
+
+  render(state: SceneState, time = 0): void {
+    const cam = state.camera;
+    this.svg.setAttribute("viewBox", `${cam.x} ${cam.y} ${cam.w} ${cam.h}`);
+    this.renderGrid(state);
+    this.renderInstances(state, time);
+    this.renderMask(state);
+    this.renderOrderPath(state);
+  }
+
+  private makeLabel(text: string, color: string): SVGTextElement {
+    const t = document.createElementNS(SVGNS, "text");
+    t.textContent = text;
+    t.setAttribute("fill", color);
+    t.setAttribute("stroke", "#000");
+    t.setAttribute("paint-order", "stroke");
+    t.setAttribute("font-weight", "700");
+    t.setAttribute("font-family", "system-ui, sans-serif");
+    t.setAttribute("text-anchor", "middle");
+    return t;
+  }
+
+  /** Draw the hand-drawn reveal path (world coords) with START/FINISH labels. */
+  private renderOrderPath(state: SceneState): void {
+    const path = state.orderPath;
+    const relevant = state.tool === "path" || state.animation.order === "free";
+    if (path.length < 2 || !relevant) {
+      this.pathLayer.style.display = "none";
+      this.pathLine.setAttribute("points", "");
+      return;
+    }
+    this.pathLayer.style.display = "";
+    const cam = state.camera;
+    const px = 1 / (this.hostSize.width / cam.w); // world units per device px
+    this.pathLine.setAttribute("points", path.map((p) => `${p.x},${p.y}`).join(" "));
+    this.pathLine.setAttribute("fill", "none");
+    this.pathLine.setAttribute("stroke", "#4dabf7");
+    this.pathLine.setAttribute("stroke-width", String(3 * px));
+    this.pathLine.setAttribute("stroke-linejoin", "round");
+    this.pathLine.setAttribute("stroke-linecap", "round");
+    this.pathLine.setAttribute("stroke-dasharray", `${6 * px} ${5 * px}`);
+
+    const fs = state.cellSize * 0.45;
+    const place = (el: SVGTextElement, p: { x: number; y: number }) => {
+      el.setAttribute("x", String(p.x));
+      el.setAttribute("y", String(p.y - fs * 0.5));
+      el.setAttribute("font-size", String(fs));
+      el.setAttribute("stroke-width", String(px * 3));
+    };
+    place(this.pathStart, path[0]);
+    place(this.pathFinish, path[path.length - 1]);
+  }
+
+  /** Live mask preview: shade visible cells by the fractal field (grayscale)
+   *  and outline the cells that "Apply" would fill (accent) or erase (red). */
+  private renderMask(state: SceneState): void {
+    if (!state.maskPreview) {
+      for (const rect of this.maskRects) rect.style.display = "none";
+      return;
+    }
+    const { camera: cam, cellSize, mask } = state;
+    const field = maskField(mask.seed);
+    const r = visibleCellRange(cam, cellSize, 0);
+    let i = 0;
+    for (let row = r.minRow; row <= r.maxRow; row++) {
+      for (let col = r.minCol; col <= r.maxCol; col++) {
+        const rect = this.maskRect(i++);
+        const v = sampleMask(field, col, row, mask);
+        const lit = v >= mask.threshold;
+        const occupied = !!state.instances[cellKey(col, row)];
+        const g = Math.round(v * 255);
+        rect.setAttribute("x", String(col * cellSize));
+        rect.setAttribute("y", String(row * cellSize));
+        rect.setAttribute("width", String(cellSize));
+        rect.setAttribute("height", String(cellSize));
+        rect.setAttribute("fill", `rgb(${g},${g},${g})`);
+        // Keep the overlay faint so the artwork (and its animation) show
+        // through; the action outlines below carry the important info.
+        rect.setAttribute("fill-opacity", "0.18");
+        // Action hints: green where it will add, red where it will remove.
+        if (lit && !occupied) {
+          rect.setAttribute("stroke", "#37b24d");
+          rect.setAttribute("stroke-opacity", "0.9");
+        } else if (!lit && occupied) {
+          rect.setAttribute("stroke", "#f03e3e");
+          rect.setAttribute("stroke-opacity", "0.9");
+        } else {
+          rect.setAttribute("stroke", "none");
+        }
+        rect.setAttribute("stroke-width", String(2 / (this.hostSize.width / cam.w)));
+        rect.style.display = "";
+      }
+    }
+    for (; i < this.maskRects.length; i++) this.maskRects[i].style.display = "none";
+  }
+
+  private maskRect(i: number): SVGRectElement {
+    let rect = this.maskRects[i];
+    if (!rect) {
+      rect = document.createElementNS(SVGNS, "rect");
+      this.maskLayer.appendChild(rect);
+      this.maskRects[i] = rect;
+    }
+    return rect;
+  }
+
+  private renderGrid(state: SceneState): void {
+    const { camera: cam, cellSize } = state;
+    const r = visibleCellRange(cam, cellSize, 0);
+    // Skip drawing lines when cells are sub-pixel to avoid moiré/overdraw.
+    const zoom = this.hostSize.width / cam.w;
+    if (cellSize * zoom < 6) {
+      this.gridPath.setAttribute("d", "");
+      return;
+    }
+    let d = "";
+    for (let c = r.minCol; c <= r.maxCol; c++) {
+      const x = c * cellSize;
+      d += `M${x} ${cam.y} V${cam.y + cam.h} `;
+    }
+    for (let row = r.minRow; row <= r.maxRow; row++) {
+      const y = row * cellSize;
+      d += `M${cam.x} ${y} H${cam.x + cam.w} `;
+    }
+    this.gridPath.setAttribute("d", d);
+    // keep stroke ~1 device px regardless of zoom
+    this.gridPath.setAttribute("stroke-width", String(1 / zoom));
+  }
+
+  private renderInstances(state: SceneState, time: number): void {
+    const { camera: cam, cellSize, instances, animation: anim } = state;
+    const palette = paletteById(state.palettes, state.activePaletteId);
+    const r = visibleCellRange(cam, cellSize, 1);
+    const seen = new Set<string>();
+
+    // Lifecycle animation only runs while playing; paused = static scene.
+    const animate = anim.playing;
+    const orderOf = animate ? buildOrderField(state) : null;
+    const T = time * anim.speed;
+    const tcyc = animate ? mapCycleTime(anim, T) : 0;
+
+    for (let row = r.minRow; row <= r.maxRow; row++) {
+      for (let col = r.minCol; col <= r.maxCol; col++) {
+        const key = cellKey(col, row);
+        const inst = instances[key];
+        if (!inst) continue;
+        seen.add(key);
+        this.ensureSymbol(inst.assetId);
+        let node = this.nodes.get(key);
+        if (!node) {
+          node = document.createElementNS(SVGNS, "use");
+          this.content.appendChild(node);
+          this.nodes.set(key, node);
+        }
+        // Sample this instance's lifecycle at the current cycle time. Its
+        // order (when it appears) comes from the active order preset.
+        let out: AnimOutput = EMPTY_ANIM;
+        if (animate && orderOf) {
+          out = sampleLifecycle(anim, orderOf(inst), tcyc, T);
+        }
+        this.applyInstance(node, inst, cellSize, colorAt(palette, inst.colorIndex), out);
+      }
+    }
+
+    // Recycle nodes that scrolled out of view or were erased.
+    for (const [key, node] of this.nodes) {
+      if (!seen.has(key)) {
+        node.remove();
+        this.nodes.delete(key);
+      }
+    }
+  }
+
+  private applyInstance(
+    node: SVGUseElement,
+    inst: Instance,
+    cellSize: number,
+    color: string,
+    anim: AnimOutput,
+  ): void {
+    node.setAttribute("href", `#sym-${inst.assetId}`);
+    const size = cellSize * inst.scale * (anim.scaleMul ?? 1);
+    const cx = (inst.col + 0.5 + inst.dx + (anim.dx ?? 0)) * cellSize;
+    const cy = (inst.row + 0.5 + inst.dy + (anim.dy ?? 0)) * cellSize;
+    node.setAttribute("x", String(cx - size / 2));
+    node.setAttribute("y", String(cy - size / 2));
+    node.setAttribute("width", String(size));
+    node.setAttribute("height", String(size));
+    node.style.color = color; // drives currentColor in the symbol
+    const rot = inst.rotation + (anim.rotate ?? 0);
+    node.setAttribute("transform", rot ? `rotate(${rot} ${cx} ${cy})` : "");
+    const op = anim.opacity ?? 1;
+    if (op < 1) node.setAttribute("opacity", op.toFixed(3));
+    else node.removeAttribute("opacity");
+    node.dataset.instId = inst.id;
+  }
+
+  /** Force a full rebuild (e.g. after palette swap that changes every color). */
+  invalidate(): void {
+    for (const node of this.nodes.values()) node.remove();
+    this.nodes.clear();
+  }
+}

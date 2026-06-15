@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>SVG Grid Generator</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%234dabf7'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <header id="toolbar">
+        <span class="brand">SVG&nbsp;Grid</span>
+        <div class="group" id="tool-group">
+          <button data-tool="draw" class="active" title="Draw (B)">✏️ Draw</button>
+          <button data-tool="erase" title="Erase (E)">🩹 Erase</button>
+          <button data-tool="path" title="Draw reveal order: START→FINISH (P)">🧭 Order</button>
+          <button data-tool="pan" title="Pan (Space)">✋ Pan</button>
+        </div>
+        <div class="group" id="grid-group">
+          <label>Cell</label>
+          <select id="grid-size">
+            <option value="128">128</option>
+            <option value="64" selected>64</option>
+            <option value="32">32</option>
+            <option value="16">16</option>
+          </select>
+        </div>
+        <div class="group" id="history-group">
+          <button id="undo" title="Undo (⌘Z)">↶ Undo</button>
+          <button id="redo" title="Redo (⌘⇧Z)">↷ Redo</button>
+          <button id="clear" title="Clear all">Clear</button>
+        </div>
+        <div class="group" id="zoom-group">
+          <button id="zoom-out">−</button>
+          <span id="zoom-label">100%</span>
+          <button id="zoom-in">+</button>
+          <button id="zoom-reset" title="Reset view">Reset</button>
+        </div>
+      </header>
+      <div id="workspace">
+        <main id="stage"></main>
+        <aside id="sidebar"></aside>
+      </div>
+      <footer id="statusbar">
+        <span id="status-coords">cell 0,0</span>
+        <span id="status-count">0 placed</span>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,189 @@
+/** Time-driven animation system. Everything is a PURE function of time so the
+ *  same code drives live playback AND frame-accurate export (Phase 6).
+ *
+ *  Two layers:
+ *   1. Lifecycle — each SVG ENTERS (forms in), HOLDS (optionally with idle
+ *      motion), then EXITS (forms out). Enter/exit styles: fade, scale, rotate…
+ *   2. Order — WHEN each SVG starts its lifecycle, as a normalized value o∈[0,1]
+ *      from a preset (random / sequential / linear / radial / free-drawn path).
+ *      `spread` turns that order into a stagger so the reveal sweeps the grid. */
+
+export interface AnimOutput {
+  rotate?: number; // degrees, added to base
+  scaleMul?: number; // multiplies base scale
+  dx?: number; // cell-fraction offset
+  dy?: number;
+  opacity?: number; // 0..1
+}
+
+/** Idle motion applied while an instance is fully visible (HOLD phase). */
+export type AnimFn = (tt: number, amount: number) => AnimOutput;
+
+const TAU = Math.PI * 2;
+
+export const ANIMATIONS: Record<string, AnimFn> = {
+  none: () => ({}),
+  spin: (tt, a) => ({ rotate: tt * 120 * a }),
+  pulse: (tt, a) => ({ scaleMul: 1 + Math.sin(tt * TAU) * 0.35 * a }),
+  bob: (tt, a) => ({ dy: Math.sin(tt * TAU) * 0.3 * a }),
+  sway: (tt, a) => ({ dx: Math.sin(tt * TAU) * 0.3 * a }),
+  orbit: (tt, a) => ({
+    dx: Math.cos(tt * TAU) * 0.25 * a,
+    dy: Math.sin(tt * TAU) * 0.25 * a,
+  }),
+};
+
+export const IDLE_IDS = Object.keys(ANIMATIONS);
+
+// ---- Direction (used by the "linear" order preset) ----
+
+export type Direction =
+  | "left-right"
+  | "right-left"
+  | "top-bottom"
+  | "bottom-top"
+  | "diagonal"
+  | "radial";
+
+export const DIRECTIONS: Direction[] = [
+  "left-right",
+  "right-left",
+  "top-bottom",
+  "bottom-top",
+  "diagonal",
+  "radial",
+];
+
+/** Scalar that increases along a direction — used to rank cells for ordering. */
+export function directionPhase(col: number, row: number, dir: Direction): number {
+  switch (dir) {
+    case "left-right":
+      return col;
+    case "right-left":
+      return -col;
+    case "top-bottom":
+      return row;
+    case "bottom-top":
+      return -row;
+    case "diagonal":
+      return col + row;
+    case "radial":
+      return Math.hypot(col, row);
+    default:
+      return col;
+  }
+}
+
+// ---- Lifecycle config ----
+
+export type OrderMode = "free" | "random" | "sequential" | "linear" | "radial";
+export const ORDER_MODES: OrderMode[] = ["linear", "radial", "sequential", "random", "free"];
+
+export type PlaybackMode = "loop" | "pingpong" | "once";
+export const PLAYBACK_MODES: PlaybackMode[] = ["loop", "pingpong", "once"];
+
+export type EnterExit = "none" | "fade" | "scale" | "pop" | "rotate";
+export const ENTER_EXITS: EnterExit[] = ["none", "fade", "scale", "pop", "rotate"];
+
+export interface AnimationConfig {
+  playing: boolean;
+  playback: PlaybackMode;
+  speed: number;
+  // ordering
+  order: OrderMode;
+  direction: Direction;
+  spread: number; // seconds between first and last instance start
+  // lifecycle (seconds)
+  enter: EnterExit;
+  exit: EnterExit;
+  enterDur: number;
+  hold: number;
+  exitDur: number;
+  // idle motion during hold
+  idle: string;
+  idleAmount: number;
+}
+
+// ---- Sampling ----
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+const easeOut = (k: number) => 1 - Math.pow(1 - k, 3);
+const easeOutBack = (k: number) => {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2);
+};
+
+/** Map a visibility factor k∈[0,1] (0 = absent, 1 = present) to a transform. */
+function transition(style: EnterExit, k: number): AnimOutput {
+  const kk = clamp01(k);
+  switch (style) {
+    case "fade":
+      return { opacity: kk };
+    case "scale":
+      return { scaleMul: easeOut(kk), opacity: kk };
+    case "pop":
+      return { scaleMul: easeOutBack(kk), opacity: kk };
+    case "rotate":
+      return { rotate: (1 - kk) * 180, scaleMul: easeOut(kk), opacity: kk };
+    case "none":
+    default:
+      return {};
+  }
+}
+
+/** Total length of one cycle in seconds (exit:none = reveal-and-stay). */
+export function cycleLength(c: AnimationConfig): number {
+  const exit = c.exit === "none" ? 0 : c.exitDur;
+  return Math.max(0.0001, c.spread + c.enterDur + c.hold + exit);
+}
+
+/** Map elapsed (already speed-scaled) time T to a time within one cycle,
+ *  honoring the playback mode. */
+export function mapCycleTime(c: AnimationConfig, T: number): number {
+  const L = cycleLength(c);
+  if (c.playback === "once") return Math.min(T, L);
+  if (c.playback === "pingpong") {
+    const p = 2 * L;
+    const m = ((T % p) + p) % p;
+    return m <= L ? m : p - m;
+  }
+  const m = ((T % L) + L) % L;
+  return m;
+}
+
+export interface LifeOutput extends AnimOutput {
+  hidden?: boolean;
+}
+
+/** Sample one instance's lifecycle: `o` is its order [0,1], `tcyc` the cycle
+ *  time, `idleT` a continuous clock for HOLD-phase idle motion. */
+export function sampleLifecycle(
+  c: AnimationConfig,
+  o: number,
+  tcyc: number,
+  idleT: number,
+): LifeOutput {
+  const start = o * c.spread;
+  const p = tcyc - start;
+  if (p < 0) return { hidden: true, opacity: 0 };
+
+  const enterEnd = c.enterDur;
+  const holdEnd = enterEnd + c.hold;
+  const exitEnd = holdEnd + c.exitDur;
+
+  if (p < enterEnd) {
+    const k = c.enterDur > 0 ? p / c.enterDur : 1;
+    return transition(c.enter, k);
+  }
+  // exit:none -> stay visible forever after entering (reveal and hold).
+  if (c.exit === "none" || p < holdEnd) {
+    const fn = ANIMATIONS[c.idle] ?? ANIMATIONS.none;
+    return fn(idleT, c.idleAmount);
+  }
+  if (p < exitEnd) {
+    const k = c.exitDur > 0 ? 1 - (p - holdEnd) / c.exitDur : 0;
+    return transition(c.exit, k);
+  }
+  return { hidden: true, opacity: 0 };
+}
