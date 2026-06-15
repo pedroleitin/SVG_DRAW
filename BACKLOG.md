@@ -19,6 +19,15 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Arquivos: [index.html](index.html), [src/ui/shell.ts](src/ui/shell.ts), [src/ui/](src/ui/), [src/ui/styles/app.css](src/ui/styles/app.css)
 - [x] 🔴 **Agrupar as funções por tipo** — feito via os 4 modos + context menus
   compartilhados (Shapes/Colors). Refinamentos futuros: subgrupos dentro dos modos.
+- [ ] 🟡 **Blur nos menus** — backdrop-filter (vidro/glass) por trás das caixas
+  flutuantes (toolbox, context, etc.). Arquivo: [src/ui/styles/app.css](src/ui/styles/app.css) (`.float`/`#context`).
+- [ ] 🟡 **Todos os combobox iguais ao "Size cell"** — trocar os `<select>` nativos
+  (Animation, Export…) pelo dropdown custom estilo pílula + lista flutuante (igual
+  ao seletor de Size). Extrair um componente reutilizável a partir de `sizeDropdown`.
+  - Arquivos: [src/ui/shell.ts](src/ui/shell.ts), [src/ui/animPanel.ts](src/ui/animPanel.ts), [src/ui/exportPanel.ts](src/ui/exportPanel.ts), [src/ui/styles/app.css](src/ui/styles/app.css)
+- [ ] ⚪ **Status (cell/placed) sem caixa** — tirar o box/borda do canto inf. esquerdo
+  (texto solto) e **remover a palavra "placed"** (deixar só `cell x,y · N`).
+  - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (`buildStatus`), [src/ui/styles/app.css](src/ui/styles/app.css) (`#status`).
 
 ## 2. Grid
 
@@ -27,6 +36,9 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Gutter/espaçamento entre células.
   - Offset de origem do grid; mostrar/ocultar linhas; opacidade das linhas.
   - Arquivos: [src/scene/grid.ts](src/scene/grid.ts), [src/render/renderer.ts](src/render/renderer.ts)
+- [ ] 🟡 **Hover no grid** — destacar a célula sob o cursor (highlight) e/ou um ghost
+  preview do que será colocado, atualizando ao mover o mouse.
+  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (hover já existe p/ coords), [src/render/renderer.ts](src/render/renderer.ts) (overlay de hover).
 
 ## 2b. Escala multi-célula (estilo noise)
 
@@ -42,10 +54,16 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 ## 3. Ferramentas de desenho
 
-- [ ] 🔴 **Controles finos de desenhar e apagar** — pincel com raio (NxN células),
-  densidade do traço, modo "só preencher vazias" vs "sobrescrever", preview/ghost
-  da célula sob o cursor, apagar por filtro (por asset / por cor).
+- [ ] 🔴 **Controles finos de desenhar e apagar** — **brush size** (raio NxN células)
+  para Draw e Erase, densidade do traço, modo "só preencher vazias" vs "sobrescrever",
+  preview/ghost da célula sob o cursor, apagar por filtro (por asset / por cor).
   - Arquivos: [src/tools/tools.ts](src/tools/tools.ts)
+- [ ] 🔴 **Modo stencil no Noise (pincel de máscara)** — em vez de só "Apply to view",
+  um **brush** que pinta/apaga a máscara de noise na tela com um **brush size**
+  (revela/oculta SVGs pintando, em vez de aplicar a tela inteira).
+  - Liga com o overlay de preview do noise; pintar adiciona/remove células conforme
+    o valor do campo sob o pincel.
+  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/features/placement.ts](src/features/placement.ts) (applyMask), [src/ui/controls.ts](src/ui/controls.ts)
 - [ ] ⚪ **Rotação randômica de 90°** — opção para que cada SVG colocado receba
   uma rotação aleatória entre 0/90/180/270°.
   - Onde: `buildInstance` define hoje `rotation: 0`. Adicionar flag no estado
