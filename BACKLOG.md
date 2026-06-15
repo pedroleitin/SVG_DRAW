@@ -82,6 +82,13 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
     (ex.: `randomQuarterTurns: boolean`) e sortear com o seed da célula.
   - Arquivos: [src/features/placement.ts](src/features/placement.ts), [src/scene/types.ts](src/scene/types.ts)
 
+## 3b. Compose / Noise
+
+- [ ] 🟡 **Seamless (checkbox no Compose)** — opção para a máscara de noise ser
+  *tileable* (sem emendas), pra padrões que repetem continuamente. Amostrar o campo
+  num domínio periódico (ex.: mapear x/y num círculo/torus) em vez do plano aberto.
+  - Arquivos: [src/features/noise.ts](src/features/noise.ts) (amostragem periódica), [src/ui/controls.ts](src/ui/controls.ts) (checkbox), [src/scene/types.ts](src/scene/types.ts) (flag em MaskParams).
+
 ## 4. Animação
 
 > **Leva 1 concluída (Phase 5 + overhaul):** ciclo de vida enter→hold→exit

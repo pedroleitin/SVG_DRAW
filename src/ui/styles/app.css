@@ -501,8 +501,18 @@ body {
   color: var(--text);
 }
 
+/* Noise pixel preview — its own floating box above the context. */
+#noise-preview {
+  padding: 12px;
+}
+
+#noise-preview.hidden {
+  display: none;
+}
+
 .mask-preview {
-  width: 100%;
+  width: 200px;
+  height: 200px;
   aspect-ratio: 1;
   border-radius: 8px;
   border: 1px solid var(--line);
@@ -511,6 +521,10 @@ body {
   display: block;
   margin-bottom: 8px;
   touch-action: none;
+}
+
+#noise-preview .mask-preview-row {
+  margin-bottom: 0;
 }
 
 .mask-preview:active {
@@ -611,6 +625,21 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: var(--muted);
+}
+
+.exp-cols {
+  align-items: stretch;
+}
+
+.exp-col {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Push the save buttons to the bottom so both columns align. */
+.exp-col .exp-save {
+  margin-top: auto;
+  padding-top: 12px;
 }
 
 .exp-out {

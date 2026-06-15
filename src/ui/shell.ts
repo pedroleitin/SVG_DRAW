@@ -40,6 +40,7 @@ export class Shell {
   private sizeNum?: HTMLElement;
   private sizeMenu?: HTMLElement;
   private contextEl: HTMLElement;
+  private noisePreviewEl: HTMLElement;
   private statusEl: HTMLElement;
   private zoomEl: HTMLElement;
   private ctxHosts = new Map<string, HTMLElement>();
@@ -56,6 +57,7 @@ export class Shell {
     this.editsEl = document.getElementById("edits") as HTMLElement;
     this.settingsEl = document.getElementById("settings") as HTMLElement;
     this.contextEl = document.getElementById("context") as HTMLElement;
+    this.noisePreviewEl = document.getElementById("noise-preview") as HTMLElement;
     this.statusEl = document.getElementById("status") as HTMLElement;
     this.zoomEl = document.getElementById("zoombox") as HTMLElement;
 
@@ -108,7 +110,7 @@ export class Shell {
     };
     new ShapesPanel(make("shapes"), this.store, library);
     new ColorsPanel(make("colors"), this.store, this.renderer);
-    new Controls(make("noise"), this.store, library, this.history);
+    new Controls(make("noise"), this.store, library, this.history, this.noisePreviewEl);
     new AnimPanel(make("animate"), this.store);
     new ExportPanel(make("export"), this.store, library);
   }
@@ -310,13 +312,15 @@ export class Shell {
       this.buildToolbox(s);
     }
 
-    // Context menu visibility. Noise & Export use a wider 2-column layout.
+    // Context menu visibility. Some panels use a wider 2-column layout.
     const open = s.contextPanel;
     this.contextEl.classList.toggle("hidden", open === null);
     this.contextEl.classList.toggle(
       "wide",
-      open === "noise" || open === "export" || open === "animate" || open === "colors",
+      open === "export" || open === "animate" || open === "colors",
     );
+    // The noise pixel preview floats above the context, shown only for noise.
+    this.noisePreviewEl.classList.toggle("hidden", open !== "noise");
     for (const [key, host] of this.ctxHosts) host.classList.toggle("hidden", key !== open);
 
     // Pan + zoom.

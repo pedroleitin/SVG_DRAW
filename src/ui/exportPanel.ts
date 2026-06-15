@@ -35,7 +35,7 @@ export class ExportPanel {
     panel.innerHTML = `
       <div class="exp-cols">
        <div class="exp-col">
-        <h3 class="exp-sub">Export</h3>
+        <h3 class="exp-sub">Static</h3>
         <div class="select-grid">
           <label class="sel"><span>Aspect</span>
             <select id="exp-aspect">${ASPECT_IDS.map((a) => `<option value="${a}">${a === "free" ? "Free Form" : a}</option>`).join("")}</select>
@@ -53,9 +53,9 @@ export class ExportPanel {
         </div>
         <div class="exp-out">
           <span class="exp-dims" id="exp-dims"></span>
-          <label class="chk"><input type="checkbox" id="exp-transp" /> Transparent</label>
+          <label class="chk"><input type="checkbox" id="exp-transp" /> Background transparent</label>
         </div>
-        <div class="noise-actions">
+        <div class="noise-actions exp-save">
           <button id="exp-svg">⬇ SVG</button>
           <button id="exp-png">⬇ PNG</button>
         </div>
@@ -73,11 +73,11 @@ export class ExportPanel {
         <div class="noise-actions">
           <button id="exp-loop" title="Set duration to one animation loop">↺ Loop length</button>
         </div>
-        <div class="noise-actions">
+        <div class="exp-progress" id="exp-progress"></div>
+        <div class="noise-actions exp-save">
           <button id="exp-seq">⬇ PNG Seq</button>
           <button id="exp-mp4">⬇ MP4</button>
         </div>
-        <div class="exp-progress" id="exp-progress"></div>
        </div>
       </div>`;
     host.appendChild(panel);
