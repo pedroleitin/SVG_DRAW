@@ -168,14 +168,27 @@ body {
 }
 
 .tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
   background: var(--panel-2);
   color: var(--text);
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 8px 13px;
+  padding: 0 13px;
   font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.tool-btn.icon-btn {
+  width: 34px;
+  padding: 0;
+}
+
+.tool-btn svg {
+  display: block;
 }
 
 .tool-btn:hover {
@@ -233,42 +246,66 @@ body {
   gap: 6px;
 }
 
-.status-actions {
-  display: flex;
-  gap: 4px;
-}
-
-#status button,
-#zoombox button {
-  background: var(--panel-2);
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 5px 9px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-#status button:hover,
-#zoombox button:hover {
-  background: var(--hover);
-}
-
-#status button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-#zoombox button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
-
 #sh-zlabel {
   min-width: 42px;
   text-align: center;
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom "Size N" dropdown */
+.size-dd {
+  position: relative;
+}
+
+.size-btn {
+  color: var(--muted);
+  gap: 6px;
+}
+
+.size-btn b {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.size-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(60, 50, 30, 0.16);
+}
+
+.size-menu.hidden {
+  display: none;
+}
+
+.size-menu button {
+  background: none;
+  border: none;
+  color: var(--text);
+  border-radius: 7px;
+  padding: 7px 22px;
+  font-size: 14px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.size-menu button:hover {
+  background: var(--hover);
+}
+
+.size-menu button.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
 }
 
 .asset-grid {

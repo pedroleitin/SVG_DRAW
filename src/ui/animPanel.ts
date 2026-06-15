@@ -17,25 +17,16 @@ import type { AnimationConfig } from "../anim/animations";
 export class AnimPanel {
   private selects = new Map<keyof AnimationConfig, HTMLSelectElement>();
   private sliders = new Map<keyof AnimationConfig, { range: HTMLInputElement; out: HTMLElement }>();
-  private playBtn!: HTMLButtonElement;
 
   constructor(host: HTMLElement, private store: Store) {
     const panel = document.createElement("section");
     panel.className = "panel";
     panel.id = "anim-panel";
     panel.innerHTML = `
-      <div class="anim-head">
-        <h2>Animation</h2>
-        <button id="anim-play" class="play">▶ Play</button>
-      </div>
+      <h2>Animation</h2>
       <div class="select-grid" id="anim-selects"></div>
       <div class="sliders" id="anim-sliders"></div>`;
     host.appendChild(panel);
-
-    this.playBtn = panel.querySelector("#anim-play") as HTMLButtonElement;
-    this.playBtn.addEventListener("click", () =>
-      this.set({ playing: !this.store.get().animation.playing }),
-    );
 
     const selHost = panel.querySelector("#anim-selects")!;
     // "free" is the hand-drawn path mode — show it as "draw path".
@@ -123,9 +114,6 @@ export class AnimPanel {
 
   private sync(s: SceneState): void {
     const a = s.animation;
-    this.playBtn.textContent = a.playing ? "⏸ Pause" : "▶ Play";
-    this.playBtn.classList.toggle("playing", a.playing);
-
     for (const [key, sel] of this.selects) {
       const v = String(a[key]);
       if (sel.value !== v) sel.value = v;

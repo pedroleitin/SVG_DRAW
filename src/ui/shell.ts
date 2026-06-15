@@ -18,6 +18,16 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "export", label: "Export" },
 ];
 
+/** Minimal line icons (inherit currentColor). */
+const SVG = (inner: string) =>
+  `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+const ICONS = {
+  undo: SVG(`<polyline points="9 14 4 9 9 4"/><path d="M4 9h11a5 5 0 0 1 0 10H8"/>`),
+  redo: SVG(`<polyline points="15 14 20 9 15 4"/><path d="M20 9H9a5 5 0 0 0 0 10h7"/>`),
+  hand: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 11V6a1.5 1.5 0 0 1 3 0v4"/><path d="M11 10V5a1.5 1.5 0 0 1 3 0v5"/><path d="M14 10.5V7a1.5 1.5 0 0 1 3 0v6"/><path d="M17 11.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.5a6 6 0 0 1-4.8-2.4l-2.4-3.2a1.5 1.5 0 0 1 2.4-1.8L8 12"/></svg>`,
+  fit: SVG(`<path d="M4 9V5a1 1 0 0 1 1-1h4"/><path d="M20 9V5a1 1 0 0 0-1-1h-4"/><path d="M4 15v4a1 1 0 0 0 1 1h4"/><path d="M20 15v4a1 1 0 0 1-1 1h-4"/>`),
+};
+
 /** The floating UI shell: a modes bar (top), a per-mode toolbox (bottom-center)
  *  with a context menu above it, and status / zoom in the bottom corners.
  *  Context panels (Shapes, Colors, Noise, Animate, Export) are mounted once and
@@ -27,7 +37,8 @@ export class Shell {
   private toolboxEl: HTMLElement;
   private editsEl: HTMLElement;
   private settingsEl: HTMLElement;
-  private cellSel?: HTMLSelectElement;
+  private sizeNum?: HTMLElement;
+  private sizeMenu?: HTMLElement;
   private contextEl: HTMLElement;
   private statusEl: HTMLElement;
   private zoomEl: HTMLElement;
@@ -56,6 +67,7 @@ export class Shell {
     this.mountContexts(library);
 
     history.onChange = () => this.refreshStatus();
+    document.addEventListener("click", () => this.sizeMenu?.classList.add("hidden"));
     this.store.subscribe((s) => this.sync(s));
     this.sync(store.get());
   }
@@ -109,10 +121,10 @@ export class Shell {
   // ---- Toolbox (per mode) ----
   private btn(
     label: string,
-    opts: { title?: string; active?: boolean; onClick: () => void },
+    opts: { title?: string; active?: boolean; icon?: boolean; onClick: () => void },
   ): HTMLButtonElement {
     const b = document.createElement("button");
-    b.className = "tool-btn" + (opts.active ? " active" : "");
+    b.className = "tool-btn" + (opts.icon ? " icon-btn" : "") + (opts.active ? " active" : "");
     b.innerHTML = label;
     if (opts.title) b.title = opts.title;
     b.addEventListener("click", opts.onClick);
@@ -127,23 +139,6 @@ export class Shell {
     return this.btn(label, { title, active: s.contextPanel === key, onClick: () => this.toggleContext(key) });
   }
 
-  private gridSelect(s: SceneState): HTMLElement {
-    const wrap = document.createElement("label");
-    wrap.className = "tb-field";
-    wrap.innerHTML = `<span>cell</span>`;
-    const sel = document.createElement("select");
-    for (const size of [128, 64, 32, 16]) {
-      const o = document.createElement("option");
-      o.value = String(size);
-      o.textContent = String(size);
-      if (size === s.cellSize) o.selected = true;
-      sel.appendChild(o);
-    }
-    sel.addEventListener("change", () => this.store.set({ cellSize: Number(sel.value) }));
-    wrap.appendChild(sel);
-    return wrap;
-  }
-
   private sep(): HTMLElement {
     const d = document.createElement("span");
     d.className = "tb-sep";
@@ -154,12 +149,12 @@ export class Shell {
   private buildEdits(): void {
     this.editsEl.innerHTML = "";
     this.editsEl.append(
-      this.btn("↶", { title: "Undo (⌘Z)", onClick: () => this.history.undo() }),
-      this.btn("↷", { title: "Redo (⌘⇧Z)", onClick: () => this.history.redo() }),
+      this.btn(ICONS.undo, { title: "Undo (⌘Z)", icon: true, onClick: () => this.history.undo() }),
+      this.btn(ICONS.redo, { title: "Redo (⌘⇧Z)", icon: true, onClick: () => this.history.redo() }),
     );
   }
 
-  /** Clear + cell size — a separate floating box right of the toolbox. */
+  /** Cell size + Clear — a separate floating box right of the toolbox. */
   private buildSettings(): void {
     this.settingsEl.innerHTML = "";
     const clear = this.btn("Clear", {
@@ -168,9 +163,45 @@ export class Shell {
         if (Object.keys(this.store.get().instances).length) this.history.dispatch(new ClearAll());
       },
     });
-    const gridField = this.gridSelect(this.store.get());
-    this.cellSel = gridField.querySelector("select") as HTMLSelectElement;
-    this.settingsEl.append(clear, this.sep(), gridField);
+    this.settingsEl.append(this.sizeDropdown(), clear);
+  }
+
+  /** Custom "Size N" dropdown (styled pill + floating list). */
+  private sizeDropdown(): HTMLElement {
+    const dd = document.createElement("div");
+    dd.className = "size-dd";
+    const btn = document.createElement("button");
+    btn.className = "tool-btn size-btn";
+    btn.innerHTML = `Size <b>${this.store.get().cellSize}</b>`;
+    this.sizeNum = btn.querySelector("b") as HTMLElement;
+    const menu = document.createElement("div");
+    menu.className = "size-menu hidden";
+    for (const size of [128, 64, 32, 16]) {
+      const opt = document.createElement("button");
+      opt.textContent = String(size);
+      opt.dataset.size = String(size);
+      opt.addEventListener("click", () => {
+        this.store.set({ cellSize: size });
+        menu.classList.add("hidden");
+      });
+      menu.appendChild(opt);
+    }
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      menu.classList.toggle("hidden");
+      this.syncSizeMenu();
+    });
+    this.sizeMenu = menu;
+    dd.append(btn, menu);
+    return dd;
+  }
+
+  private syncSizeMenu(): void {
+    const cell = this.store.get().cellSize;
+    if (this.sizeNum) this.sizeNum.textContent = String(cell);
+    this.sizeMenu?.querySelectorAll<HTMLButtonElement>("button").forEach((b) =>
+      b.classList.toggle("active", Number(b.dataset.size) === cell),
+    );
   }
 
   private buildToolbox(s: SceneState): void {
@@ -181,19 +212,19 @@ export class Shell {
     switch (s.mode) {
       case "draw":
         add(
-          this.toolBtn("✏️ Draw", "draw", s),
-          this.toolBtn("🩹 Erase", "erase", s),
+          this.toolBtn("Draw", "draw", s),
+          this.toolBtn("Erase", "erase", s),
           this.sep(),
-          this.ctxBtn("◆ Shapes", "shapes", s),
-          this.ctxBtn("🎨 Colors", "colors", s),
+          this.ctxBtn("Shapes", "shapes", s),
+          this.ctxBtn("Colors", "colors", s),
         );
         break;
       case "compose":
         add(
-          this.ctxBtn("⬡ Noise", "noise", s, "Noise mask: fill / erase"),
+          this.ctxBtn("Noise", "noise", s, "Noise mask: fill / erase"),
           this.sep(),
-          this.ctxBtn("◆ Shapes", "shapes", s),
-          this.ctxBtn("🎨 Colors", "colors", s),
+          this.ctxBtn("Shapes", "shapes", s),
+          this.ctxBtn("Colors", "colors", s),
         );
         break;
       case "animate": {
@@ -203,13 +234,13 @@ export class Shell {
             active: playing,
             onClick: () => this.store.set({ animation: { ...s.animation, playing: !playing } }),
           }),
-          this.toolBtn("🧭 Order", "path", s, "Draw reveal order: START→FINISH"),
+          this.toolBtn("Order", "path", s, "Draw reveal order: START→FINISH"),
         );
         break;
       }
       case "export":
         add(
-          this.btn(s.frame.show ? "▣ Frame ✓" : "▢ Frame", {
+          this.btn("Frame", {
             active: s.frame.show,
             title: "Toggle export frame",
             onClick: () => this.store.set({ frame: { ...s.frame, show: !s.frame.show } }),
@@ -236,26 +267,33 @@ export class Shell {
 
   // ---- Zoom (bottom-right) ----
   private buildZoom(): void {
-    this.zoomEl.innerHTML = `
-      <button id="sh-pan" title="Pan (Space)">✋</button>
-      <span class="tb-sep"></span>
-      <button id="sh-zout">−</button>
-      <span id="sh-zlabel">100%</span>
-      <button id="sh-zin">+</button>
-      <button id="sh-zreset" title="Reset view">⤢</button>`;
     const zoom = (factor: number) => () => {
       const h = this.renderer.hostSize;
       this.store.set({ camera: zoomAt(this.store.get().camera, h, h.width / 2, h.height / 2, factor) });
     };
-    this.zoomEl.querySelector("#sh-zin")!.addEventListener("click", zoom(1.2));
-    this.zoomEl.querySelector("#sh-zout")!.addEventListener("click", zoom(1 / 1.2));
-    this.zoomEl.querySelector("#sh-zreset")!.addEventListener("click", () =>
-      this.store.set({ camera: makeCamera(this.renderer.hostSize, 1) }),
-    );
-    this.zoomEl.querySelector("#sh-pan")!.addEventListener("click", () => {
-      const next: ToolId = this.store.get().tool === "pan" ? "draw" : "pan";
-      this.store.set({ tool: next });
+    const pan = this.btn(ICONS.hand, {
+      title: "Pan (Space)",
+      icon: true,
+      onClick: () => this.store.set({ tool: this.store.get().tool === "pan" ? "draw" : "pan" }),
     });
+    pan.id = "sh-pan";
+    const label = document.createElement("span");
+    label.id = "sh-zlabel";
+    label.textContent = "100%";
+
+    this.zoomEl.innerHTML = "";
+    this.zoomEl.append(
+      pan,
+      this.sep(),
+      this.btn("−", { title: "Zoom out", onClick: zoom(1 / 1.2) }),
+      label,
+      this.btn("+", { title: "Zoom in", onClick: zoom(1.2) }),
+      this.btn(ICONS.fit, {
+        title: "Reset view",
+        icon: true,
+        onClick: () => this.store.set({ camera: makeCamera(this.renderer.hostSize, 1) }),
+      }),
+    );
   }
 
   // ---- Reactive sync ----
@@ -279,7 +317,7 @@ export class Shell {
     for (const [key, host] of this.ctxHosts) host.classList.toggle("hidden", key !== open);
 
     // Pan + zoom.
-    if (this.cellSel && Number(this.cellSel.value) !== s.cellSize) this.cellSel.value = String(s.cellSize);
+    this.syncSizeMenu();
     this.zoomEl.querySelector("#sh-pan")!.classList.toggle("active", s.tool === "pan");
     const zl = this.zoomEl.querySelector("#sh-zlabel");
     if (zl) zl.textContent = `${Math.round(zoomOf(s.camera, this.renderer.hostSize) * 100)}%`;
