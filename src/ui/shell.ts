@@ -26,6 +26,8 @@ export class Shell {
   private modesEl: HTMLElement;
   private toolboxEl: HTMLElement;
   private editsEl: HTMLElement;
+  private settingsEl: HTMLElement;
+  private cellSel?: HTMLSelectElement;
   private contextEl: HTMLElement;
   private statusEl: HTMLElement;
   private zoomEl: HTMLElement;
@@ -41,12 +43,14 @@ export class Shell {
     this.modesEl = document.getElementById("modes") as HTMLElement;
     this.toolboxEl = document.getElementById("toolbox") as HTMLElement;
     this.editsEl = document.getElementById("edits") as HTMLElement;
+    this.settingsEl = document.getElementById("settings") as HTMLElement;
     this.contextEl = document.getElementById("context") as HTMLElement;
     this.statusEl = document.getElementById("status") as HTMLElement;
     this.zoomEl = document.getElementById("zoombox") as HTMLElement;
 
     this.buildModes();
     this.buildEdits();
+    this.buildSettings();
     this.buildStatus();
     this.buildZoom();
     this.mountContexts(library);
@@ -146,19 +150,27 @@ export class Shell {
     return d;
   }
 
-  /** Undo / redo / clear — a separate floating box beside the toolbox. */
+  /** Undo / redo — a separate floating box left of the toolbox. */
   private buildEdits(): void {
     this.editsEl.innerHTML = "";
     this.editsEl.append(
       this.btn("↶", { title: "Undo (⌘Z)", onClick: () => this.history.undo() }),
       this.btn("↷", { title: "Redo (⌘⇧Z)", onClick: () => this.history.redo() }),
-      this.btn("Clear", {
-        title: "Clear all",
-        onClick: () => {
-          if (Object.keys(this.store.get().instances).length) this.history.dispatch(new ClearAll());
-        },
-      }),
     );
+  }
+
+  /** Clear + cell size — a separate floating box right of the toolbox. */
+  private buildSettings(): void {
+    this.settingsEl.innerHTML = "";
+    const clear = this.btn("Clear", {
+      title: "Clear all",
+      onClick: () => {
+        if (Object.keys(this.store.get().instances).length) this.history.dispatch(new ClearAll());
+      },
+    });
+    const gridField = this.gridSelect(this.store.get());
+    this.cellSel = gridField.querySelector("select") as HTMLSelectElement;
+    this.settingsEl.append(clear, this.sep(), gridField);
   }
 
   private buildToolbox(s: SceneState): void {
@@ -174,8 +186,6 @@ export class Shell {
           this.sep(),
           this.ctxBtn("◆ Shapes", "shapes", s),
           this.ctxBtn("🎨 Colors", "colors", s),
-          this.sep(),
-          this.gridSelect(s),
         );
         break;
       case "compose":
@@ -184,8 +194,6 @@ export class Shell {
           this.sep(),
           this.ctxBtn("◆ Shapes", "shapes", s),
           this.ctxBtn("🎨 Colors", "colors", s),
-          this.sep(),
-          this.gridSelect(s),
         );
         break;
       case "animate": {
@@ -271,6 +279,7 @@ export class Shell {
     for (const [key, host] of this.ctxHosts) host.classList.toggle("hidden", key !== open);
 
     // Pan + zoom.
+    if (this.cellSel && Number(this.cellSel.value) !== s.cellSize) this.cellSel.value = String(s.cellSize);
     this.zoomEl.querySelector("#sh-pan")!.classList.toggle("active", s.tool === "pan");
     const zl = this.zoomEl.querySelector("#sh-zlabel");
     if (zl) zl.textContent = `${Math.round(zoomOf(s.camera, this.renderer.hostSize) * 100)}%`;

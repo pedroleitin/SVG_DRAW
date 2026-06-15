@@ -157,7 +157,8 @@ body {
 }
 
 #toolbox,
-#edits {
+#edits,
+#settings {
   display: flex;
   align-items: center;
   gap: 6px;
