@@ -13,6 +13,19 @@ import { fitFrame } from "./export/frame";
 import { makeCamera, resizeCamera } from "./scene/camera";
 import type { SceneState, ToolId } from "./scene/types";
 
+// Apply the saved theme before first paint (avoids a flash).
+const savedTheme =
+  (() => {
+    try {
+      return localStorage.getItem("theme");
+    } catch {
+      return null;
+    }
+  })() === "dark"
+    ? "dark"
+    : "light";
+document.documentElement.setAttribute("data-theme", savedTheme);
+
 const stage = document.getElementById("stage") as HTMLElement;
 const library = new Library();
 
@@ -59,7 +72,7 @@ const initial: SceneState = {
   },
   orderPath: [],
   frame: { aspect: "1:1", ...fitFrame(camera0, "1:1"), outWidth: 1080, show: false, snap: true },
-  bgColor: "#f7f5ef",
+  bgColor: savedTheme === "dark" ? "#111110" : "#f7f5ef",
   exportTransparent: false,
   camera: camera0,
 };

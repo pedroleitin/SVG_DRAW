@@ -1,4 +1,5 @@
-:root {
+:root,
+[data-theme="light"] {
   --bg: #f7f5ef;
   --panel: #f1eee7;
   --panel-2: #ffffff;
@@ -12,6 +13,25 @@
   --grid-dot: #a39b88;
   /* Translucent panel for the frosted-glass floating boxes. */
   --glass: rgba(243, 240, 233, 0.66);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --shadow: rgba(60, 50, 30, 0.14);
+}
+
+[data-theme="dark"] {
+  --bg: #111110;
+  --panel: #1a1918;
+  --panel-2: #242220;
+  --line: #2d2b28;
+  --line-strong: #3d3b38;
+  --text: #c8c4bc;
+  --muted: #857f74;
+  --accent: #ffc800;
+  --accent-ink: #2a2618;
+  --hover: #2f2c28;
+  --grid-dot: #3c3a34;
+  --glass: rgba(26, 25, 23, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --shadow: rgba(0, 0, 0, 0.45);
 }
 
 * {
@@ -46,16 +66,37 @@ body {
   background: var(--glass);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
   backdrop-filter: blur(16px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--glass-border);
   border-radius: 20px;
-  box-shadow: 0 8px 28px rgba(60, 50, 30, 0.14);
+  box-shadow: 0 8px 28px var(--shadow);
 }
 
 /* Corner/edge boxes are absolutely positioned; dock children stay in flow. */
 #modes,
 #status,
-#zoombox {
+#zoombox,
+#theme-toggle {
   position: absolute;
+}
+
+#theme-toggle {
+  top: 14px;
+  right: 14px;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  cursor: pointer;
+}
+
+#theme-toggle:hover {
+  background: var(--hover);
+}
+
+#theme-toggle svg {
+  display: block;
 }
 
 /* Modes bar (top center) */
@@ -383,9 +424,9 @@ body {
   background: var(--glass);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
   backdrop-filter: blur(16px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--glass-border);
   border-radius: 14px;
-  box-shadow: 0 8px 28px rgba(60, 50, 30, 0.18);
+  box-shadow: 0 8px 28px var(--shadow);
   z-index: 1000;
   max-height: 50vh;
   overflow-y: auto;

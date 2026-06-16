@@ -12,10 +12,10 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 - [~] 🟡 **Revisão do layout da interface** — _grande parte feita._
   Feito: tema **creme + accent dourado** (igual grid.leit.in), **fundo de pontos**,
-  e a **UI flutuante**: modos no topo (Draw/Compose/Animate/Export), toolbox por modo
-  embaixo, **context menus** acima da toolbox (Shapes, Colors, Noise, Animate, Export),
-  status (cell/placed + undo/redo/clear) no canto inf. esquerdo e zoom no direito.
-  Falta: responsividade fina, tema claro/escuro, e refino visual.
+  **UI flutuante** (modos topo, toolbox por modo, context menus, status + zoom nos
+  cantos), **glass/blur** nas caixas, widgets estilo GG2, e **tema claro/escuro**
+  (toggle no canto sup. direito, GG2, persistido em localStorage).
+  Falta: responsividade fina e refino visual.
   - Arquivos: [index.html](index.html), [src/ui/shell.ts](src/ui/shell.ts), [src/ui/](src/ui/), [src/ui/styles/app.css](src/ui/styles/app.css)
 - [x] 🔴 **Agrupar as funções por tipo** — feito via os 4 modos + context menus
   compartilhados (Shapes/Colors). Refinamentos futuros: subgrupos dentro dos modos.

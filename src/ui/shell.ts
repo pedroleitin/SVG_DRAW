@@ -28,7 +28,13 @@ const ICONS = {
   redo: SVG(`<polyline points="15 14 20 9 15 4"/><path d="M20 9H9a5 5 0 0 0 0 10h7"/>`),
   hand: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 0 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>`,
   fit: SVG(`<path d="M4 9V5a1 1 0 0 1 1-1h4"/><path d="M20 9V5a1 1 0 0 0-1-1h-4"/><path d="M4 15v4a1 1 0 0 0 1 1h4"/><path d="M20 15v4a1 1 0 0 1-1 1h-4"/>`),
+  sun: SVG(
+    `<circle cx="12" cy="12" r="4"/><path d="M12 3v1.6M12 19.4V21M4.6 4.6l1.1 1.1M18.3 18.3l1.1 1.1M3 12h1.6M19.4 12H21M4.6 19.4l1.1-1.1M18.3 5.7l1.1-1.1"/>`,
+  ),
+  moon: SVG(`<path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/>`),
 };
+
+const THEME_BG: Record<string, string> = { light: "#f7f5ef", dark: "#111110" };
 
 /** The floating UI shell: a modes bar (top), a per-mode toolbox (bottom-center)
  *  with a context menu above it, and status / zoom in the bottom corners.
@@ -63,6 +69,7 @@ export class Shell {
     this.zoomEl = document.getElementById("zoombox") as HTMLElement;
 
     this.buildModes();
+    this.buildTheme();
     this.buildEdits();
     this.buildSettings();
     this.buildStatus();
@@ -85,6 +92,27 @@ export class Shell {
       btn.addEventListener("click", () => this.setMode(m.id));
       this.modesEl.appendChild(btn);
     }
+  }
+
+  /** Light/dark theme toggle (top-right). The canvas bg follows the theme. */
+  private buildTheme(): void {
+    const btn = document.getElementById("theme-toggle") as HTMLButtonElement;
+    const render = () => {
+      const dark = document.documentElement.getAttribute("data-theme") === "dark";
+      btn.innerHTML = dark ? ICONS.sun : ICONS.moon;
+    };
+    render();
+    btn.addEventListener("click", () => {
+      const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      try {
+        localStorage.setItem("theme", next);
+      } catch {
+        /* ignore */
+      }
+      this.store.set({ bgColor: THEME_BG[next] });
+      render();
+    });
   }
 
   private setMode(mode: Mode): void {
