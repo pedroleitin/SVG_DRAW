@@ -31,8 +31,8 @@ export class AnimPanel {
     panel.innerHTML = `
       <h2>Animation</h2>
       <div class="anim-cols">
-        <div class="anim-left" id="anim-selects"></div>
-        <div class="sliders" id="anim-sliders"></div>
+        <div class="anim-selects" id="anim-selects"></div>
+        <div class="anim-sliders" id="anim-sliders"></div>
       </div>`;
     host.appendChild(panel);
 

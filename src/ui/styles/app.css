@@ -131,23 +131,40 @@ body {
   width: 560px;
 }
 
+#context.anim {
+  width: 700px;
+}
+
 .noise-body,
-.exp-cols,
-.anim-cols {
+.exp-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
   align-items: start;
 }
 
-.anim-left {
-  display: flex;
-  flex-direction: column;
+/* Animation: 2 columns of combos (left) + 2 columns of sliders (right). */
+.anim-cols {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.anim-selects {
+  display: grid;
+  grid-template-columns: repeat(2, 132px);
   gap: 9px;
 }
 
-.anim-left .dd {
+.anim-selects .dd {
   width: 100%;
+}
+
+.anim-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 18px;
 }
 
 .noise-left .mask-preview {
@@ -340,7 +357,10 @@ body {
 }
 
 /* Full-width dropdowns inside a select grid (Aspect/Res, Animation selects). */
-.select-grid .dd {
+.select-grid .dd,
+.select-grid .dd-btn,
+.anim-selects .dd,
+.anim-selects .dd-btn {
   width: 100%;
 }
 
@@ -569,11 +589,12 @@ body {
 }
 
 
-/* Pill slider (GG2 style): light track, dark fill (set via JS) + dark thumb. */
+/* Pill slider (GG2 style): light track, dark fill (set via JS) + dark thumb.
+   Thumb height matches the track so it sits flush (no protruding circle). */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 14px;
+  height: 16px;
   border-radius: 99px;
   background: var(--line);
   cursor: pointer;
