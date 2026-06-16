@@ -26,8 +26,15 @@ export function buildInstance(
   const seed = hash2(col, row, state.mask.seed);
   const rng = mulberry32(seed);
 
+  // Pick from the selected shapes (a random one per cell); "random" / empty
+  // means any shape from the library.
+  const pool = state.brushAssets.filter((id) => id !== "random" && library.get(id));
   const assetId =
-    state.brushAsset === "random" ? pick(rng, library.ids()) : state.brushAsset;
+    state.brushAssets.includes("random") || pool.length === 0
+      ? pick(rng, library.ids())
+      : pool.length === 1
+        ? pool[0]
+        : pool[randInt(rng, 0, pool.length - 1)];
 
   // Spread colors across the active palette, deterministically per cell.
   const palette = state.palettes.find((p) => p.id === state.activePaletteId);

@@ -356,6 +356,8 @@ export class Shell {
       open === "noise" || open === "export" || open === "animate" || open === "colors",
     );
     this.contextEl.classList.toggle("anim", open === "animate");
+    // Shapes sizes to its single row of tiles (no scrollbar).
+    this.contextEl.classList.toggle("fit", open === "shapes");
     // The output-size pill above the context belongs to Export only.
     this.ctxAboveEl.classList.toggle("hidden", open !== "export");
     for (const [key, host] of this.ctxHosts) host.classList.toggle("hidden", key !== open);

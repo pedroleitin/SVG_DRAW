@@ -34,6 +34,7 @@ export function parseSvg(text: string, name: string): Asset | null {
 
   sanitize(svg);
   forceCurrentColor(svg);
+  inheritRootPaint(svg);
 
   const viewBox = resolveViewBox(svg);
   const markup = svg.innerHTML.trim();
@@ -86,6 +87,22 @@ function forceCurrentColor(root: Element): void {
     for (const c of Array.from(el.children)) walk(c);
   };
   walk(root);
+}
+
+/** The <svg> root's fill/stroke are lost once we keep only its innerHTML, so
+ *  direct children that relied on inheritance would fall back to SVG defaults
+ *  (fill: black). Pin those explicitly — e.g. a stroke-only icon whose root set
+ *  fill="none" must keep fill="none", not become a filled blob. */
+function inheritRootPaint(svg: SVGSVGElement): void {
+  const rootFill = svg.getAttribute("fill");
+  const rootStroke = svg.getAttribute("stroke");
+  const fillNone = rootFill != null && rootFill.trim().toLowerCase() === "none";
+  for (const child of Array.from(svg.children)) {
+    if (!child.hasAttribute("fill")) child.setAttribute("fill", fillNone ? "none" : "currentColor");
+    if (!child.hasAttribute("stroke") && rootStroke && rootStroke.trim().toLowerCase() !== "none") {
+      child.setAttribute("stroke", "currentColor");
+    }
+  }
 }
 
 /** Use the file's viewBox, or synthesize one from width/height, or default. */

@@ -5,12 +5,16 @@ import { paletteById } from "../features/palette";
 
 const DEFAULT_BG = "#f7f5ef";
 
-/** Colors context panel: palette picker + swatch editor (left) and the canvas
- *  background color with a reset (right). */
+/** Colors context panel: palette picker + swatch editor (left); canvas
+ *  background + cell-background mode (right). */
 export class ColorsPanel {
   private root: HTMLElement;
   private bgInput!: HTMLInputElement;
-  private sig = "";
+  private bgHex!: HTMLInputElement;
+  private colorHex!: HTMLInputElement;
+  private cellSegBtns!: HTMLButtonElement[];
+  private paletteSig = "";
+  private swatchSig = "";
 
   constructor(host: HTMLElement, private store: Store, private renderer: Renderer) {
     this.root = host;
@@ -21,32 +25,95 @@ export class ColorsPanel {
           <h3 class="exp-sub">Palette</h3>
           <div class="palette-list"></div>
           <div class="swatches"></div>
+          <label class="hex-row"><span>Hex</span><input type="text" id="color-hex" class="hex-input" spellcheck="false" maxlength="7" /></label>
         </div>
         <div class="colors-right">
-          <h3 class="exp-sub">Background</h3>
+          <h3 class="exp-sub">Canvas background</h3>
           <div class="bg-row">
-            <input type="color" id="bg-color" title="Canvas + export background" />
+            <div class="swatch"><input type="color" id="bg-color" title="Canvas + export background" /></div>
+            <input type="text" id="bg-hex" class="hex-input" spellcheck="false" maxlength="7" />
             <button id="bg-reset" class="tool-btn">Reset</button>
           </div>
           <h3 class="exp-sub">Cell background</h3>
-          <div class="cell-bg-row"></div>
+          <div class="seg" id="cell-bg-seg">
+            <button class="seg-btn seg-text" data-bg="none">None</button>
+            <button class="seg-btn seg-text" data-bg="random">Random</button>
+          </div>
         </div>
       </div>`;
+
     this.bgInput = this.root.querySelector("#bg-color") as HTMLInputElement;
     this.bgInput.addEventListener("input", () => this.store.set({ bgColor: this.bgInput.value }));
     this.root.querySelector("#bg-reset")!.addEventListener("click", () =>
       this.store.set({ bgColor: DEFAULT_BG }),
     );
+
+    // Hex fields (type an exact color; the native picker lacks a hex field).
+    this.bgHex = this.root.querySelector("#bg-hex") as HTMLInputElement;
+    this.bgHex.addEventListener("change", () => {
+      const hex = parseHex(this.bgHex.value);
+      if (hex) this.store.set({ bgColor: hex });
+      else this.bgHex.value = this.store.get().bgColor.toUpperCase();
+    });
+    this.colorHex = this.root.querySelector("#color-hex") as HTMLInputElement;
+    this.colorHex.addEventListener("change", () => {
+      const s = this.store.get();
+      const active = paletteById(s.palettes, s.activePaletteId);
+      const hex = parseHex(this.colorHex.value);
+      if (hex) this.editColor(active, s.activeColorIndex, hex);
+      else this.colorHex.value = toHex(active.colors[s.activeColorIndex] ?? "").toUpperCase();
+    });
+
+    // Cell background: None / Random (no per-color choice).
+    this.cellSegBtns = [...this.root.querySelectorAll<HTMLButtonElement>("#cell-bg-seg .seg-btn")];
+    for (const btn of this.cellSegBtns) {
+      btn.addEventListener("click", () =>
+        this.store.set({ activeBgIndex: btn.dataset.bg === "random" ? "random" : null }),
+      );
+    }
+
     this.render(store.get());
     store.subscribe((s) => this.render(s));
   }
 
   private render(s: SceneState): void {
     if (this.bgInput.value.toLowerCase() !== s.bgColor.toLowerCase()) this.bgInput.value = s.bgColor;
-    const sig = [s.activePaletteId, s.activeColorIndex, s.activeBgIndex, JSON.stringify(s.palettes.map((p) => p.colors))].join("|");
-    if (sig === this.sig) return;
-    this.sig = sig;
+    const active = paletteById(s.palettes, s.activePaletteId);
+    // Sync hex fields (skip the one being typed in).
+    if (document.activeElement !== this.bgHex) this.bgHex.value = toHex(s.bgColor).toUpperCase();
+    if (document.activeElement !== this.colorHex) {
+      this.colorHex.value = toHex(active.colors[s.activeColorIndex] ?? active.colors[0] ?? "").toUpperCase();
+    }
 
+    // Palette previews — safe to rebuild (no color <input>s).
+    const pSig = [s.activePaletteId, JSON.stringify(s.palettes.map((p) => p.colors))].join("|");
+    if (pSig !== this.paletteSig) {
+      this.paletteSig = pSig;
+      this.buildPaletteList(s);
+    }
+
+    // Swatches hold native color pickers — only rebuild on add/remove/switch, so
+    // selecting or editing a color never replaces the open picker (which made it
+    // pop up at the window corner).
+    const swSig = [s.activePaletteId, active.colors.length].join("|");
+    if (swSig !== this.swatchSig) {
+      this.swatchSig = swSig;
+      this.buildSwatches(active);
+    }
+
+    // Active highlights + value sync (no rebuild — keeps the open picker anchored).
+    this.root.querySelectorAll<HTMLElement>(".swatches .swatch").forEach((el, i) => {
+      el.classList.toggle("active", i === s.activeColorIndex);
+      const inp = el.querySelector("input") as HTMLInputElement | null;
+      if (inp && inp !== document.activeElement) inp.value = toHex(active.colors[i] ?? "");
+    });
+    for (const btn of this.cellSegBtns) {
+      const on = btn.dataset.bg === "random" ? s.activeBgIndex === "random" : s.activeBgIndex == null;
+      btn.classList.toggle("active", on);
+    }
+  }
+
+  private buildPaletteList(s: SceneState): void {
     const list = this.root.querySelector(".palette-list") as HTMLElement;
     list.innerHTML = "";
     for (const p of s.palettes) {
@@ -57,13 +124,14 @@ export class ColorsPanel {
       row.addEventListener("click", () => this.store.set({ activePaletteId: p.id }));
       list.appendChild(row);
     }
+  }
 
+  private buildSwatches(active: Palette): void {
     const swatches = this.root.querySelector(".swatches") as HTMLElement;
     swatches.innerHTML = "";
-    const active = paletteById(s.palettes, s.activePaletteId);
     active.colors.forEach((color, i) => {
       const wrap = document.createElement("div");
-      wrap.className = "swatch" + (i === s.activeColorIndex ? " active" : "");
+      wrap.className = "swatch";
       const input = document.createElement("input");
       input.type = "color";
       input.value = toHex(color);
@@ -75,7 +143,10 @@ export class ColorsPanel {
         const del = document.createElement("span");
         del.className = "swatch-del";
         del.textContent = "×";
-        del.addEventListener("click", () => this.removeColor(active, i));
+        del.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.removeColor(active, i);
+        });
         wrap.appendChild(del);
       }
       swatches.appendChild(wrap);
@@ -86,30 +157,6 @@ export class ColorsPanel {
     add.title = "Add color";
     add.addEventListener("click", () => this.addColor(active));
     swatches.appendChild(add);
-
-    // Cell-background color: a "None" chip + one chip per palette color.
-    const cellRow = this.root.querySelector(".cell-bg-row") as HTMLElement;
-    cellRow.innerHTML = "";
-    const none = document.createElement("button");
-    none.className = "cell-bg-chip none" + (s.activeBgIndex == null ? " active" : "");
-    none.title = "No cell background";
-    none.textContent = "None";
-    none.addEventListener("click", () => this.store.set({ activeBgIndex: null }));
-    cellRow.appendChild(none);
-    const rand = document.createElement("button");
-    rand.className = "cell-bg-chip none" + (s.activeBgIndex === "random" ? " active" : "");
-    rand.title = "Random cell background from the palette";
-    rand.textContent = "Random";
-    rand.addEventListener("click", () => this.store.set({ activeBgIndex: "random" }));
-    cellRow.appendChild(rand);
-    active.colors.forEach((color, i) => {
-      const chip = document.createElement("button");
-      chip.className = "cell-bg-chip" + (i === s.activeBgIndex ? " active" : "");
-      chip.style.background = color;
-      chip.title = `Cell background — color ${i}`;
-      chip.addEventListener("click", () => this.store.set({ activeBgIndex: i }));
-      cellRow.appendChild(chip);
-    });
   }
 
   private mutatePalette(active: Palette, colors: string[]): void {
@@ -136,6 +183,14 @@ export class ColorsPanel {
     }
     this.mutatePalette(active, colors);
   }
+}
+
+/** Parse a typed hex (#rgb / #rrggbb, with or without #) → #rrggbb, or null. */
+function parseHex(v: string): string | null {
+  const h = v.trim().replace(/^#/, "");
+  if (/^[0-9a-fA-F]{6}$/.test(h)) return "#" + h.toLowerCase();
+  if (/^[0-9a-fA-F]{3}$/.test(h)) return "#" + [...h].map((c) => c + c).join("").toLowerCase();
+  return null;
 }
 
 /** Normalize any CSS color string to #rrggbb for <input type=color>. */

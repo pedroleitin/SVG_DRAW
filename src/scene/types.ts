@@ -105,8 +105,9 @@ export interface SceneState {
   cellSize: number;
   /** Show the dot grid on the canvas. */
   showGrid: boolean;
-  /** Active brush asset id, or "random" to pick from the library. */
-  brushAsset: string;
+  /** Selected brush asset ids — a random one is placed per cell. The special
+   *  id "random" (or an empty list) means "any shape from the library". */
+  brushAssets: string[];
   /** Brush footprint multiplier: 1 = 1 cell, 2 = 2×2, 3 = 3×3, 4 = 4×4. */
   brushSize: number;
   /** Cell span of each placed SVG (1..6) — a single SVG over N×N cells. */

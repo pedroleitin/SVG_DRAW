@@ -39,7 +39,7 @@ const initial: SceneState = {
   tool: "draw",
   cellSize: 64,
   showGrid: true,
-  brushAsset: "random",
+  brushAssets: ["random"],
   brushSize: 1,
   brushSpan: 1,
   brushShape: "square",
@@ -158,7 +158,7 @@ new TileFrameController(store, renderer);
 loadUserAssets().then((assets) => {
   if (!assets.length) return;
   for (const a of assets) library.add(a);
-  store.set({ brushAsset: store.get().brushAsset });
+  store.set({ brushAssets: [...store.get().brushAssets] });
 });
 
 // --- Keyboard shortcuts ---

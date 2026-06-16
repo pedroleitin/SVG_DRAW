@@ -396,8 +396,11 @@ export class Renderer {
       this.hoverBg.style.display = "none";
     }
 
-    const assetId = state.brushAsset;
-    if (showPreview && assetId !== "random" && this.library.get(assetId)) {
+    // Ghost only when a single concrete shape is selected (a random pool can't
+    // be previewed).
+    const picks = state.brushAssets.filter((id) => id !== "random");
+    const assetId = picks.length === 1 ? picks[0] : "";
+    if (showPreview && assetId && this.library.get(assetId)) {
       this.ensureSymbol(assetId);
       const size = span * cs * 0.85;
       const x = (bcol + span / 2) * cs - size / 2;
