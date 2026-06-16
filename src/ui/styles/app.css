@@ -10,6 +10,8 @@
   --accent-ink: #3a3526;
   --hover: #ebe6db;
   --grid-dot: #a39b88;
+  /* Translucent panel for the frosted-glass floating boxes. */
+  --glass: rgba(243, 240, 233, 0.66);
 }
 
 * {
@@ -41,10 +43,12 @@ body {
 
 .float {
   pointer-events: auto;
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 20px;
-  box-shadow: 0 8px 28px rgba(60, 50, 30, 0.12);
+  box-shadow: 0 8px 28px rgba(60, 50, 30, 0.14);
 }
 
 /* Corner/edge boxes are absolutely positioned; dock children stay in flow. */
@@ -375,8 +379,10 @@ body {
   flex-direction: column;
   gap: 2px;
   padding: 6px;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 14px;
   box-shadow: 0 8px 28px rgba(60, 50, 30, 0.18);
   z-index: 1000;

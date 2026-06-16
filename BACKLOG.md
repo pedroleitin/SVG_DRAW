@@ -19,8 +19,9 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Arquivos: [index.html](index.html), [src/ui/shell.ts](src/ui/shell.ts), [src/ui/](src/ui/), [src/ui/styles/app.css](src/ui/styles/app.css)
 - [x] 🔴 **Agrupar as funções por tipo** — feito via os 4 modos + context menus
   compartilhados (Shapes/Colors). Refinamentos futuros: subgrupos dentro dos modos.
-- [ ] 🟡 **Blur nos menus** — backdrop-filter (vidro/glass) por trás das caixas
-  flutuantes (toolbox, context, etc.). Arquivo: [src/ui/styles/app.css](src/ui/styles/app.css) (`.float`/`#context`).
+- [x] 🟡 **Blur nos menus** — feito: `--glass` translúcido + `backdrop-filter:
+  blur(16px) saturate(1.4)` em `.float` (modos, toolbox, context, pílulas) e no
+  `.dd-menu`. Borda branca sutil pra reforçar o vidro.
 - [x] 🟡 **Todos os combobox iguais ao "Size cell"** — feito: componente `createDropdown`
   reutilizável (pílula + menu flutuante portado pro body), usado no Size, Aspect, Res,
   FPS e nos selects da Animation. Sliders e toggles também no estilo GG2.
