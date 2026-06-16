@@ -98,10 +98,17 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 ## 3b. Compose / Noise
 
-- [ ] 🟡 **Seamless (checkbox no Compose)** — opção para a máscara de noise ser
-  *tileable* (sem emendas), pra padrões que repetem continuamente. Amostrar o campo
-  num domínio periódico (ex.: mapear x/y num círculo/torus) em vez do plano aberto.
-  - Arquivos: [src/features/noise.ts](src/features/noise.ts) (amostragem periódica), [src/ui/controls.ts](src/ui/controls.ts) (checkbox), [src/scene/types.ts](src/scene/types.ts) (flag em MaskParams).
+- [x] 🟡 **Seamless (Compose)** — _feito, bem além do checkbox._
+  Noise **tileable** (fBM com blend bilinear dos 4 cantos do toro → máscara repete sem
+  emenda). Botão **Seamless** abre um menu de contexto com um **tile frame** ao vivo
+  (borda tracejada, sem letterbox): o conteúdo de dentro é repetido em ghosts nos 8
+  vizinhos (clipado ao tile) e as células na **emenda** ganham anel ciano. Frame
+  arrastável/redimensionável (snap à célula), interior pintável. **Apply to view**
+  assa o pattern como instâncias reais; **Apply + Crop** assa e pula pro Export com o
+  crop travado no tile.
+  - Arquivos: [src/features/noise.ts](src/features/noise.ts) (tileable), [src/ui/seamlessPanel.ts](src/ui/seamlessPanel.ts),
+    [src/ui/tileFrameController.ts](src/ui/tileFrameController.ts), [src/render/renderer.ts](src/render/renderer.ts) (preview+emenda), [src/features/placement.ts](src/features/placement.ts) (`tileFill`).
+  - Refinamento futuro: unificar o **período do noise** com o tamanho do tile frame.
 
 ## 4. Animação
 
