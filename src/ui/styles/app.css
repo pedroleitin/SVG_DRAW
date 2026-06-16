@@ -842,20 +842,26 @@ body {
   margin-top: 12px;
 }
 
+/* Action buttons (Apply/Reseed, Fit, SVG/PNG…) share the .tool-btn look. */
 .noise-actions button {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
   background: var(--panel-2);
   color: var(--text);
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 9px;
+  padding: 0 14px;
   font-size: 13px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .noise-actions button:hover {
   background: var(--hover);
-  border-color: var(--accent);
 }
 
 #stage {

@@ -66,7 +66,7 @@ export class Controls {
           <div class="sliders" id="mask-sliders"></div>
           <div class="noise-actions">
             <button id="mask-apply">Apply to view</button>
-            <button id="mask-reseed">🎲 Reseed</button>
+            <button id="mask-reseed">Reseed</button>
           </div>
         </div>
       </div>`;
