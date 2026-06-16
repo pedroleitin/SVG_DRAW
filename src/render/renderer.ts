@@ -271,8 +271,8 @@ export class Renderer {
   private renderGrid(state: SceneState): void {
     const { camera: cam, cellSize } = state;
     const zoom = this.hostSize.width / cam.w;
-    // Hide dots when cells get sub-pixel (zoomed far out) to avoid moiré.
-    if (cellSize * zoom < 6) {
+    // Hidden by the user, or when cells get sub-pixel (zoomed far out).
+    if (!state.showGrid || cellSize * zoom < 6) {
       this.gridRect.setAttribute("fill", "none");
       return;
     }

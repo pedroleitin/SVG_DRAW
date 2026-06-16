@@ -24,6 +24,7 @@ const initial: SceneState = {
   contextPanel: null,
   tool: "draw",
   cellSize: 64,
+  showGrid: true,
   brushAsset: "random",
   instances: {},
   palettes: STARTER_PALETTES,

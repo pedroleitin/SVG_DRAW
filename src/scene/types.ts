@@ -74,6 +74,8 @@ export interface SceneState {
   contextPanel: ContextPanel;
   tool: ToolId;
   cellSize: number;
+  /** Show the dot grid on the canvas. */
+  showGrid: boolean;
   /** Active brush asset id, or "random" to pick from the library. */
   brushAsset: string;
   /** Instances indexed by "col,row" for O(1) hit-testing. */

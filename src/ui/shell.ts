@@ -195,6 +195,12 @@ export class Shell {
           this.sep(),
           this.ctxBtn("Shapes", "shapes", s),
           this.ctxBtn("Colors", "colors", s),
+          this.sep(),
+          this.btn("Grid", {
+            active: s.showGrid,
+            title: "Toggle grid",
+            onClick: () => this.store.set({ showGrid: !s.showGrid }),
+          }),
         );
         break;
       case "animate": {
@@ -222,7 +228,7 @@ export class Shell {
 
   // ---- Status (bottom-left) ----
   private buildStatus(): void {
-    this.statusEl.innerHTML = `<span id="sh-coords">cell 0,0</span> · <span id="sh-count">0 placed</span>`;
+    this.statusEl.innerHTML = `<span id="sh-coords">cell 0,0</span> · <span id="sh-count">0</span>`;
   }
 
   setCoords(col: number, row: number): void {
@@ -232,7 +238,7 @@ export class Shell {
 
   private refreshStatus(): void {
     const count = this.statusEl.querySelector("#sh-count");
-    if (count) count.textContent = `${Object.keys(this.store.get().instances).length} placed`;
+    if (count) count.textContent = String(Object.keys(this.store.get().instances).length);
   }
 
   // ---- Zoom (bottom-right) ----
@@ -274,7 +280,7 @@ export class Shell {
     );
 
     // Rebuild toolbox only when something it shows changes.
-    const sig = [s.mode, s.tool, s.contextPanel, s.cellSize, s.animation.playing, s.frame.show].join("|");
+    const sig = [s.mode, s.tool, s.contextPanel, s.cellSize, s.animation.playing, s.frame.show, s.showGrid].join("|");
     if (sig !== this.toolboxSig) {
       this.toolboxSig = sig;
       this.buildToolbox(s);
