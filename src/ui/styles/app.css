@@ -132,7 +132,7 @@ body {
 }
 
 #context.anim {
-  width: 700px;
+  width: 760px;
 }
 
 .noise-body,
@@ -153,7 +153,7 @@ body {
 
 .anim-selects {
   display: grid;
-  grid-template-columns: repeat(2, 132px);
+  grid-template-columns: repeat(2, 168px);
   gap: 9px;
 }
 
@@ -339,21 +339,28 @@ body {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .dd-prefix {
   color: var(--muted);
+  flex-shrink: 0;
 }
 
 .dd-btn b {
   color: var(--text);
   font-weight: 700;
   text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dd-caret {
   color: var(--muted);
   font-size: 10px;
+  flex-shrink: 0;
 }
 
 /* Full-width dropdowns inside a select grid (Aspect/Res, Animation selects). */
@@ -589,12 +596,12 @@ body {
 }
 
 
-/* Pill slider (GG2 style): light track, dark fill (set via JS) + dark thumb.
-   Thumb height matches the track so it sits flush (no protruding circle). */
+/* Pill slider (GG2 style): a thin light track with a dark fill (set via JS) and
+   a dark round knob on top — the knob covers the fill edge, so there's no seam. */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 16px;
+  height: 8px;
   border-radius: 99px;
   background: var(--line);
   cursor: pointer;
