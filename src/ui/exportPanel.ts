@@ -59,12 +59,10 @@ export class ExportPanel {
         <h3 class="exp-sub">Animated</h3>
         <div class="select-grid">
           <div id="exp-fps-slot"></div>
-          <label class="sel dur-field"><span>Duration (s)</span>
-            <input id="exp-dur" type="number" min="0.2" max="30" step="0.1" />
-          </label>
-        </div>
-        <div class="noise-actions">
-          <button id="exp-loop" title="Set duration to one animation loop">↺ Loop length</button>
+          <div class="num-field">
+            <span class="dd-prefix">Dur</span>
+            <input id="exp-dur" type="number" min="0.2" max="30" step="0.1" title="Duration (seconds)" />
+          </div>
         </div>
         <div class="exp-progress" id="exp-progress"></div>
         <div class="noise-actions exp-save">
@@ -113,7 +111,6 @@ export class ExportPanel {
     panel.querySelector("#exp-fit")!.addEventListener("click", () => this.fit());
     panel.querySelector("#exp-svg")!.addEventListener("click", () => this.exportSVG());
     panel.querySelector("#exp-png")!.addEventListener("click", () => this.exportPNG());
-    panel.querySelector("#exp-loop")!.addEventListener("click", () => this.setLoopDuration());
     panel.querySelector("#exp-seq")!.addEventListener("click", () => this.runExport("seq"));
     const mp4Btn = panel.querySelector("#exp-mp4") as HTMLButtonElement;
     mp4Btn.addEventListener("click", () => this.runExport("mp4"));
@@ -174,10 +171,6 @@ export class ExportPanel {
     downloadBlob(png, `svg-grid-${outW}x${outH}.png`);
   }
 
-  private setLoopDuration(): void {
-    this.duration = clampDur(loopDuration(this.store.get().animation));
-    this.durInput.value = this.duration.toFixed(1);
-  }
 
   /** Run an animated export (PNG sequence or MP4) with a progress readout. */
   private async runExport(kind: "seq" | "mp4"): Promise<void> {

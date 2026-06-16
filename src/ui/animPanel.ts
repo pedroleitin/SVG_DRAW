@@ -30,8 +30,10 @@ export class AnimPanel {
     panel.id = "anim-panel";
     panel.innerHTML = `
       <h2>Animation</h2>
-      <div class="select-grid" id="anim-selects"></div>
-      <div class="anim-sliders" id="anim-sliders"></div>`;
+      <div class="anim-cols">
+        <div class="anim-left" id="anim-selects"></div>
+        <div class="sliders" id="anim-sliders"></div>
+      </div>`;
     host.appendChild(panel);
 
     const selHost = panel.querySelector("#anim-selects")!;

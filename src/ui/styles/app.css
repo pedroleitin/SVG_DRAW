@@ -132,11 +132,22 @@ body {
 }
 
 .noise-body,
-.exp-cols {
+.exp-cols,
+.anim-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
   align-items: start;
+}
+
+.anim-left {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.anim-left .dd {
+  width: 100%;
 }
 
 .noise-left .mask-preview {
@@ -274,6 +285,37 @@ body {
 .dd-btn {
   gap: 8px;
   justify-content: space-between;
+  min-width: 104px;
+}
+
+/* Number field styled like a combobox pill (e.g. export Duration). */
+.num-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  min-width: 104px;
+  padding: 0 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.num-field input {
+  width: 100%;
+  border: none;
+  background: none;
+  outline: none;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 13px;
+  -moz-appearance: textfield;
+}
+
+.num-field input::-webkit-outer-spin-button,
+.num-field input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .dd-label {
@@ -526,12 +568,6 @@ body {
   color: var(--muted);
 }
 
-.anim-sliders {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px 18px;
-  margin-top: 6px;
-}
 
 /* Pill slider (GG2 style): light track, dark fill (set via JS) + dark thumb. */
 input[type="range"] {
@@ -760,16 +796,6 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 8px;
   background: none;
   cursor: pointer;
-}
-
-#exp-dur {
-  background: var(--panel-2);
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 5px 6px;
-  font-size: 12px;
-  width: 100%;
 }
 
 .exp-progress {
