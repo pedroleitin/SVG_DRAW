@@ -40,8 +40,8 @@ export class ExportPanel {
        <div class="exp-col">
         <h3 class="exp-sub">Static</h3>
         <div class="select-grid">
-          <div class="sel" id="exp-aspect-slot"><span>Aspect</span></div>
-          <div class="sel" id="exp-res-slot"><span>Resolution</span></div>
+          <div id="exp-aspect-slot"></div>
+          <div id="exp-res-slot"></div>
         </div>
         <div class="exp-toggles">
           <label class="chk"><input type="checkbox" id="exp-snap" /> Snap to grid</label>
@@ -58,8 +58,8 @@ export class ExportPanel {
        <div class="exp-col">
         <h3 class="exp-sub">Animated</h3>
         <div class="select-grid">
-          <div class="sel" id="exp-fps-slot"><span>FPS</span></div>
-          <label class="sel"><span>Duration (s)</span>
+          <div id="exp-fps-slot"></div>
+          <label class="sel dur-field"><span>Duration (s)</span>
             <input id="exp-dur" type="number" min="0.2" max="30" step="0.1" />
           </label>
         </div>
@@ -86,18 +86,21 @@ export class ExportPanel {
       ASPECT_IDS.map((a) => ({ value: a, label: a === "free" ? "Free Form" : a })),
       f.aspect,
       (v) => this.changeAspect(v as AspectId),
+      { prefix: "Aspect" },
     );
     panel.querySelector("#exp-aspect-slot")!.append(this.aspectDD.el);
     this.resDD = createDropdown(
       RESOLUTIONS.map((r) => ({ value: String(r), label: `${r}px` })),
       String(f.outWidth),
       (v) => this.setFrame({ outWidth: Number(v) }),
+      { prefix: "Res" },
     );
     panel.querySelector("#exp-res-slot")!.append(this.resDD.el);
     const fpsDD = createDropdown(
       FPS_OPTIONS.map((x) => ({ value: String(x) })),
       String(this.fps),
       (v) => (this.fps = Number(v)),
+      { prefix: "FPS" },
     );
     panel.querySelector("#exp-fps-slot")!.append(fpsDD.el);
 

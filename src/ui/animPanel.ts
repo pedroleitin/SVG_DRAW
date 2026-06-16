@@ -11,6 +11,10 @@ import type { AnimationConfig } from "../anim/animations";
 import { createDropdown, paintRange } from "./widgets";
 import type { DropdownHandle } from "./widgets";
 
+/** "left-right" -> "Left-Right", "linear" -> "Linear". */
+const titleCase = (s: string): string =>
+  s.replace(/[a-z]+/g, (w) => w[0].toUpperCase() + w.slice(1));
+
 /** Animation panel — lifecycle + order + playback.
  *  - Order: how SVGs are sequenced in (linear/radial/sequential/random/free).
  *  - Enter/Exit: how each SVG forms in and out (fade/scale/pop/rotate).
@@ -26,16 +30,14 @@ export class AnimPanel {
     panel.id = "anim-panel";
     panel.innerHTML = `
       <h2>Animation</h2>
-      <div class="anim-cols">
-        <div class="anim-left" id="anim-selects"></div>
-        <div class="sliders" id="anim-sliders"></div>
-      </div>`;
+      <div class="select-grid" id="anim-selects"></div>
+      <div class="anim-sliders" id="anim-sliders"></div>`;
     host.appendChild(panel);
 
     const selHost = panel.querySelector("#anim-selects")!;
     // "free" is the hand-drawn path mode — show it as "draw path".
     this.addSelect(selHost, "order", "Order", ORDER_MODES, { free: "draw path" });
-    this.addSelect(selHost, "direction", "Direction", DIRECTIONS);
+    this.addSelect(selHost, "direction", "Dir", DIRECTIONS);
     this.addSelect(selHost, "enter", "Enter", ENTER_EXITS);
     this.addSelect(selHost, "exit", "Exit", ENTER_EXITS);
     this.addSelect(selHost, "playback", "Playback", PLAYBACK_MODES);
@@ -56,22 +58,18 @@ export class AnimPanel {
   private addSelect(
     host: Element,
     key: keyof AnimationConfig,
-    label: string,
+    prefix: string,
     options: readonly string[],
     labels: Record<string, string> = {},
   ): void {
-    const wrap = document.createElement("div");
-    wrap.className = "sel";
-    const span = document.createElement("span");
-    span.textContent = label;
     const dd = createDropdown(
-      options.map((o) => ({ value: o, label: labels[o] ?? o })),
+      options.map((o) => ({ value: o, label: labels[o] ?? titleCase(o) })),
       String(this.store.get().animation[key]),
       (v) => this.set({ [key]: v } as Partial<AnimationConfig>),
+      { prefix },
     );
-    wrap.append(span, dd.el);
-    this.dropdowns.set(key, { dd, wrap });
-    host.appendChild(wrap);
+    this.dropdowns.set(key, { dd, wrap: dd.el });
+    host.appendChild(dd.el);
   }
 
   private addSlider(
@@ -82,12 +80,11 @@ export class AnimPanel {
     max: number,
     step: number,
   ): void {
-    const row = document.createElement("label");
+    const row = document.createElement("div");
     row.className = "slider";
     row.innerHTML = `
-      <span class="slider-label">${label}</span>
-      <input type="range" min="${min}" max="${max}" step="${step}" />
-      <span class="slider-val"></span>`;
+      <div class="slider-head"><span class="slider-label">${label}</span><span class="slider-val"></span></div>
+      <input type="range" min="${min}" max="${max}" step="${step}" />`;
     const range = row.querySelector("input")!;
     const out = row.querySelector(".slider-val") as HTMLElement;
     range.addEventListener("input", () => {

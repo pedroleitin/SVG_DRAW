@@ -98,12 +98,11 @@ export class Controls {
     map: Map<K, { range: HTMLInputElement; out: HTMLElement }>,
   ): void {
     for (const def of defs) {
-      const row = document.createElement("label");
+      const row = document.createElement("div");
       row.className = "slider";
       row.innerHTML = `
-        <span class="slider-label">${def.label}</span>
-        <input type="range" min="${def.min}" max="${def.max}" step="${def.step}" />
-        <span class="slider-val"></span>`;
+        <div class="slider-head"><span class="slider-label">${def.label}</span><span class="slider-val"></span></div>
+        <input type="range" min="${def.min}" max="${def.max}" step="${def.step}" />`;
       const range = row.querySelector("input")!;
       const out = row.querySelector(".slider-val") as HTMLElement;
       range.addEventListener("input", () => {

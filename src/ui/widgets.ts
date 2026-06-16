@@ -40,8 +40,8 @@ export function createDropdown(
   let current = value;
   const labelFor = (v: string) => options.find((o) => o.value === v)?.label ?? v;
   const render = () => {
-    const prefix = opts.prefix ? `<span class="dd-prefix">${opts.prefix}</span> ` : "";
-    btn.innerHTML = `${prefix}<b>${labelFor(current)}</b><span class="dd-caret">▾</span>`;
+    const prefix = opts.prefix ? `<span class="dd-prefix">${opts.prefix}</span>` : "";
+    btn.innerHTML = `<span class="dd-label">${prefix}<b>${labelFor(current)}</b></span><span class="dd-caret">▾</span>`;
   };
   render();
 

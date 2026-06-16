@@ -132,18 +132,11 @@ body {
 }
 
 .noise-body,
-.exp-cols,
-.anim-cols {
+.exp-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
   align-items: start;
-}
-
-.anim-left {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
 }
 
 .noise-left .mask-preview {
@@ -279,7 +272,17 @@ body {
 }
 
 .dd-btn {
-  gap: 6px;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.dd-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.dd-prefix {
   color: var(--muted);
 }
 
@@ -294,13 +297,9 @@ body {
   font-size: 10px;
 }
 
-.sel .dd,
-.sel .dd-btn {
+/* Full-width dropdowns inside a select grid (Aspect/Res, Animation selects). */
+.select-grid .dd {
   width: 100%;
-}
-
-.sel .dd-btn {
-  justify-content: space-between;
 }
 
 .dd-menu {
@@ -508,17 +507,30 @@ body {
   color: var(--accent);
 }
 
+/* GG2 slider: label + value on one line, the slider on the next. */
 .slider {
-  display: grid;
-  grid-template-columns: 70px 1fr 42px;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 11px;
   font-size: 12px;
+}
+
+.slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
 }
 
 .slider-label {
   color: var(--muted);
+}
+
+.anim-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 18px;
+  margin-top: 6px;
 }
 
 /* Pill slider (GG2 style): light track, dark fill (set via JS) + dark thumb. */
@@ -553,9 +565,8 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .slider-val {
-  text-align: right;
   font-variant-numeric: tabular-nums;
-  color: var(--text);
+  color: var(--muted);
 }
 
 .mask-preview {
@@ -646,7 +657,8 @@ input[type="range"]::-moz-range-thumb {
 .select-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px 8px;
+  gap: 8px;
+  align-items: end;
   margin-bottom: 12px;
 }
 
