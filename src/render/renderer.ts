@@ -14,6 +14,102 @@ const SVGNS = "http://www.w3.org/2000/svg";
 const EMPTY_ANIM: AnimOutput = {};
 const ORDER_COLOR = "#e03131";
 
+// Cardinal directions, y-down: 0=R, 1=D, 2=L, 3=U.
+const DIR_DX = [1, 0, -1, 0];
+const DIR_DY = [0, 1, 0, -1];
+
+/** Trace the silhouette of a set of grid cells ("col,row" keys) into SVG path
+ *  data with rounded corners. Each cell side bordering a free cell is a directed
+ *  boundary edge (clockwise, interior on the right). The walk turns clockwise-
+ *  most at every vertex, which resolves diagonal "pinch" points cleanly (two
+ *  cells touching at a corner don't merge into a stray line). Holes included.
+ *  `cs` = cell size, `radius` in world units. */
+function blockedRegionPath(blocked: Record<string, true>, cs: number, radius: number): string {
+  const has = (c: number, r: number) => blocked[`${c},${r}`] === true;
+  // out[vertexKey] = Map(dir -> targetVertexKey): the boundary edges leaving a vertex.
+  const out = new Map<string, Map<number, string>>();
+  const addEdge = (x: number, y: number, dir: number) => {
+    const k = `${x},${y}`;
+    let m = out.get(k);
+    if (!m) out.set(k, (m = new Map()));
+    m.set(dir, `${x + DIR_DX[dir]},${y + DIR_DY[dir]}`);
+  };
+  for (const key in blocked) {
+    const ci = key.indexOf(",");
+    const c = +key.slice(0, ci);
+    const r = +key.slice(ci + 1);
+    if (!has(c, r - 1)) addEdge(c, r, 0); // top:    (c,r)   → R
+    if (!has(c + 1, r)) addEdge(c + 1, r, 1); // right:  (c+1,r) → D
+    if (!has(c, r + 1)) addEdge(c + 1, r + 1, 2); // bottom: (c+1,r+1) → L
+    if (!has(c - 1, r)) addEdge(c, r + 1, 3); // left:   (c,r+1) → U
+  }
+
+  const used = new Set<string>();
+  let d = "";
+  for (const [startKey, m0] of out) {
+    for (const startDir of m0.keys()) {
+      if (used.has(`${startKey}:${startDir}`)) continue;
+      const pts: Array<[number, number]> = [];
+      let vk = startKey;
+      let dir = startDir;
+      while (!used.has(`${vk}:${dir}`)) {
+        used.add(`${vk}:${dir}`);
+        const ci = vk.indexOf(",");
+        pts.push([+vk.slice(0, ci), +vk.slice(ci + 1)]);
+        const target = out.get(vk)!.get(dir)!;
+        const tm = out.get(target);
+        let nextDir = dir;
+        // Priority: turn right (cw), straight, left (ccw), reverse.
+        for (const cand of [(dir + 1) % 4, dir, (dir + 3) % 4, (dir + 2) % 4]) {
+          if (tm && tm.has(cand)) {
+            nextDir = cand;
+            break;
+          }
+        }
+        vk = target;
+        dir = nextDir;
+      }
+      // Keep only corners (drop collinear run-vertices), in world units.
+      const corners: Array<[number, number]> = [];
+      const n = pts.length;
+      for (let i = 0; i < n; i++) {
+        const [px, py] = pts[(i - 1 + n) % n];
+        const [x, y] = pts[i];
+        const [nx, ny] = pts[(i + 1) % n];
+        if (Math.sign(x - px) !== Math.sign(nx - x) || Math.sign(y - py) !== Math.sign(ny - y)) {
+          corners.push([x * cs, y * cs]);
+        }
+      }
+      d += roundedLoop(corners, radius);
+    }
+  }
+  return d;
+}
+
+/** One closed sub-path through `corners` (world units) with rounded turns. */
+function roundedLoop(corners: Array<[number, number]>, radius: number): string {
+  const n = corners.length;
+  if (n < 3) return "";
+  const A: Array<[number, number]> = [];
+  const B: Array<[number, number]> = [];
+  for (let i = 0; i < n; i++) {
+    const [px, py] = corners[(i - 1 + n) % n];
+    const [x, y] = corners[i];
+    const [nx, ny] = corners[(i + 1) % n];
+    const lin = Math.hypot(x - px, y - py) || 1;
+    const lout = Math.hypot(nx - x, ny - y) || 1;
+    const rr = Math.min(radius, lin / 2, lout / 2);
+    A.push([x - ((x - px) / lin) * rr, y - ((y - py) / lin) * rr]);
+    B.push([x + ((nx - x) / lout) * rr, y + ((ny - y) / lout) * rr]);
+  }
+  let d = `M${A[0][0]} ${A[0][1]}`;
+  for (let i = 0; i < n; i++) {
+    d += `Q${corners[i][0]} ${corners[i][1]} ${B[i][0]} ${B[i][1]}`;
+    d += `L${A[(i + 1) % n][0]} ${A[(i + 1) % n][1]}`;
+  }
+  return d + "Z";
+}
+
 /** Translates scene state into live SVG. Source of truth stays in the store;
  *  this only reflects it, applying minimal add/remove/update diffs and
  *  virtualizing to the visible cell range so the plane can be "infinite". */
@@ -32,6 +128,9 @@ export class Renderer {
   private tileSeamLayer: SVGGElement;
   private tileSeamRects: SVGRectElement[] = [];
   private content: SVGGElement;
+  private blockedShape: SVGPathElement;
+  private blockedCache: { ref: Record<string, true>; cs: number; d: string } | null = null;
+  private blockRectEl: SVGRectElement;
   private hoverLayer: SVGGElement;
   private hoverCellsGroup: SVGGElement;
   private hoverRects: SVGRectElement[] = [];
@@ -121,12 +220,24 @@ export class Renderer {
 
     // Hover overlay: a highlight on the cell under the cursor + a faint ghost
     // of the brush asset.
+    // Blocked-cell overlay (reddish fill + dashed red border) + the drag rect.
+    // A single filled, dotted-outline path tracing the blocked region's
+    // rounded silhouette (computed from the cell set).
+    this.blockedShape = document.createElementNS(SVGNS, "path");
+    this.blockedShape.setAttribute("class", "blocked-shape");
+    this.blockedShape.style.pointerEvents = "none";
+    this.blockRectEl = document.createElementNS(SVGNS, "rect");
+    this.blockRectEl.setAttribute("class", "block-drag-rect");
+    this.blockRectEl.style.pointerEvents = "none";
+    this.blockRectEl.style.display = "none";
+
     this.hoverLayer = document.createElementNS(SVGNS, "g");
     this.hoverLayer.setAttribute("class", "hover-overlay");
     this.hoverLayer.style.pointerEvents = "none";
     this.hoverLayer.style.display = "none";
     // Footprint highlights (one rect per brush cell), then the bg + asset ghost.
     this.hoverCellsGroup = document.createElementNS(SVGNS, "g");
+    this.hoverCellsGroup.setAttribute("class", "hover-cells");
     this.hoverBg = document.createElementNS(SVGNS, "rect");
     this.hoverBg.setAttribute("opacity", "0.5");
     this.hoverGhost = document.createElementNS(SVGNS, "use");
@@ -173,6 +284,8 @@ export class Renderer {
       this.tileLayer,
       this.content,
       this.tileSeamLayer,
+      this.blockedShape,
+      this.blockRectEl,
       this.hoverLayer,
       this.maskLayer,
       this.pathLayer,
@@ -206,6 +319,7 @@ export class Renderer {
     this.renderGrid(state);
     this.renderTilePreview(state);
     this.renderInstances(state, time);
+    this.renderBlocked(state);
     this.renderHover();
     this.renderMask(state);
     this.renderOrderPath(state);
@@ -223,12 +337,15 @@ export class Renderer {
   private renderHover(): void {
     const state = this.lastState;
     const pt = this.hoverPt;
-    const placing = state && (state.tool === "draw" || state.tool === "erase");
+    const isBlockBrush = !!state && state.tool === "block" && state.blockMode === "brush";
+    const placing = state && (state.tool === "draw" || state.tool === "erase" || isBlockBrush);
     if (!state || !pt || !placing) {
       this.hoverLayer.style.display = "none";
       return;
     }
     this.hoverLayer.style.display = "";
+    // Block-brush footprint reads red (no-go zone); Clean reads neutral.
+    this.hoverCellsGroup.classList.toggle("block", isBlockBrush && !state.blockClean);
     const cs = state.cellSize;
     const erase = state.tool === "erase";
     const px = state.camera.w / this.hostSize.width; // world units per screen px
@@ -251,8 +368,8 @@ export class Renderer {
       this.hoverRects[i].style.display = "none";
     }
 
-    // The single-cell bg/asset previews only make sense for a 1× brush.
-    const single = state.brushSize <= 1;
+    // The single-cell bg/asset previews only make sense for a 1× draw brush.
+    const single = state.brushSize <= 1 && !isBlockBrush;
     const palette = paletteById(state.palettes, state.activePaletteId);
     if (single && !erase && state.activeBgIndex != null) {
       const bgIdx = state.activeBgIndex === "random" ? 0 : state.activeBgIndex;
@@ -283,6 +400,41 @@ export class Renderer {
     } else {
       this.hoverGhost.style.display = "none";
     }
+  }
+
+  /** Fill the blocked region + trace its rounded, dotted silhouette. The traced
+   *  path is cached against the (immutable) blocked set so playback is cheap. */
+  private renderBlocked(state: SceneState): void {
+    const { cellSize: cs, blocked } = state;
+    const px = state.camera.w / this.hostSize.width;
+    if (!this.blockedCache || this.blockedCache.ref !== blocked || this.blockedCache.cs !== cs) {
+      this.blockedCache = { ref: blocked, cs, d: blockedRegionPath(blocked, cs, cs * 0.3) };
+    }
+    const d = this.blockedCache.d;
+    if (d) {
+      this.blockedShape.setAttribute("d", d);
+      this.blockedShape.setAttribute("stroke-width", String(2.2 * px));
+      this.blockedShape.setAttribute("stroke-dasharray", `0 ${6 * px}`); // round dots
+      this.blockedShape.style.display = "";
+    } else {
+      this.blockedShape.style.display = "none";
+    }
+  }
+
+  /** Show/hide the Block-tool rubber-band rectangle (world coords). */
+  setBlockRect(a: { x: number; y: number } | null, b?: { x: number; y: number }): void {
+    if (!a || !b) {
+      this.blockRectEl.style.display = "none";
+      return;
+    }
+    const px = this.lastState ? this.lastState.camera.w / this.hostSize.width : 1;
+    this.blockRectEl.setAttribute("x", String(Math.min(a.x, b.x)));
+    this.blockRectEl.setAttribute("y", String(Math.min(a.y, b.y)));
+    this.blockRectEl.setAttribute("width", String(Math.abs(b.x - a.x)));
+    this.blockRectEl.setAttribute("height", String(Math.abs(b.y - a.y)));
+    this.blockRectEl.setAttribute("stroke-width", String(2.2 * px));
+    this.blockRectEl.setAttribute("stroke-dasharray", `0 ${6 * px}`); // round dots
+    this.blockRectEl.style.display = "";
   }
 
   /** Lazily grow the pool of footprint-highlight rects. */

@@ -259,7 +259,7 @@ body {
   height: 36px;
   background: var(--panel-2);
   color: var(--text);
-  border: 1px solid var(--line);
+  border: none;
   border-radius: 10px;
   padding: 0 14px;
   font-size: 13px;
@@ -359,8 +359,9 @@ body {
   min-width: 104px;
   padding: 0 12px;
   background: var(--panel-2);
-  border: 1px solid var(--line);
+  border: none;
   border-radius: 10px;
+  font-size: 13px;
 }
 
 .num-field input {
@@ -903,7 +904,7 @@ body {
 /* Square / circle segmented toggle (active half filled gold). */
 .seg {
   display: inline-flex;
-  border: 1px solid var(--line);
+  border: none;
   border-radius: 12px;
   overflow: hidden;
   background: var(--panel-2);
@@ -1052,6 +1053,54 @@ body {
   max-width: 240px;
 }
 
+/* Block tool: reddish fill + a dotted, round-cornered silhouette. */
+.blocked-shape {
+  fill: #e03131;
+  fill-opacity: 0.14;
+  stroke: #e03131;
+  stroke-opacity: 0.95;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.block-drag-rect {
+  fill: #e03131;
+  fill-opacity: 0.1;
+  stroke: #e03131;
+  stroke-linecap: round;
+}
+
+.hover-cells.block .hover-cell {
+  fill: #e03131;
+  fill-opacity: 0.22;
+}
+
+/* Text variant of the segmented toggle (Drag / Brush). */
+.seg-text {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.block-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.block-row .seg {
+  flex: 1;
+}
+
+/* Equal-width Drag / Brush. */
+.block-row .seg-btn {
+  flex: 1;
+}
+
+.block-row .chk {
+  flex-shrink: 0;
+}
+
 .noise-actions {
   display: flex;
   gap: 8px;
@@ -1068,7 +1117,7 @@ body {
   height: 36px;
   background: var(--panel-2);
   color: var(--text);
-  border: 1px solid var(--line);
+  border: none;
   border-radius: 10px;
   padding: 0 14px;
   font-size: 13px;
@@ -1086,6 +1135,15 @@ body {
   overflow: hidden;
   background: var(--bg);
   cursor: crosshair;
+}
+
+/* Pan tool: open hand when active, closed hand while dragging. */
+#stage.tool-pan {
+  cursor: grab;
+}
+
+#stage.tool-pan.panning {
+  cursor: grabbing;
 }
 
 .grid-dot {

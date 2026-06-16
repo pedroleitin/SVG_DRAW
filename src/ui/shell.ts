@@ -8,6 +8,7 @@ import { makeCamera, zoomOf, zoomAt } from "../scene/camera";
 import { createDropdown } from "./widgets";
 import type { DropdownHandle } from "./widgets";
 import { BrushPanel } from "./brushPanel";
+import { BlockPanel } from "./blockPanel";
 import { GridPanel } from "./gridPanel";
 import { SeamlessPanel } from "./seamlessPanel";
 import { ShapesPanel } from "./shapesPanel";
@@ -144,6 +145,7 @@ export class Shell {
     // Brush lives in its own always-on bar, not the toggled context area.
     new BrushPanel(this.brushBarEl, this.store);
     new GridPanel(make("grid"), this.store);
+    new BlockPanel(make("block"), this.store);
     new SeamlessPanel(make("seamless"), this.store, this.history);
     new ShapesPanel(make("shapes"), this.store, library);
     new ColorsPanel(make("colors"), this.store, this.renderer);
@@ -229,6 +231,11 @@ export class Shell {
         add(
           paintBtn("Draw", "draw"),
           paintBtn("Erase", "erase"),
+          this.btn("Block", {
+            active: s.tool === "block",
+            title: "Block cells — no SVGs allowed",
+            onClick: () => this.store.set({ tool: "block", contextPanel: "block" }),
+          }),
           this.ctxBtn("Noise", "noise", s, "Noise mask: fill / erase"),
           this.sep(),
           this.ctxBtn("Shapes", "shapes", s),

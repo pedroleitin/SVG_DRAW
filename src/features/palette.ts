@@ -6,7 +6,7 @@ export const STARTER_PALETTES: Palette[] = [
   {
     id: "bauhaus",
     name: "Bauhaus",
-    colors: ["#e63946", "#f1c40f", "#1d3557", "#457b9d", "#f1faee"],
+    colors: ["#e63946", "#f1c40f", "#1d3557", "#457b9d", "#bfab99"],
   },
   {
     id: "sunset",

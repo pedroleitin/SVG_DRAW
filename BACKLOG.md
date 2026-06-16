@@ -80,16 +80,15 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Liga com o overlay de preview do noise; pintar adiciona/remove células conforme
     o valor do campo sob o pincel.
   - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/features/placement.ts](src/features/placement.ts) (applyMask), [src/ui/controls.ts](src/ui/controls.ts)
-- [ ] 🟡 **Modo Block / falloff / island (zona bloqueada)** — além de Draw e Erase,
-  uma ferramenta que **marca células onde NÃO se pode colocar SVG**. As células
-  bloqueadas são puladas tanto no desenho manual quanto no preenchimento por noise
-  (e na escala multi-célula). Pintar/apagar a zona com brush, como o Draw/Erase.
-  - **Estilo visual**: overlay avermelhado com **borda pontilhada** nas células
-    bloqueadas (distinto do hover/grid).
-  - Modelo: um conjunto de células bloqueadas no estado (ex.: `Set<cellKey>` ou
-    `blocked: Record<key, true>`), consultado por `buildInstance`/`applyMask`/draw.
-  - Arquivos: [src/scene/types.ts](src/scene/types.ts) (estado), [src/tools/tools.ts](src/tools/tools.ts) (ferramenta),
-    [src/features/placement.ts](src/features/placement.ts) (respeitar bloqueio), [src/render/renderer.ts](src/render/renderer.ts) (overlay), [src/ui/shell.ts](src/ui/shell.ts) (botão).
+- [x] 🟡 **Modo Block (zona bloqueada)** — _feito._ Ferramenta **Block** (entre Erase
+  e Noise) marca células onde **não se pode colocar SVG**: o draw pula essas células e
+  o noise (`applyMask`) também. Menu de contexto com segmented **Drag** (retângulo
+  clicar-arrastar) e **Brush** (pintar com o footprint atual); ambos removem SVGs já
+  presentes nas células bloqueadas. Overlay **avermelhado + borda vermelha dashed**;
+  hover do brush em vermelho. Tudo undoable (`blocked: Record<key,true>` no estado).
+  - Arquivos: [src/scene/types.ts](src/scene/types.ts), [src/tools/tools.ts](src/tools/tools.ts), [src/commands/sceneCommands.ts](src/commands/sceneCommands.ts) (`BlockCells`),
+    [src/features/placement.ts](src/features/placement.ts), [src/render/renderer.ts](src/render/renderer.ts), [src/ui/blockPanel.ts](src/ui/blockPanel.ts), [src/ui/shell.ts](src/ui/shell.ts).
+  - Refinamento futuro: des-bloquear (apagar zona), e respeitar bloqueio na escala multi-célula.
 - [ ] ⚪ **Rotação randômica de 90°** — opção para que cada SVG colocado receba
   uma rotação aleatória entre 0/90/180/270°.
   - Onde: `buildInstance` define hoje `rotation: 0`. Adicionar flag no estado

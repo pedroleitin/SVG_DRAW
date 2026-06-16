@@ -8,10 +8,13 @@ export type { MaskParams };
 export type { AnimationConfig };
 export type { ExportFrame };
 
-export type ToolId = "draw" | "erase" | "pan" | "path";
+export type ToolId = "draw" | "erase" | "pan" | "path" | "block";
 
 /** Footprint shape painted by the draw/erase brush. */
 export type BrushShape = "square" | "circle";
+
+/** How the Block tool marks cells: a click-drag rectangle, or a paint brush. */
+export type BlockMode = "drag" | "brush";
 
 /** Top-level UI mode (selected in the floating modes bar). */
 export type Mode = "draw" | "compose" | "animate" | "export";
@@ -21,6 +24,7 @@ export type ContextPanel =
   | "grid"
   | "shapes"
   | "colors"
+  | "block"
   | "noise"
   | "seamless"
   | "animate"
@@ -109,6 +113,12 @@ export interface SceneState {
   cellGutter: boolean;
   /** Instances indexed by "col,row" for O(1) hit-testing. */
   instances: Record<string, Instance>;
+  /** Cells where SVGs may not be placed (the Block tool), keyed "col,row". */
+  blocked: Record<string, true>;
+  /** Block tool mode: drag a rectangle or paint with the brush. */
+  blockMode: BlockMode;
+  /** When true, the Block tool clears (un-blocks) cells instead of blocking. */
+  blockClean: boolean;
   palettes: Palette[];
   activePaletteId: string;
   activeColorIndex: number;

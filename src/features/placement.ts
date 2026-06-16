@@ -122,6 +122,7 @@ export function applyMask(
   for (let row = minRow; row <= maxRow; row++) {
     for (let col = minCol; col <= maxCol; col++) {
       const key = cellKey(col, row);
+      if (state.blocked[key]) continue; // never fill blocked cells
       const occupied = !!state.instances[key];
       const lit = sampleMask(field, col, row, state.mask) >= state.mask.threshold;
       if (lit && !occupied) places.push(buildInstance(state, library, col, row));

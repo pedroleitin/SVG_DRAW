@@ -45,6 +45,9 @@ const initial: SceneState = {
   cellRounded: false,
   cellGutter: false,
   instances: {},
+  blocked: {},
+  blockMode: "drag",
+  blockClean: false,
   palettes: STARTER_PALETTES,
   activePaletteId: STARTER_PALETTES[0].id,
   activeColorIndex: 0,
@@ -97,13 +100,14 @@ const store = new Store(initial);
 const renderer = new Renderer(stage, library);
 const history = new History(store);
 
-// Live canvas background color.
+// Live canvas background color + pan cursor (hand when the Pan tool is active).
 let prevBg = "";
 store.subscribe((s) => {
   if (s.bgColor !== prevBg) {
     prevBg = s.bgColor;
     stage.style.backgroundColor = s.bgColor;
   }
+  stage.classList.toggle("tool-pan", s.tool === "pan");
 });
 stage.style.backgroundColor = initial.bgColor;
 

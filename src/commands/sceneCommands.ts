@@ -95,6 +95,49 @@ export class ApplyMaskCommand implements Command {
   }
 }
 
+/** Block cells (no SVGs allowed, removing any instances) or — when `block` is
+ *  false — clear the block flag. Invertible: restores prior flags + removed. */
+export class BlockCells implements Command {
+  readonly label = "Block";
+  private prevBlocked: Record<string, true | undefined> = {};
+  private removed: Record<string, Instance> = {};
+
+  constructor(
+    private keys: string[],
+    private block = true,
+  ) {}
+
+  apply(store: Store): void {
+    const blocked = { ...store.get().blocked };
+    const instances = { ...store.get().instances };
+    for (const key of this.keys) {
+      if (!(key in this.prevBlocked)) this.prevBlocked[key] = blocked[key];
+      if (this.block) {
+        blocked[key] = true;
+        const inst = instances[key];
+        if (inst) {
+          if (!(key in this.removed)) this.removed[key] = inst;
+          delete instances[key];
+        }
+      } else {
+        delete blocked[key];
+      }
+    }
+    store.set({ blocked, instances });
+  }
+
+  invert(store: Store): void {
+    const blocked = { ...store.get().blocked };
+    const instances = { ...store.get().instances };
+    for (const [key, before] of Object.entries(this.prevBlocked)) {
+      if (before) blocked[key] = true;
+      else delete blocked[key];
+    }
+    for (const [key, inst] of Object.entries(this.removed)) instances[key] = inst;
+    store.set({ blocked, instances });
+  }
+}
+
 export class ClearAll implements Command {
   readonly label = "Clear";
   private prev: Record<string, Instance> = {};
