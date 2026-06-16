@@ -25,8 +25,8 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 - [x] 🟡 **Todos os combobox iguais ao "Size cell"** — feito: componente `createDropdown`
   reutilizável (pílula + menu flutuante portado pro body), usado no Size, Aspect, Res,
   FPS e nos selects da Animation. Sliders e toggles também no estilo GG2.
-- [x] ⚪ **Status (cell/placed) sem caixa** — feito: texto solto no canto inf.
-  esquerdo (sem box, pointer-events none) e sem a palavra "placed" (`cell x,y · N`).
+- [ ] ⚪ **Status (cell/placed) sem caixa** — tentado e revertido a pedido do
+  usuário (preferiu a caixa + "placed" como antes). Reabrir se mudar de ideia.
 - [ ] 🟡 **Transições suaves** — animar a troca de **modo**, abrir/fechar **menus de
   contexto** e como o **conteúdo aparece** (fade/slide/scale, com easing). Cuidar
   para não atrapalhar performance do canvas.
