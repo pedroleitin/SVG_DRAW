@@ -21,6 +21,7 @@ export class ExportPanel {
   private resDD!: DropdownHandle;
   private snapChk!: HTMLInputElement;
   private transpChk!: HTMLInputElement;
+  private fitRow!: HTMLElement;
   private dims!: HTMLElement;
   private durInput!: HTMLInputElement;
   private progress!: HTMLElement;
@@ -47,7 +48,7 @@ export class ExportPanel {
           <label class="chk"><input type="checkbox" id="exp-snap" /> Snap to grid</label>
           <label class="chk"><input type="checkbox" id="exp-transp" /> Background transparent</label>
         </div>
-        <div class="noise-actions">
+        <div class="noise-actions" id="exp-fit-row">
           <button id="exp-fit">Fit to view</button>
         </div>
         <div class="noise-actions exp-save">
@@ -75,6 +76,7 @@ export class ExportPanel {
 
     this.snapChk = panel.querySelector("#exp-snap") as HTMLInputElement;
     this.transpChk = panel.querySelector("#exp-transp") as HTMLInputElement;
+    this.fitRow = panel.querySelector("#exp-fit-row") as HTMLElement;
     this.dims = aboveHost.querySelector("#exp-dims") as HTMLElement;
     this.durInput = panel.querySelector("#exp-dur") as HTMLInputElement;
     this.progress = panel.querySelector("#exp-progress") as HTMLElement;
@@ -197,6 +199,8 @@ export class ExportPanel {
     this.resDD.setValue(String(s.frame.outWidth));
     this.snapChk.checked = s.frame.snap;
     this.transpChk.checked = s.exportTransparent;
+    // "Fit to view" is only relevant for the manually-positioned Free Form frame.
+    this.fitRow.style.display = s.frame.aspect === "free" ? "" : "none";
     const { outW, outH } = outSize(s.frame);
     this.dims.textContent = `Output: ${outW} × ${outH} px`;
   }
