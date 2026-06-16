@@ -68,10 +68,11 @@ export interface MaskResult {
   eraseKeys: string[];
 }
 
-/** Bake the seamless tile: replicate the content inside the tile frame across
- *  the visible viewport so the pattern becomes real instances. Places copies
- *  where the tile has content and erases where it doesn't, so the result equals
- *  the tile repeated. Pure — caller wraps it in one undoable command. */
+/** Bake the seamless tile: stamp the tile's content across the viewport so the
+ *  pattern becomes real instances. Block-aware — only blocks that fit ENTIRELY
+ *  inside the tile are tiled (copies spaced one tile apart never overlap); a
+ *  block crossing the tile boundary can't wrap as a single rect, so it's
+ *  dropped. Pure — caller wraps it in one undoable command. */
 export function tileFill(state: SceneState): MaskResult {
   const cs = state.cellSize;
   const t = state.tileFrame;
@@ -80,30 +81,59 @@ export function tileFill(state: SceneState): MaskResult {
   const cols = Math.max(1, Math.round(t.w / cs));
   const rows = Math.max(1, Math.round(t.h / cs));
 
-  // Index the tile's content by local cell.
-  const tile = new Map<string, Instance>();
+  // Blocks fully contained in the tile (origin + span inside [0,cols)×[0,rows)).
+  const fitted: { inst: Instance; lc: number; lr: number; cw: number; ch: number }[] = [];
   for (const inst of Object.values(state.instances)) {
     const lc = inst.col - c0;
     const lr = inst.row - r0;
-    if (lc >= 0 && lc < cols && lr >= 0 && lr < rows) tile.set(`${lc},${lr}`, inst);
+    const cw = inst.cw ?? 1;
+    const ch = inst.ch ?? 1;
+    if (lc >= 0 && lr >= 0 && lc + cw <= cols && lr + ch <= rows) {
+      fitted.push({ inst, lc, lr, cw, ch });
+    }
   }
 
   const range = visibleCellRange(state.camera, cs, 1);
   const places: Instance[] = [];
-  const eraseKeys: string[] = [];
-  for (let row = range.minRow; row <= range.maxRow; row++) {
-    for (let col = range.minCol; col <= range.maxCol; col++) {
-      const lc = (((col - c0) % cols) + cols) % cols;
-      const lr = (((row - r0) % rows) + rows) % rows;
-      const src = tile.get(`${lc},${lr}`);
-      const key = cellKey(col, row);
-      if (src) {
-        if (src.col === col && src.row === row) continue; // original — keep as-is
+  const placeKeys = new Set<string>();
+
+  // Stamp the tile at every period that overlaps the viewport.
+  const kMin = Math.floor((range.minCol - c0) / cols) - 1;
+  const kMax = Math.floor((range.maxCol - c0) / cols) + 1;
+  const mMin = Math.floor((range.minRow - r0) / rows) - 1;
+  const mMax = Math.floor((range.maxRow - r0) / rows) + 1;
+  for (let m = mMin; m <= mMax; m++) {
+    for (let k = kMin; k <= kMax; k++) {
+      for (const { inst, lc, lr, cw, ch } of fitted) {
+        const col = c0 + lc + k * cols;
+        const row = r0 + lr + m * rows;
+        // Cull copies that don't touch the viewport.
+        if (col + cw <= range.minCol || col > range.maxCol || row + ch <= range.minRow || row > range.maxRow) {
+          continue;
+        }
+        placeKeys.add(cellKey(col, row));
+        if (col === inst.col && row === inst.row) continue; // original — keep as-is
         const seq = idCounter;
-        places.push({ ...src, id: nextId(), col, row, seq });
-      } else if (state.instances[key]) {
-        eraseKeys.push(key);
+        places.push({ ...inst, id: nextId(), col, row, seq });
       }
+    }
+  }
+
+  // Erase everything overlapping the viewport that isn't a kept original or a
+  // fresh copy — including blocks that crossed the tile boundary.
+  const eraseKeys: string[] = [];
+  for (const key in state.instances) {
+    const inst = state.instances[key];
+    const cw = inst.cw ?? 1;
+    const ch = inst.ch ?? 1;
+    if (
+      inst.col + cw > range.minCol &&
+      inst.col <= range.maxCol &&
+      inst.row + ch > range.minRow &&
+      inst.row <= range.maxRow &&
+      !placeKeys.has(key)
+    ) {
+      eraseKeys.push(key);
     }
   }
   return { places, eraseKeys };

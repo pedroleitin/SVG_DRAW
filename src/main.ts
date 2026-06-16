@@ -41,6 +41,7 @@ const initial: SceneState = {
   showGrid: true,
   brushAsset: "random",
   brushSize: 1,
+  brushSpan: 1,
   brushShape: "square",
   cellRounded: false,
   cellGutter: false,

@@ -2,10 +2,15 @@ import type { Store } from "../store/store";
 import type { History } from "../commands/command";
 import type { Library } from "../features/library";
 import type { Renderer } from "../render/renderer";
-import { PlaceInstances, EraseInstances, BlockCells } from "../commands/sceneCommands";
+import {
+  PlaceInstances,
+  EraseInstances,
+  ApplyMaskCommand,
+  BlockCells,
+} from "../commands/sceneCommands";
 import { buildInstance } from "../features/placement";
 import { screenToWorld, zoomAt, panBy } from "../scene/camera";
-import { worldToCell, brushCells } from "../scene/grid";
+import { worldToCell, brushCells, brushBlocks } from "../scene/grid";
 import { cellKey } from "../scene/types";
 import type { Instance } from "../scene/types";
 
@@ -171,35 +176,68 @@ export class InputController {
     this.renderer.svg.parentElement?.classList.remove("panning");
   };
 
-  /** Place/erase every cell in the brush footprint, deduped within the stroke. */
+  /** Place/erase across the brush footprint, deduped within the stroke. With
+   *  Size > 1, Draw stamps non-overlapping N×N SVGs (clearing what's under
+   *  them); Erase removes any SVG covering a touched cell (multi-cell aware). */
   private paint(e: PointerEvent) {
     const state = this.store.get();
     const cs = state.cellSize;
     const w = this.worldAt(e);
-    const cells = brushCells(w.x / cs, w.y / cs, state.brushSize, state.brushShape);
+    const span = Math.max(1, Math.round(state.brushSpan ?? 1));
     const instances = { ...state.instances };
     let changed = false;
 
-    for (const c of cells) {
-      const key = cellKey(c.col, c.row);
-      if (this.strokeCells.has(key)) continue;
-      this.strokeCells.add(key);
-
-      if (state.tool === "erase") {
-        const existing = instances[key];
-        if (existing) {
-          // Eagerly remove for responsiveness; remember original for commit.
-          delete instances[key];
-          this.strokeErased.push(existing);
-          changed = true;
+    if (state.tool === "erase") {
+      const cells = brushCells(w.x / cs, w.y / cs, state.brushSize, state.brushShape);
+      for (const c of cells) {
+        const key = cellKey(c.col, c.row);
+        if (this.strokeCells.has(key)) continue;
+        this.strokeCells.add(key);
+        for (const k of coveringKeys(instances, c.col, c.row)) {
+          const inst = instances[k];
+          if (inst) {
+            delete instances[k];
+            this.strokeErased.push(inst);
+            changed = true;
+          }
         }
-      } else {
-        if (state.blocked[key]) continue; // can't place on blocked cells
-        const inst = buildInstance(state, this.library, c.col, c.row);
-        instances[key] = inst;
-        this.strokePlaced.push(inst);
-        changed = true;
       }
+      if (changed) this.store.set({ instances });
+      return;
+    }
+
+    // DRAW: an N×N footprint (Brush) of span×span blocks (Size). Each block
+    // clears what it covers, so placements never overlap.
+    const blocks = brushBlocks(w.x / cs, w.y / cs, state.brushSize, state.brushShape, span);
+    for (const blk of blocks) {
+      // Skip if any covered cell is already painted this stroke, or is blocked.
+      let skip = false;
+      for (let y = blk.row; y < blk.row + span && !skip; y++) {
+        for (let x = blk.col; x < blk.col + span; x++) {
+          const k = cellKey(x, y);
+          if (this.strokeCells.has(k) || state.blocked[k]) {
+            skip = true;
+            break;
+          }
+        }
+      }
+      if (skip) continue;
+      // Clear whatever the block covers.
+      for (const k of instancesInRect(instances, blk.col, blk.row, span, span)) {
+        const inst = instances[k];
+        if (inst) {
+          delete instances[k];
+          this.strokeErased.push(inst);
+        }
+      }
+      // Reserve the block's cells, then place it.
+      for (let y = blk.row; y < blk.row + span; y++) {
+        for (let x = blk.col; x < blk.col + span; x++) this.strokeCells.add(cellKey(x, y));
+      }
+      const inst = buildInstance(state, this.library, blk.col, blk.row, span, span);
+      instances[cellKey(blk.col, blk.row)] = inst;
+      this.strokePlaced.push(inst);
+      changed = true;
     }
     if (changed) this.store.set({ instances });
   }
@@ -270,16 +308,26 @@ export class InputController {
    *  restore the pre-stroke state, then dispatch a single command so history
    *  captures the correct before/after for undo and redo. */
   private commitStroke() {
-    if (this.strokePlaced.length) {
-      const instances = { ...this.store.get().instances };
-      for (const inst of this.strokePlaced) delete instances[cellKey(inst.col, inst.row)];
-      this.store.set({ instances }); // back to pre-stroke
-      this.history.dispatch(new PlaceInstances(this.strokePlaced));
-    } else if (this.strokeErased.length) {
-      const instances = { ...this.store.get().instances };
-      for (const inst of this.strokeErased) instances[cellKey(inst.col, inst.row)] = inst;
-      this.store.set({ instances }); // back to pre-stroke
-      this.history.dispatch(new EraseInstances(this.strokeErased.map((i) => cellKey(i.col, i.row))));
+    const placed = this.strokePlaced;
+    const erased = this.strokeErased;
+    if (!placed.length && !erased.length) return;
+
+    // Restore the pre-stroke state, then dispatch one command.
+    const instances = { ...this.store.get().instances };
+    for (const inst of placed) delete instances[cellKey(inst.col, inst.row)];
+    for (const inst of erased) instances[cellKey(inst.col, inst.row)] = inst;
+    this.store.set({ instances });
+
+    if (placed.length && erased.length) {
+      // Multi-cell draw that cleared what it covered. Don't erase a cell we're
+      // also re-placing (place-then-erase order would drop it).
+      const placedKeys = new Set(placed.map((i) => cellKey(i.col, i.row)));
+      const eraseKeys = erased.map((i) => cellKey(i.col, i.row)).filter((k) => !placedKeys.has(k));
+      this.history.dispatch(new ApplyMaskCommand(placed, eraseKeys));
+    } else if (placed.length) {
+      this.history.dispatch(new PlaceInstances(placed));
+    } else {
+      this.history.dispatch(new EraseInstances(erased.map((i) => cellKey(i.col, i.row))));
     }
   }
 
@@ -300,4 +348,44 @@ export class InputController {
   private onKey = (e: KeyboardEvent) => {
     if (e.code === "Space") this.spaceDown = e.type === "keydown";
   };
+}
+
+/** Keys of instances whose block covers cell (col,row). Spans are ≤6, so only
+ *  origins up-to-5 cells up/left can reach it. */
+function coveringKeys(instances: Record<string, Instance>, col: number, row: number): string[] {
+  const keys: string[] = [];
+  for (let oy = row; oy > row - 6; oy--) {
+    for (let ox = col; ox > col - 6; ox--) {
+      const inst = instances[cellKey(ox, oy)];
+      if (!inst) continue;
+      if (col < ox + (inst.cw ?? 1) && row < oy + (inst.ch ?? 1)) keys.push(cellKey(ox, oy));
+    }
+  }
+  return keys;
+}
+
+/** Keys of instances whose block overlaps the rect (col,row,w,h) in cells. */
+function instancesInRect(
+  instances: Record<string, Instance>,
+  col: number,
+  row: number,
+  w: number,
+  h: number,
+): string[] {
+  const keys: string[] = [];
+  for (let oy = row - 5; oy < row + h; oy++) {
+    for (let ox = col - 5; ox < col + w; ox++) {
+      const inst = instances[cellKey(ox, oy)];
+      if (!inst) continue;
+      if (
+        ox < col + w &&
+        ox + (inst.cw ?? 1) > col &&
+        oy < row + h &&
+        oy + (inst.ch ?? 1) > row
+      ) {
+        keys.push(cellKey(ox, oy));
+      }
+    }
+  }
+  return keys;
 }

@@ -8,7 +8,7 @@ import { mapCycleTime, sampleLifecycle } from "../anim/animations";
 import type { AnimOutput } from "../anim/animations";
 import { buildOrderField } from "../anim/order";
 import { instanceGeom, cellBgRect } from "../scene/geom";
-import { brushCells } from "../scene/grid";
+import { brushCells, brushBlocks } from "../scene/grid";
 import { subdivide } from "../features/divider";
 
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -356,44 +356,52 @@ export class Renderer {
     // Anchor cell (under the cursor) for the single-cell bg/ghost previews.
     const anchor = { col: Math.floor(pt.cx), row: Math.floor(pt.cy) };
 
-    // Highlight every cell the brush would paint (shape + size preview).
+    // Highlight what the brush would paint. Draw shows the span-block footprint
+    // (Brush × Size); erase/block show the plain footprint cells.
+    const span = Math.max(1, Math.round(state.brushSpan ?? 1));
+    const drawing = !erase && !isBlockBrush;
+    const blockCells = drawing ? span : 1;
+    const off = Math.floor((span - 1) / 2);
+    const bcol = anchor.col - off;
+    const brow = anchor.row - off;
     const inset = 3 * px;
-    const cells = brushCells(pt.cx, pt.cy, state.brushSize, state.brushShape);
-    cells.forEach((c, i) => {
+    const slots = drawing
+      ? brushBlocks(pt.cx, pt.cy, state.brushSize, state.brushShape, span)
+      : brushCells(pt.cx, pt.cy, state.brushSize, state.brushShape);
+    slots.forEach((c, i) => {
       const r = this.hoverRectAt(i);
       r.setAttribute("x", String(c.col * cs + inset));
       r.setAttribute("y", String(c.row * cs + inset));
-      r.setAttribute("width", String(cs - inset * 2));
-      r.setAttribute("height", String(cs - inset * 2));
+      r.setAttribute("width", String(blockCells * cs - inset * 2));
+      r.setAttribute("height", String(blockCells * cs - inset * 2));
       r.setAttribute("rx", String(10 * px));
       r.style.display = "";
     });
-    for (let i = cells.length; i < this.hoverRects.length; i++) {
+    for (let i = slots.length; i < this.hoverRects.length; i++) {
       this.hoverRects[i].style.display = "none";
     }
 
-    // The single-cell bg/asset previews only make sense for a 1× draw brush.
-    const single = state.brushSize <= 1 && !isBlockBrush;
+    // bg + asset ghost preview (only for a single footprint cell), sized to span.
+    const showPreview = state.brushSize <= 1 && !erase && !isBlockBrush;
     const palette = paletteById(state.palettes, state.activePaletteId);
-    if (single && !erase && state.activeBgIndex != null) {
+    if (showPreview && state.activeBgIndex != null) {
       const bgIdx = state.activeBgIndex === "random" ? 0 : state.activeBgIndex;
-      this.hoverBg.setAttribute("x", String(anchor.col * cs));
-      this.hoverBg.setAttribute("y", String(anchor.row * cs));
-      this.hoverBg.setAttribute("width", String(cs));
-      this.hoverBg.setAttribute("height", String(cs));
+      this.hoverBg.setAttribute("x", String(bcol * cs));
+      this.hoverBg.setAttribute("y", String(brow * cs));
+      this.hoverBg.setAttribute("width", String(span * cs));
+      this.hoverBg.setAttribute("height", String(span * cs));
       this.hoverBg.setAttribute("fill", colorAt(palette, bgIdx));
       this.hoverBg.style.display = "";
     } else {
       this.hoverBg.style.display = "none";
     }
 
-    // Ghost preview of the asset that would be drawn (skip for random/erase).
     const assetId = state.brushAsset;
-    if (single && !erase && assetId !== "random" && this.library.get(assetId)) {
+    if (showPreview && assetId !== "random" && this.library.get(assetId)) {
       this.ensureSymbol(assetId);
-      const size = cs * 0.85;
-      const x = (anchor.col + 0.5) * cs - size / 2;
-      const y = (anchor.row + 0.5) * cs - size / 2;
+      const size = span * cs * 0.85;
+      const x = (bcol + span / 2) * cs - size / 2;
+      const y = (brow + span / 2) * cs - size / 2;
       this.hoverGhost.setAttribute("href", `#sym-${assetId}`);
       this.hoverGhost.setAttribute("x", String(x));
       this.hoverGhost.setAttribute("y", String(y));

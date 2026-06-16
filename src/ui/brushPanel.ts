@@ -19,6 +19,7 @@ const SHAPE_ICON: Record<BrushShape, { on: string; off: string }> = {
  *  groups: BRUSH (size + shape) and CELL (random background). */
 export class BrushPanel {
   private sizeSlider: SliderHandle;
+  private spanSlider: SliderHandle;
   private shapeBtns = new Map<BrushShape, HTMLButtonElement>();
   private bgChk: HTMLInputElement;
 
@@ -27,6 +28,7 @@ export class BrushPanel {
       <div class="brush-group">
         <span class="brush-title">Brush</span>
         <div class="brush-controls">
+          <div id="brush-span"></div>
           <div id="brush-size"></div>
           <div class="seg" id="brush-shape"></div>
         </div>
@@ -57,6 +59,18 @@ export class BrushPanel {
     });
     host.querySelector("#brush-size")!.appendChild(this.sizeSlider.el);
 
+    // Size: cell span of each placed SVG (1..6) — one SVG over N×N cells.
+    this.spanSlider = createSlider({
+      label: "Size",
+      min: 1,
+      max: 6,
+      step: 1,
+      value: s.brushSpan,
+      format: (v) => String(v),
+      onChange: (v) => this.store.set({ brushSpan: v }),
+    });
+    host.querySelector("#brush-span")!.appendChild(this.spanSlider.el);
+
     // Brush shape: square / circle segmented toggle.
     const shapeHost = host.querySelector("#brush-shape") as HTMLElement;
     (["square", "circle"] as BrushShape[]).forEach((shape) => {
@@ -81,6 +95,7 @@ export class BrushPanel {
 
   private sync(s: SceneState): void {
     this.sizeSlider.setValue(s.brushSize);
+    this.spanSlider.setValue(s.brushSpan);
     const circleOk = s.brushSize >= 3;
     for (const [shape, b] of this.shapeBtns) {
       const active = s.brushShape === shape;

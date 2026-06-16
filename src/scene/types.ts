@@ -109,6 +109,8 @@ export interface SceneState {
   brushAsset: string;
   /** Brush footprint multiplier: 1 = 1 cell, 2 = 2×2, 3 = 3×3, 4 = 4×4. */
   brushSize: number;
+  /** Cell span of each placed SVG (1..6) — a single SVG over N×N cells. */
+  brushSpan: number;
   /** Brush footprint shape. */
   brushShape: BrushShape;
   /** Round the cell-background squares (border radius). */

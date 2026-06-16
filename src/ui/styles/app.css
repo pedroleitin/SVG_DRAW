@@ -893,8 +893,9 @@ body {
 }
 
 /* Override the slider's stacked-layout bottom margin inside the bar. */
-#brush-bar #brush-size {
-  width: 170px;
+#brush-bar #brush-size,
+#brush-bar #brush-span {
+  width: 150px;
 }
 
 #brush-bar .rng {

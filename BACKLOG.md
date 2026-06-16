@@ -64,21 +64,24 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Arquivos: [src/features/divider.ts](src/features/divider.ts), [src/ui/dividerPanel.ts](src/ui/dividerPanel.ts), [src/scene/geom.ts](src/scene/geom.ts), [src/render/renderer.ts](src/render/renderer.ts), [src/features/placement.ts](src/features/placement.ts).
   - Refino futuro: blocos retangulares opcionais, esticar SVG no bloco, preencher com
     cor (Mondrian), e ancorar a subdivisão a uma região fixa.
-- [ ] 🟡 **Bug Seamless + multi-célula** — o Seamless aplicado sobre conteúdo do Divider
-  gera **sobreposições** (blocos maiores que o tile cruzam a borda e se sobrepõem ao
-  repetir). Tratar: clipar/pular blocos que cruzam o tile, ou mapear o span no toro.
+- [x] 🟡 **Bug Seamless + multi-célula** — _feito._ A `tileFill` virou block-aware: só
+  replica blocos que cabem **inteiros** no tile (cópias espaçadas 1 tile, sem overlap);
+  blocos que cruzam a borda são descartados (um retângulo único não tem como dar a volta
+  no toro). Eliminou as sobreposições.
   - Arquivos: [src/features/placement.ts](src/features/placement.ts) (`tileFill`).
 
 ## 3. Ferramentas de desenho
 
 - [~] 🔴 **Controles finos de desenhar e apagar** — _parcial._
-  Feito: **brush size** 1–4 (footprint NxN multiplicador) para Draw e Erase, **formato
-  do brush** (quadrado / círculo, com size-3 círculo = cruz de 5 células, size-4 = disco),
-  footprint **centrado no cursor** (ímpar na célula, par na quina), e **preview/ghost**
-  da(s) célula(s) sob o cursor. Tudo no menu **Brush** (sempre ativo em Draw/Erase).
+  Feito: **Brush** 1–4 (footprint NxN, quadrado/círculo/cruz, centrado no cursor) +
+  **Size** 1–6 (span: cada SVG ocupa N×N células). Brush e Size combinam: Brush =
+  quantos blocos, Size = tamanho de cada (espaçados pelo Size, sem sobrepor). Placement
+  **limpa o que cobre** (sem overlaps) e o arrasto estampa blocos; **Erase** remove
+  qualquer SVG que cubra a célula (ciente de multi-célula); preview/ghost no tamanho do
+  bloco. Respeita zonas bloqueadas.
   Falta: densidade do traço, modo "só preencher vazias" vs "sobrescrever", apagar por
   filtro (por asset / por cor).
-  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/scene/grid.ts](src/scene/grid.ts) (`brushCells`), [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/render/renderer.ts](src/render/renderer.ts)
+  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/scene/grid.ts](src/scene/grid.ts) (`brushCells`/`brushBlocks`), [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/render/renderer.ts](src/render/renderer.ts)
 - [ ] 🔴 **Modo stencil no Noise (pincel de máscara)** — em vez de só "Apply to view",
   um **brush** que pinta/apaga a máscara de noise na tela com um **brush size**
   (revela/oculta SVGs pintando, em vez de aplicar a tela inteira).
