@@ -8,8 +8,8 @@ import {
   IDLE_IDS,
 } from "../anim/animations";
 import type { AnimationConfig } from "../anim/animations";
-import { createDropdown, paintRange } from "./widgets";
-import type { DropdownHandle } from "./widgets";
+import { createDropdown, createSlider } from "./widgets";
+import type { DropdownHandle, SliderHandle } from "./widgets";
 
 /** "left-right" -> "Left-Right", "linear" -> "Linear". */
 const titleCase = (s: string): string =>
@@ -22,7 +22,7 @@ const titleCase = (s: string): string =>
  *  Toggling Play flips animation.playing; main.ts runs the engine. */
 export class AnimPanel {
   private dropdowns = new Map<keyof AnimationConfig, { dd: DropdownHandle; wrap: HTMLElement }>();
-  private sliders = new Map<keyof AnimationConfig, { range: HTMLInputElement; out: HTMLElement }>();
+  private sliders = new Map<keyof AnimationConfig, SliderHandle>();
 
   constructor(host: HTMLElement, private store: Store) {
     const panel = document.createElement("section");
@@ -82,19 +82,17 @@ export class AnimPanel {
     max: number,
     step: number,
   ): void {
-    const row = document.createElement("div");
-    row.className = "slider";
-    row.innerHTML = `
-      <div class="slider-head"><span class="slider-label">${label}</span><span class="slider-val"></span></div>
-      <input type="range" min="${min}" max="${max}" step="${step}" />`;
-    const range = row.querySelector("input")!;
-    const out = row.querySelector(".slider-val") as HTMLElement;
-    range.addEventListener("input", () => {
-      paintRange(range);
-      this.set({ [key]: Number(range.value) } as Partial<AnimationConfig>);
+    const sl = createSlider({
+      label,
+      min,
+      max,
+      step,
+      value: this.store.get().animation[key] as number,
+      format: (v) => v.toFixed(2),
+      onChange: (v) => this.set({ [key]: v } as Partial<AnimationConfig>),
     });
-    this.sliders.set(key, { range, out });
-    host.appendChild(row);
+    this.sliders.set(key, sl);
+    host.appendChild(sl.el);
   }
 
   private set(patch: Partial<AnimationConfig>): void {
@@ -121,11 +119,6 @@ export class AnimPanel {
     // Direction only matters for linear order — dim it otherwise.
     this.dropdowns.get("direction")!.wrap.style.opacity = a.order === "linear" ? "1" : "0.4";
 
-    for (const [key, { range, out }] of this.sliders) {
-      const v = a[key] as number;
-      if (Number(range.value) !== v) range.value = String(v);
-      paintRange(range);
-      out.textContent = v.toFixed(2);
-    }
+    for (const [key, sl] of this.sliders) sl.setValue(a[key] as number);
   }
 }

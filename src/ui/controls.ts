@@ -6,7 +6,8 @@ import { ApplyMaskCommand } from "../commands/sceneCommands";
 import { applyMask } from "../features/placement";
 import { maskField, sampleMask } from "../features/noise";
 import { visibleCellRange } from "../scene/grid";
-import { paintRange } from "./widgets";
+import { createSlider } from "./widgets";
+import type { SliderHandle } from "./widgets";
 
 type MaskKey = keyof MaskParams;
 
@@ -37,7 +38,7 @@ const PREVIEW_CELLS = 36; // grid cells shown across the preview window
  *  grayscale preview reflects every slider, the preview is draggable to pan
  *  the field, and an on-canvas overlay shows exactly which cells Apply touches. */
 export class Controls {
-  private maskInputs = new Map<MaskKey, { range: HTMLInputElement; out: HTMLElement }>();
+  private maskSliders = new Map<MaskKey, SliderHandle>();
   private canvas!: HTMLCanvasElement;
   private previewBW = false;
 
@@ -72,7 +73,20 @@ export class Controls {
     host.appendChild(panel);
 
     this.canvas = panel.querySelector(".mask-preview") as HTMLCanvasElement;
-    this.buildSliders(panel.querySelector("#mask-sliders")!, MASK_SLIDERS, (k, v) => this.setMask(k, v), this.maskInputs);
+    const slHost = panel.querySelector("#mask-sliders")!;
+    for (const def of MASK_SLIDERS) {
+      const sl = createSlider({
+        label: def.label,
+        min: def.min,
+        max: def.max,
+        step: def.step,
+        value: this.store.get().mask[def.key],
+        format: def.format ?? ((v) => v.toFixed(2)),
+        onChange: (v) => this.setMask(def.key, v),
+      });
+      this.maskSliders.set(def.key, sl);
+      slHost.appendChild(sl.el);
+    }
 
     const live = panel.querySelector("#mask-live") as HTMLInputElement;
     live.checked = this.store.get().maskPreview;
@@ -91,28 +105,6 @@ export class Controls {
     this.store.subscribe((s) => this.sync(s));
   }
 
-  private buildSliders<K extends string>(
-    host: Element,
-    defs: SliderDef<K>[],
-    onInput: (k: K, v: number) => void,
-    map: Map<K, { range: HTMLInputElement; out: HTMLElement }>,
-  ): void {
-    for (const def of defs) {
-      const row = document.createElement("div");
-      row.className = "slider";
-      row.innerHTML = `
-        <div class="slider-head"><span class="slider-label">${def.label}</span><span class="slider-val"></span></div>
-        <input type="range" min="${def.min}" max="${def.max}" step="${def.step}" />`;
-      const range = row.querySelector("input")!;
-      const out = row.querySelector(".slider-val") as HTMLElement;
-      range.addEventListener("input", () => {
-        paintRange(range);
-        onInput(def.key, Number(range.value));
-      });
-      map.set(def.key, { range, out });
-      host.appendChild(row);
-    }
-  }
 
   private setMask(key: MaskKey, value: number): void {
     this.store.set({ mask: { ...this.store.get().mask, [key]: value } });
@@ -120,13 +112,7 @@ export class Controls {
 
   /** Reflect store changes (reseed, drag-offset) back into the UI. */
   private sync(s: SceneState): void {
-    for (const def of MASK_SLIDERS) {
-      const e = this.maskInputs.get(def.key)!;
-      const v = s.mask[def.key];
-      if (Number(e.range.value) !== v) e.range.value = String(v);
-      paintRange(e.range);
-      e.out.textContent = def.format ? def.format(v) : v.toFixed(2);
-    }
+    for (const def of MASK_SLIDERS) this.maskSliders.get(def.key)!.setValue(s.mask[def.key]);
     this.drawPreview(s);
   }
 

@@ -576,61 +576,59 @@ body {
   color: var(--accent);
 }
 
-/* GG2 slider: label + value on one line, the slider on the next. */
-.slider {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  margin-bottom: 11px;
-  font-size: 12px;
-}
-
-.slider-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.slider-label {
-  color: var(--muted);
-}
-
-
-/* Pill slider (GG2 style): a thin light track with a dark fill (set via JS) and
-   a dark round knob on top — the knob covers the fill edge, so there's no seam. */
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  height: 8px;
+/* Bar slider: a tall pill whose dark fill shows the value, with the label and
+   value inside it. Text is drawn twice (dark on track / light clipped to fill)
+   so it always contrasts. */
+.rng {
+  position: relative;
+  height: 34px;
   border-radius: 99px;
   background: var(--line);
+  overflow: hidden;
   cursor: pointer;
+  user-select: none;
+  touch-action: none;
+  outline: none;
+  margin-bottom: 9px;
 }
 
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--text);
-  border: none;
+.rng:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
-input[type="range"]::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border: none;
-  border-radius: 50%;
-  background: var(--text);
-}
-
-.slider input[type="range"] {
+.rng-content {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  box-sizing: border-box;
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+  color: var(--text);
 }
 
-.slider-val {
+.rng-val {
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--muted);
+}
+
+.rng-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--text);
+  overflow: hidden;
+}
+
+.rng-content--light {
+  color: var(--panel-2);
 }
 
 .mask-preview {
