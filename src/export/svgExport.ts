@@ -1,7 +1,7 @@
 import type { SceneState } from "../scene/types";
 import type { Library } from "../features/library";
 import { paletteById, colorAt } from "../features/palette";
-import { instanceGeom } from "../scene/geom";
+import { instanceGeom, cellBgRect } from "../scene/geom";
 import { outSize } from "./frame";
 import { mapCycleTime, sampleLifecycle } from "../anim/animations";
 import { buildOrderField } from "../anim/order";
@@ -47,6 +47,15 @@ export function buildSceneSVG(
     const transform = g.rot ? ` transform="rotate(${r(g.rot)} ${r(g.cx)} ${r(g.cy)})"` : "";
     const op = g.opacity < 1 ? ` opacity="${g.opacity.toFixed(3)}"` : "";
     used.add(inst.assetId);
+    // Cell-background square (fixed to the cell, shares the fade), behind the use.
+    if (inst.bgIndex != null) {
+      const bgOp = g.opacity < 1 ? ` opacity="${g.opacity.toFixed(3)}"` : "";
+      const b = cellBgRect(inst.col, inst.row, cs, state.cellRounded, state.cellGutter);
+      const rx = b.rx ? ` rx="${b.rx}"` : "";
+      uses.push(
+        `<rect x="${r(b.x)}" y="${r(b.y)}" width="${r(b.w)}" height="${r(b.h)}"${rx} fill="${colorAt(palette, inst.bgIndex)}"${bgOp}/>`,
+      );
+    }
     uses.push(
       `<use href="#sym-${inst.assetId}" x="${r(g.x)}" y="${r(g.y)}" width="${r(g.size)}" height="${r(g.size)}" style="color:${color}"${transform}${op}/>`,
     );

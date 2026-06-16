@@ -31,6 +31,14 @@ export function buildInstance(
   const paletteLen = palette ? palette.colors.length : 1;
   const colorIndex = paletteLen > 1 ? randInt(rng, 0, paletteLen - 1) : 0;
 
+  // Cell background: a fixed palette index, random across the palette, or none.
+  let bgIndex: number | undefined;
+  if (state.activeBgIndex === "random") {
+    bgIndex = paletteLen > 1 ? randInt(rng, 0, paletteLen - 1) : 0;
+  } else if (state.activeBgIndex != null) {
+    bgIndex = state.activeBgIndex;
+  }
+
   const seq = idCounter;
   return {
     id: nextId(),
@@ -38,6 +46,7 @@ export function buildInstance(
     col,
     row,
     colorIndex,
+    ...(bgIndex != null ? { bgIndex } : {}),
     rotation: 0,
     scale: FILL_SCALE,
     dx: 0,

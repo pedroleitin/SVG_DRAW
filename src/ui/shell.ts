@@ -7,6 +7,8 @@ import { ClearAll } from "../commands/sceneCommands";
 import { makeCamera, zoomOf, zoomAt } from "../scene/camera";
 import { createDropdown } from "./widgets";
 import type { DropdownHandle } from "./widgets";
+import { BrushPanel } from "./brushPanel";
+import { GridPanel } from "./gridPanel";
 import { ShapesPanel } from "./shapesPanel";
 import { ColorsPanel } from "./colorsPanel";
 import { Controls } from "./controls";
@@ -47,6 +49,7 @@ export class Shell {
   private settingsEl: HTMLElement;
   private sizeDD?: DropdownHandle;
   private contextEl: HTMLElement;
+  private brushBarEl: HTMLElement;
   private ctxAboveEl: HTMLElement;
   private statusEl: HTMLElement;
   private zoomEl: HTMLElement;
@@ -64,6 +67,7 @@ export class Shell {
     this.editsEl = document.getElementById("edits") as HTMLElement;
     this.settingsEl = document.getElementById("settings") as HTMLElement;
     this.contextEl = document.getElementById("context") as HTMLElement;
+    this.brushBarEl = document.getElementById("brush-bar") as HTMLElement;
     this.ctxAboveEl = document.getElementById("ctx-above") as HTMLElement;
     this.statusEl = document.getElementById("status") as HTMLElement;
     this.zoomEl = document.getElementById("zoombox") as HTMLElement;
@@ -136,6 +140,9 @@ export class Shell {
       this.ctxHosts.set(key, div);
       return div;
     };
+    // Brush lives in its own always-on bar, not the toggled context area.
+    new BrushPanel(this.brushBarEl, this.store);
+    new GridPanel(make("grid"), this.store);
     new ShapesPanel(make("shapes"), this.store, library);
     new ColorsPanel(make("colors"), this.store, this.renderer);
     new Controls(make("noise"), this.store, library, this.history);
@@ -208,24 +215,29 @@ export class Shell {
     const add = (...els: HTMLElement[]) => els.forEach((e) => tb.appendChild(e));
 
     switch (s.mode) {
-      case "draw":
+      case "draw": {
+        // Draw/Erase are painting modes; opening Shapes/Colors deselects them
+        // (and clicking either closes the open context menu).
+        const painting = s.contextPanel === null;
+        const paintBtn = (label: string, tool: ToolId) =>
+          this.btn(label, {
+            active: painting && s.tool === tool,
+            onClick: () => this.store.set({ tool, contextPanel: null }),
+          });
         add(
-          this.toolBtn("Draw", "draw", s),
-          this.toolBtn("Erase", "erase", s),
+          paintBtn("Draw", "draw"),
+          paintBtn("Erase", "erase"),
           this.sep(),
           this.ctxBtn("Shapes", "shapes", s),
           this.ctxBtn("Colors", "colors", s),
         );
         break;
+      }
       case "compose":
         add(
           this.ctxBtn("Noise", "noise", s, "Noise mask: fill / erase"),
           this.sep(),
-          this.btn("Grid", {
-            active: s.showGrid,
-            title: "Toggle grid",
-            onClick: () => this.store.set({ showGrid: !s.showGrid }),
-          }),
+          this.ctxBtn("Grid", "grid", s, "Grid & cell appearance"),
         );
         break;
       case "animate": {
@@ -322,6 +334,12 @@ export class Shell {
     // The output-size pill above the context belongs to Export only.
     this.ctxAboveEl.classList.toggle("hidden", open !== "export");
     for (const [key, host] of this.ctxHosts) host.classList.toggle("hidden", key !== open);
+
+    // Brush bar: visible while painting (Draw mode, draw/erase tool), but only
+    // when no context panel is open — keep a single context menu on screen.
+    const showBrush =
+      s.mode === "draw" && (s.tool === "draw" || s.tool === "erase") && s.contextPanel === null;
+    this.brushBarEl.classList.toggle("hidden", !showBrush);
 
     // Pan + zoom.
     this.sizeDD?.setValue(String(s.cellSize));

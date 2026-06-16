@@ -855,6 +855,103 @@ body {
   align-items: start;
 }
 
+/* Always-on brush bar (Draw/Erase): two titled groups in a row. */
+#brush-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  padding: 8px 14px;
+  border-radius: 16px;
+}
+
+#brush-bar.hidden {
+  display: none;
+}
+
+.brush-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Match the other context-menu headings. */
+.brush-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+}
+
+.brush-controls {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Override the slider's stacked-layout bottom margin inside the bar. */
+#brush-bar #brush-size {
+  width: 170px;
+}
+
+#brush-bar .rng {
+  margin-bottom: 0;
+}
+
+/* Square / circle segmented toggle (active half filled gold). */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+
+.seg-btn {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  padding: 8px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.seg-btn + .seg-btn {
+  border-left: 1px solid var(--line);
+}
+
+.seg-btn.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.seg-btn.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.seg-btn svg {
+  display: block;
+}
+
+/* Compose-mode Grid context: stacked toggles. */
+.grid-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.grid-opts .chk {
+  width: 100%;
+  justify-content: space-between;
+  flex-direction: row-reverse;
+}
+
 .bg-row {
   display: flex;
   align-items: center;
@@ -869,6 +966,42 @@ body {
   border-radius: 8px;
   background: none;
   cursor: pointer;
+}
+
+/* Second sub-heading in the Colors right column gets breathing room. */
+.colors-right .exp-sub + .bg-row + .exp-sub {
+  margin-top: 16px;
+}
+
+.cell-bg-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.cell-bg-chip {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  padding: 0;
+  background: none;
+}
+
+.cell-bg-chip.active {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.cell-bg-chip.none {
+  width: auto;
+  padding: 0 10px;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--panel-2);
 }
 
 .exp-progress {

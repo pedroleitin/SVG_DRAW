@@ -7,7 +7,8 @@ import { maskField, sampleMask } from "../features/noise";
 import { mapCycleTime, sampleLifecycle } from "../anim/animations";
 import type { AnimOutput } from "../anim/animations";
 import { buildOrderField } from "../anim/order";
-import { instanceGeom } from "../scene/geom";
+import { instanceGeom, cellBgRect } from "../scene/geom";
+import { brushCells } from "../scene/grid";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 const EMPTY_ANIM: AnimOutput = {};
@@ -22,11 +23,15 @@ export class Renderer {
   private gridRect: SVGRectElement;
   private gridDot: SVGCircleElement;
   private gridPattern: SVGPatternElement;
+  private cellBgLayer: SVGGElement;
+  private cellBgNodes = new Map<string, SVGRectElement>(); // cellKey -> bg <rect>
   private content: SVGGElement;
   private hoverLayer: SVGGElement;
-  private hoverRect: SVGRectElement;
+  private hoverCellsGroup: SVGGElement;
+  private hoverRects: SVGRectElement[] = [];
+  private hoverBg: SVGRectElement;
   private hoverGhost: SVGUseElement;
-  private hoverCell: { col: number; row: number } | null = null;
+  private hoverPt: { cx: number; cy: number } | null = null; // fractional cell coords
   private lastState?: SceneState;
   private maskLayer: SVGGElement;
   private maskRects: SVGRectElement[] = [];
@@ -67,6 +72,10 @@ export class Renderer {
     this.gridRect = document.createElementNS(SVGNS, "rect");
     this.gridRect.setAttribute("fill", "url(#grid-dots)");
 
+    // Per-cell colored background squares, drawn behind the artwork.
+    this.cellBgLayer = document.createElementNS(SVGNS, "g");
+    this.cellBgLayer.setAttribute("class", "cell-bg");
+
     this.content = document.createElementNS(SVGNS, "g");
     this.content.setAttribute("class", "content");
 
@@ -76,11 +85,13 @@ export class Renderer {
     this.hoverLayer.setAttribute("class", "hover-overlay");
     this.hoverLayer.style.pointerEvents = "none";
     this.hoverLayer.style.display = "none";
-    this.hoverRect = document.createElementNS(SVGNS, "rect");
-    this.hoverRect.setAttribute("class", "hover-cell");
+    // Footprint highlights (one rect per brush cell), then the bg + asset ghost.
+    this.hoverCellsGroup = document.createElementNS(SVGNS, "g");
+    this.hoverBg = document.createElementNS(SVGNS, "rect");
+    this.hoverBg.setAttribute("opacity", "0.5");
     this.hoverGhost = document.createElementNS(SVGNS, "use");
     this.hoverGhost.setAttribute("opacity", "0.4");
-    this.hoverLayer.append(this.hoverRect, this.hoverGhost);
+    this.hoverLayer.append(this.hoverCellsGroup, this.hoverBg, this.hoverGhost);
 
     this.maskLayer = document.createElementNS(SVGNS, "g");
     this.maskLayer.setAttribute("class", "mask-overlay");
@@ -118,6 +129,7 @@ export class Renderer {
     this.svg.append(
       this.defs,
       this.gridRect,
+      this.cellBgLayer,
       this.content,
       this.hoverLayer,
       this.maskLayer,
@@ -157,18 +169,19 @@ export class Renderer {
     this.renderFrame(state);
   }
 
-  /** Set the cell under the cursor (or null). Updates only the hover overlay. */
-  setHover(col: number | null, row = 0): void {
-    this.hoverCell = col === null ? null : { col, row };
+  /** Set the cursor position in fractional cell coords (or null). Updates only
+   *  the hover overlay. */
+  setHover(cx: number | null, cy = 0): void {
+    this.hoverPt = cx === null ? null : { cx, cy };
     this.renderHover();
   }
 
-  /** Highlight the hovered cell + show a faint ghost of the brush asset. */
+  /** Highlight the cells the brush would paint + a faint ghost of the asset. */
   private renderHover(): void {
     const state = this.lastState;
-    const cell = this.hoverCell;
+    const pt = this.hoverPt;
     const placing = state && (state.tool === "draw" || state.tool === "erase");
-    if (!state || !cell || !placing) {
+    if (!state || !pt || !placing) {
       this.hoverLayer.style.display = "none";
       return;
     }
@@ -176,23 +189,47 @@ export class Renderer {
     const cs = state.cellSize;
     const erase = state.tool === "erase";
     const px = state.camera.w / this.hostSize.width; // world units per screen px
+    // Anchor cell (under the cursor) for the single-cell bg/ghost previews.
+    const anchor = { col: Math.floor(pt.cx), row: Math.floor(pt.cy) };
 
-    // Light slider-track color, no border, slight padding, ~10px radius.
+    // Highlight every cell the brush would paint (shape + size preview).
     const inset = 3 * px;
-    this.hoverRect.setAttribute("x", String(cell.col * cs + inset));
-    this.hoverRect.setAttribute("y", String(cell.row * cs + inset));
-    this.hoverRect.setAttribute("width", String(cs - inset * 2));
-    this.hoverRect.setAttribute("height", String(cs - inset * 2));
-    this.hoverRect.setAttribute("rx", String(10 * px));
+    const cells = brushCells(pt.cx, pt.cy, state.brushSize, state.brushShape);
+    cells.forEach((c, i) => {
+      const r = this.hoverRectAt(i);
+      r.setAttribute("x", String(c.col * cs + inset));
+      r.setAttribute("y", String(c.row * cs + inset));
+      r.setAttribute("width", String(cs - inset * 2));
+      r.setAttribute("height", String(cs - inset * 2));
+      r.setAttribute("rx", String(10 * px));
+      r.style.display = "";
+    });
+    for (let i = cells.length; i < this.hoverRects.length; i++) {
+      this.hoverRects[i].style.display = "none";
+    }
+
+    // The single-cell bg/asset previews only make sense for a 1× brush.
+    const single = state.brushSize <= 1;
+    const palette = paletteById(state.palettes, state.activePaletteId);
+    if (single && !erase && state.activeBgIndex != null) {
+      const bgIdx = state.activeBgIndex === "random" ? 0 : state.activeBgIndex;
+      this.hoverBg.setAttribute("x", String(anchor.col * cs));
+      this.hoverBg.setAttribute("y", String(anchor.row * cs));
+      this.hoverBg.setAttribute("width", String(cs));
+      this.hoverBg.setAttribute("height", String(cs));
+      this.hoverBg.setAttribute("fill", colorAt(palette, bgIdx));
+      this.hoverBg.style.display = "";
+    } else {
+      this.hoverBg.style.display = "none";
+    }
 
     // Ghost preview of the asset that would be drawn (skip for random/erase).
     const assetId = state.brushAsset;
-    if (!erase && assetId !== "random" && this.library.get(assetId)) {
+    if (single && !erase && assetId !== "random" && this.library.get(assetId)) {
       this.ensureSymbol(assetId);
       const size = cs * 0.85;
-      const x = (cell.col + 0.5) * cs - size / 2;
-      const y = (cell.row + 0.5) * cs - size / 2;
-      const palette = paletteById(state.palettes, state.activePaletteId);
+      const x = (anchor.col + 0.5) * cs - size / 2;
+      const y = (anchor.row + 0.5) * cs - size / 2;
       this.hoverGhost.setAttribute("href", `#sym-${assetId}`);
       this.hoverGhost.setAttribute("x", String(x));
       this.hoverGhost.setAttribute("y", String(y));
@@ -203,6 +240,18 @@ export class Renderer {
     } else {
       this.hoverGhost.style.display = "none";
     }
+  }
+
+  /** Lazily grow the pool of footprint-highlight rects. */
+  private hoverRectAt(i: number): SVGRectElement {
+    let rect = this.hoverRects[i];
+    if (!rect) {
+      rect = document.createElementNS(SVGNS, "rect");
+      rect.setAttribute("class", "hover-cell");
+      this.hoverCellsGroup.appendChild(rect);
+      this.hoverRects[i] = rect;
+    }
+    return rect;
   }
 
   /** Letterbox overlay: darken everything outside the export frame + outline it. */
@@ -388,6 +437,7 @@ export class Renderer {
         if (animate && orderOf) {
           out = sampleLifecycle(anim, orderOf(inst), tcyc, T);
         }
+        this.applyCellBg(key, inst, cellSize, palette, out, state.cellRounded, state.cellGutter);
         this.applyInstance(node, inst, cellSize, colorAt(palette, inst.colorIndex), out);
       }
     }
@@ -399,6 +449,50 @@ export class Renderer {
         this.nodes.delete(key);
       }
     }
+    for (const [key, rect] of this.cellBgNodes) {
+      if (!seen.has(key)) {
+        rect.remove();
+        this.cellBgNodes.delete(key);
+      }
+    }
+  }
+
+  /** Draw (or remove) the colored cell-background square behind an instance.
+   *  Stays fixed to the cell; only the lifecycle opacity is shared so it
+   *  fades in/out with its artwork. */
+  private applyCellBg(
+    key: string,
+    inst: Instance,
+    cellSize: number,
+    palette: Parameters<typeof colorAt>[0],
+    anim: AnimOutput,
+    rounded: boolean,
+    gutter: boolean,
+  ): void {
+    let rect = this.cellBgNodes.get(key);
+    if (inst.bgIndex == null) {
+      if (rect) {
+        rect.remove();
+        this.cellBgNodes.delete(key);
+      }
+      return;
+    }
+    if (!rect) {
+      rect = document.createElementNS(SVGNS, "rect");
+      this.cellBgLayer.appendChild(rect);
+      this.cellBgNodes.set(key, rect);
+    }
+    const box = cellBgRect(inst.col, inst.row, cellSize, rounded, gutter);
+    rect.setAttribute("x", String(box.x));
+    rect.setAttribute("y", String(box.y));
+    rect.setAttribute("width", String(box.w));
+    rect.setAttribute("height", String(box.h));
+    if (box.rx) rect.setAttribute("rx", String(box.rx));
+    else rect.removeAttribute("rx");
+    rect.setAttribute("fill", colorAt(palette, inst.bgIndex));
+    const op = anim.opacity ?? 1;
+    if (op < 1) rect.setAttribute("opacity", op.toFixed(3));
+    else rect.removeAttribute("opacity");
   }
 
   private applyInstance(
@@ -425,5 +519,7 @@ export class Renderer {
   invalidate(): void {
     for (const node of this.nodes.values()) node.remove();
     this.nodes.clear();
+    for (const rect of this.cellBgNodes.values()) rect.remove();
+    this.cellBgNodes.clear();
   }
 }

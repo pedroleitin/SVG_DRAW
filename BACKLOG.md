@@ -42,11 +42,12 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 ## 2. Grid
 
-- [ ] 🟡 **Layout do grid** — mais opções além do tamanho de célula:
-  - Grid retangular (largura ≠ altura de célula).
-  - Gutter/espaçamento entre células.
-  - Offset de origem do grid; mostrar/ocultar linhas; opacidade das linhas.
-  - Arquivos: [src/scene/grid.ts](src/scene/grid.ts), [src/render/renderer.ts](src/render/renderer.ts)
+- [~] 🟡 **Layout do grid** — _parcial._ Feito: **gutter** (espaçamento entre células,
+  toggle 4px), **cantos arredondados** (rounded cells) e **mostrar/ocultar** o grid de
+  pontos — agrupados no menu de contexto **Grid** do modo Compose.
+  Falta: grid retangular (largura ≠ altura de célula), offset de origem do grid,
+  opacidade das linhas.
+  - Arquivos: [src/scene/geom.ts](src/scene/geom.ts) (`cellBgRect`), [src/render/renderer.ts](src/render/renderer.ts), [src/ui/gridPanel.ts](src/ui/gridPanel.ts), [src/scene/types.ts](src/scene/types.ts)
 - [x] 🟡 **Hover no grid** — feito: highlight da célula sob o cursor (contorno +
   leve fill; vermelho no Erase) + **ghost** esmaecido do asset do pincel na cor ativa.
   - Arquivos: [src/render/renderer.ts](src/render/renderer.ts) (`setHover`/`renderHover`), [src/tools/tools.ts](src/tools/tools.ts).
@@ -65,10 +66,14 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 ## 3. Ferramentas de desenho
 
-- [ ] 🔴 **Controles finos de desenhar e apagar** — **brush size** (raio NxN células)
-  para Draw e Erase, densidade do traço, modo "só preencher vazias" vs "sobrescrever",
-  preview/ghost da célula sob o cursor, apagar por filtro (por asset / por cor).
-  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts)
+- [~] 🔴 **Controles finos de desenhar e apagar** — _parcial._
+  Feito: **brush size** 1–4 (footprint NxN multiplicador) para Draw e Erase, **formato
+  do brush** (quadrado / círculo, com size-3 círculo = cruz de 5 células, size-4 = disco),
+  footprint **centrado no cursor** (ímpar na célula, par na quina), e **preview/ghost**
+  da(s) célula(s) sob o cursor. Tudo no menu **Brush** (sempre ativo em Draw/Erase).
+  Falta: densidade do traço, modo "só preencher vazias" vs "sobrescrever", apagar por
+  filtro (por asset / por cor).
+  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/scene/grid.ts](src/scene/grid.ts) (`brushCells`), [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/render/renderer.ts](src/render/renderer.ts)
 - [ ] 🔴 **Modo stencil no Noise (pincel de máscara)** — em vez de só "Apply to view",
   um **brush** que pinta/apaga a máscara de noise na tela com um **brush size**
   (revela/oculta SVGs pintando, em vez de aplicar a tela inteira).
@@ -128,9 +133,11 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 - [~] 🟡 **Cor de fundo + cor dos SVGs independentes** — _parcial._
   Feito: controle de **cor de fundo** do canvas (ao vivo) + **export transparente**
-  (checkbox) no painel Export. Falta: modos de cor dos SVGs (sempre da paleta /
-  sempre cor fixa) independentes do fundo.
-  - Arquivos: [src/ui/exportPanel.ts](src/ui/exportPanel.ts), [src/export/svgExport.ts](src/export/svgExport.ts), [src/main.ts](src/main.ts)
+  (checkbox) no painel Export; **cor de fundo por célula** — quadrado colorido atrás
+  do SVG, vindo da paleta, com opção **Random** (sorteia por célula, igual à cor do SVG)
+  ou cor fixa; respeita rounded/gutter e vai junto no export.
+  Falta: modos de cor dos SVGs (sempre da paleta / sempre cor fixa) independentes do fundo.
+  - Arquivos: [src/ui/colorsPanel.ts](src/ui/colorsPanel.ts), [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/features/placement.ts](src/features/placement.ts), [src/render/renderer.ts](src/render/renderer.ts), [src/export/svgExport.ts](src/export/svgExport.ts)
 
 ## 6. Áudio
 

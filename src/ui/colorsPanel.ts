@@ -28,6 +28,8 @@ export class ColorsPanel {
             <input type="color" id="bg-color" title="Canvas + export background" />
             <button id="bg-reset" class="tool-btn">Reset</button>
           </div>
+          <h3 class="exp-sub">Cell background</h3>
+          <div class="cell-bg-row"></div>
         </div>
       </div>`;
     this.bgInput = this.root.querySelector("#bg-color") as HTMLInputElement;
@@ -41,7 +43,7 @@ export class ColorsPanel {
 
   private render(s: SceneState): void {
     if (this.bgInput.value.toLowerCase() !== s.bgColor.toLowerCase()) this.bgInput.value = s.bgColor;
-    const sig = [s.activePaletteId, s.activeColorIndex, JSON.stringify(s.palettes.map((p) => p.colors))].join("|");
+    const sig = [s.activePaletteId, s.activeColorIndex, s.activeBgIndex, JSON.stringify(s.palettes.map((p) => p.colors))].join("|");
     if (sig === this.sig) return;
     this.sig = sig;
 
@@ -84,6 +86,30 @@ export class ColorsPanel {
     add.title = "Add color";
     add.addEventListener("click", () => this.addColor(active));
     swatches.appendChild(add);
+
+    // Cell-background color: a "None" chip + one chip per palette color.
+    const cellRow = this.root.querySelector(".cell-bg-row") as HTMLElement;
+    cellRow.innerHTML = "";
+    const none = document.createElement("button");
+    none.className = "cell-bg-chip none" + (s.activeBgIndex == null ? " active" : "");
+    none.title = "No cell background";
+    none.textContent = "None";
+    none.addEventListener("click", () => this.store.set({ activeBgIndex: null }));
+    cellRow.appendChild(none);
+    const rand = document.createElement("button");
+    rand.className = "cell-bg-chip none" + (s.activeBgIndex === "random" ? " active" : "");
+    rand.title = "Random cell background from the palette";
+    rand.textContent = "Random";
+    rand.addEventListener("click", () => this.store.set({ activeBgIndex: "random" }));
+    cellRow.appendChild(rand);
+    active.colors.forEach((color, i) => {
+      const chip = document.createElement("button");
+      chip.className = "cell-bg-chip" + (i === s.activeBgIndex ? " active" : "");
+      chip.style.background = color;
+      chip.title = `Cell background — color ${i}`;
+      chip.addEventListener("click", () => this.store.set({ activeBgIndex: i }));
+      cellRow.appendChild(chip);
+    });
   }
 
   private mutatePalette(active: Palette, colors: string[]): void {

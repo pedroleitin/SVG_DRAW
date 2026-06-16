@@ -5,7 +5,7 @@ import type { Renderer } from "../render/renderer";
 import { PlaceInstances, EraseInstances } from "../commands/sceneCommands";
 import { buildInstance } from "../features/placement";
 import { screenToWorld, zoomAt, panBy } from "../scene/camera";
-import { worldToCell } from "../scene/grid";
+import { worldToCell, brushCells } from "../scene/grid";
 import { cellKey } from "../scene/types";
 import type { Instance } from "../scene/types";
 
@@ -83,7 +83,9 @@ export class InputController {
   private onMove = (e: PointerEvent) => {
     const cell = this.cellAt(e);
     this.onHover?.(cell.col, cell.row);
-    this.renderer.setHover(cell.col, cell.row);
+    const w = this.worldAt(e);
+    const cs = this.store.get().cellSize;
+    this.renderer.setHover(w.x / cs, w.y / cs);
     if (this.panning) {
       const dx = e.clientX - this.last.x;
       const dy = e.clientY - this.last.y;
@@ -120,29 +122,36 @@ export class InputController {
     this.panning = false;
   };
 
-  /** Place/erase the cell under the pointer, deduped within the stroke. */
+  /** Place/erase every cell in the brush footprint, deduped within the stroke. */
   private paint(e: PointerEvent) {
-    const { col, row } = this.cellAt(e);
-    const key = cellKey(col, row);
-    if (this.strokeCells.has(key)) return;
-    this.strokeCells.add(key);
-
     const state = this.store.get();
-    if (state.tool === "erase") {
-      const existing = state.instances[key];
-      if (existing) {
-        // Eagerly remove for responsiveness; remember original for commit.
-        const instances = { ...state.instances };
-        delete instances[key];
-        this.store.set({ instances });
-        this.strokeErased.push(existing);
+    const cs = state.cellSize;
+    const w = this.worldAt(e);
+    const cells = brushCells(w.x / cs, w.y / cs, state.brushSize, state.brushShape);
+    const instances = { ...state.instances };
+    let changed = false;
+
+    for (const c of cells) {
+      const key = cellKey(c.col, c.row);
+      if (this.strokeCells.has(key)) continue;
+      this.strokeCells.add(key);
+
+      if (state.tool === "erase") {
+        const existing = instances[key];
+        if (existing) {
+          // Eagerly remove for responsiveness; remember original for commit.
+          delete instances[key];
+          this.strokeErased.push(existing);
+          changed = true;
+        }
+      } else {
+        const inst = buildInstance(state, this.library, c.col, c.row);
+        instances[key] = inst;
+        this.strokePlaced.push(inst);
+        changed = true;
       }
-    } else {
-      const inst = buildInstance(state, this.library, col, row);
-      const instances = { ...state.instances, [key]: inst };
-      this.store.set({ instances });
-      this.strokePlaced.push(inst);
     }
+    if (changed) this.store.set({ instances });
   }
 
   /** Coalesce the eager per-cell edits into one undoable command. We first

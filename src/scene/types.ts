@@ -10,11 +10,14 @@ export type { ExportFrame };
 
 export type ToolId = "draw" | "erase" | "pan" | "path";
 
+/** Footprint shape painted by the draw/erase brush. */
+export type BrushShape = "square" | "circle";
+
 /** Top-level UI mode (selected in the floating modes bar). */
 export type Mode = "draw" | "compose" | "animate" | "export";
 
 /** Which context menu is open, or null. */
-export type ContextPanel = "shapes" | "colors" | "noise" | "animate" | "export" | null;
+export type ContextPanel = "grid" | "shapes" | "colors" | "noise" | "animate" | "export" | null;
 
 export interface Point {
   x: number;
@@ -42,6 +45,8 @@ export interface Instance {
   row: number;
   /** Index into the active palette's color array. */
   colorIndex: number;
+  /** Optional cell-background color (palette index). Undefined = no fill. */
+  bgIndex?: number;
   /** Per-instance transform (fixed at placement; reserved for animation). */
   rotation: number; // degrees
   scale: number; // 1 = fills cell
@@ -78,11 +83,22 @@ export interface SceneState {
   showGrid: boolean;
   /** Active brush asset id, or "random" to pick from the library. */
   brushAsset: string;
+  /** Brush footprint multiplier: 1 = 1 cell, 2 = 2×2, 3 = 3×3, 4 = 4×4. */
+  brushSize: number;
+  /** Brush footprint shape. */
+  brushShape: BrushShape;
+  /** Round the cell-background squares (border radius). */
+  cellRounded: boolean;
+  /** Inset a small gutter between cell-background squares. */
+  cellGutter: boolean;
   /** Instances indexed by "col,row" for O(1) hit-testing. */
   instances: Record<string, Instance>;
   palettes: Palette[];
   activePaletteId: string;
   activeColorIndex: number;
+  /** Selected cell-background color: a palette index, "random" to spread across
+   *  the palette per cell, or null for none. */
+  activeBgIndex: number | "random" | null;
   /** Maxon-style fractal fill mask (white fills, black erases). */
   mask: MaskParams;
   /** When true, the renderer overlays a live preview of the mask selection. */
