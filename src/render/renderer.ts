@@ -9,6 +9,7 @@ import type { AnimOutput } from "../anim/animations";
 import { buildOrderField } from "../anim/order";
 import { instanceGeom, cellBgRect } from "../scene/geom";
 import { brushCells } from "../scene/grid";
+import { subdivide } from "../features/divider";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 const EMPTY_ANIM: AnimOutput = {};
@@ -116,9 +117,9 @@ function roundedLoop(corners: Array<[number, number]>, radius: number): string {
 export class Renderer {
   readonly svg: SVGSVGElement;
   private defs: SVGDefsElement;
-  private gridRect: SVGRectElement;
-  private gridDot: SVGCircleElement;
-  private gridPattern: SVGPatternElement;
+  private gridDotsGroup: SVGGElement;
+  private gridDots: SVGCircleElement[] = [];
+  private gridSig = "";
   private cellBgLayer: SVGGElement;
   private cellBgNodes = new Map<string, SVGRectElement>(); // cellKey -> bg <rect>
   private tileLayer: SVGGElement;
@@ -130,6 +131,8 @@ export class Renderer {
   private content: SVGGElement;
   private blockedShape: SVGPathElement;
   private blockedCache: { ref: Record<string, true>; cs: number; d: string } | null = null;
+  private dividerPath: SVGPathElement;
+  private dividerCache: { sig: string; d: string } | null = null;
   private blockRectEl: SVGRectElement;
   private hoverLayer: SVGGElement;
   private hoverCellsGroup: SVGGElement;
@@ -165,17 +168,11 @@ export class Renderer {
 
     // Dot-grid background: a <pattern> of a single dot tiled in world space, so
     // the dots align to cell corners and pan/zoom with the content.
-    this.gridPattern = document.createElementNS(SVGNS, "pattern");
-    this.gridPattern.setAttribute("id", "grid-dots");
-    this.gridPattern.setAttribute("patternUnits", "userSpaceOnUse");
-    this.gridDot = document.createElementNS(SVGNS, "circle");
-    this.gridDot.setAttribute("cx", "0");
-    this.gridDot.setAttribute("cy", "0");
-    this.gridDot.setAttribute("class", "grid-dot");
-    this.gridPattern.appendChild(this.gridDot);
-    this.defs.appendChild(this.gridPattern);
-    this.gridRect = document.createElementNS(SVGNS, "rect");
-    this.gridRect.setAttribute("fill", "url(#grid-dots)");
+    // Grid dots: real <circle> elements at each visible cell corner (pooled).
+    // Exact positioning, no pattern-tiling seam (which drifted ~1px).
+    this.gridDotsGroup = document.createElementNS(SVGNS, "g");
+    this.gridDotsGroup.setAttribute("class", "grid-dots-layer");
+    this.gridDotsGroup.style.pointerEvents = "none";
 
     // Per-cell colored background squares, drawn behind the artwork.
     this.cellBgLayer = document.createElementNS(SVGNS, "g");
@@ -226,6 +223,11 @@ export class Renderer {
     this.blockedShape = document.createElementNS(SVGNS, "path");
     this.blockedShape.setAttribute("class", "blocked-shape");
     this.blockedShape.style.pointerEvents = "none";
+    // Divider preview: the recursive subdivision lines.
+    this.dividerPath = document.createElementNS(SVGNS, "path");
+    this.dividerPath.setAttribute("class", "divider-lines");
+    this.dividerPath.style.pointerEvents = "none";
+    this.dividerPath.style.display = "none";
     this.blockRectEl = document.createElementNS(SVGNS, "rect");
     this.blockRectEl.setAttribute("class", "block-drag-rect");
     this.blockRectEl.style.pointerEvents = "none";
@@ -279,10 +281,11 @@ export class Renderer {
 
     this.svg.append(
       this.defs,
-      this.gridRect,
+      this.gridDotsGroup,
       this.cellBgLayer,
       this.tileLayer,
       this.content,
+      this.dividerPath,
       this.tileSeamLayer,
       this.blockedShape,
       this.blockRectEl,
@@ -319,6 +322,7 @@ export class Renderer {
     this.renderGrid(state);
     this.renderTilePreview(state);
     this.renderInstances(state, time);
+    this.renderDivider(state);
     this.renderBlocked(state);
     this.renderHover();
     this.renderMask(state);
@@ -644,24 +648,76 @@ export class Renderer {
     return rect;
   }
 
-  private renderGrid(state: SceneState): void {
-    const { camera: cam, cellSize } = state;
-    const zoom = this.hostSize.width / cam.w;
-    // Hidden by the user, or when cells get sub-pixel (zoomed far out).
-    if (!state.showGrid || cellSize * zoom < 6) {
-      this.gridRect.setAttribute("fill", "none");
+  /** Preview the recursive subdivision lines (while the Divider panel is open). */
+  private renderDivider(state: SceneState): void {
+    if (state.contextPanel !== "divider") {
+      this.dividerPath.style.display = "none";
       return;
     }
-    this.gridRect.setAttribute("fill", "url(#grid-dots)");
-    // Tile = one cell; a dot at the tile corner lands on every cell corner.
-    this.gridPattern.setAttribute("width", String(cellSize));
-    this.gridPattern.setAttribute("height", String(cellSize));
-    this.gridDot.setAttribute("r", String(1.8 / zoom)); // ~1.8 device px
-    // Cover the whole viewport with the dot fill.
-    this.gridRect.setAttribute("x", String(cam.x));
-    this.gridRect.setAttribute("y", String(cam.y));
-    this.gridRect.setAttribute("width", String(cam.w));
-    this.gridRect.setAttribute("height", String(cam.h));
+    const cs = state.cellSize;
+    const r = visibleCellRange(state.camera, cs, 0);
+    const minCol = r.minCol;
+    const minRow = r.minRow;
+    const cols = Math.min(80, r.maxCol - r.minCol + 1);
+    const rows = Math.min(80, r.maxRow - r.minRow + 1);
+    const sig = `${minCol},${minRow},${cols},${rows},${state.divider.density},${state.divider.seed}`;
+    if (this.dividerCache?.sig !== sig) {
+      let d = "";
+      for (const b of subdivide(minCol, minRow, cols, rows, state.divider.density, state.divider.seed)) {
+        const x = b.col * cs;
+        const y = b.row * cs;
+        d += `M${x} ${y}h${b.cw * cs}v${b.ch * cs}h${-b.cw * cs}Z`;
+      }
+      this.dividerCache = { sig, d };
+    }
+    this.dividerPath.setAttribute("d", this.dividerCache.d);
+    this.dividerPath.setAttribute("stroke-width", String(state.camera.w / this.hostSize.width));
+    this.dividerPath.style.display = "";
+  }
+
+  private renderGrid(state: SceneState): void {
+    const { camera: cam, cellSize: cs } = state;
+    const zoom = this.hostSize.width / cam.w;
+    // Visible corners (one extra each side). Cap the count so a far zoom-out
+    // doesn't spawn tens of thousands of nodes.
+    const c0 = Math.floor(cam.x / cs);
+    const c1 = Math.ceil((cam.x + cam.w) / cs);
+    const r0 = Math.floor(cam.y / cs);
+    const r1 = Math.ceil((cam.y + cam.h) / cs);
+    const count = (c1 - c0 + 1) * (r1 - r0 + 1);
+    if (!state.showGrid || cs * zoom < 6 || count > 6000) {
+      this.gridDotsGroup.style.display = "none";
+      this.gridSig = ""; // force a rebuild next time it shows
+      return;
+    }
+    this.gridDotsGroup.style.display = "";
+    const px = cam.w / this.hostSize.width; // world units per device px
+    const sig = `${c0},${c1},${r0},${r1},${cs},${px.toFixed(4)}`;
+    if (sig === this.gridSig) return;
+    this.gridSig = sig;
+    const rad = 1.2 * px; // ~1.2 device px, exactly at each cell corner
+    let i = 0;
+    for (let row = r0; row <= r1; row++) {
+      for (let col = c0; col <= c1; col++) {
+        const dot = this.gridDotAt(i++);
+        dot.setAttribute("cx", String(col * cs));
+        dot.setAttribute("cy", String(row * cs));
+        dot.setAttribute("r", String(rad));
+        dot.style.display = "";
+      }
+    }
+    for (; i < this.gridDots.length; i++) this.gridDots[i].style.display = "none";
+  }
+
+  private gridDotAt(i: number): SVGCircleElement {
+    let dot = this.gridDots[i];
+    if (!dot) {
+      dot = document.createElementNS(SVGNS, "circle");
+      dot.setAttribute("class", "grid-dot");
+      this.gridDotsGroup.appendChild(dot);
+      this.gridDots[i] = dot;
+    }
+    return dot;
   }
 
   private renderInstances(state: SceneState, time: number): void {
@@ -676,28 +732,36 @@ export class Renderer {
     const T = time * anim.speed;
     const tcyc = animate ? mapCycleTime(anim, T) : 0;
 
-    for (let row = r.minRow; row <= r.maxRow; row++) {
-      for (let col = r.minCol; col <= r.maxCol; col++) {
-        const key = cellKey(col, row);
-        const inst = instances[key];
-        if (!inst) continue;
-        seen.add(key);
-        this.ensureSymbol(inst.assetId);
-        let node = this.nodes.get(key);
-        if (!node) {
-          node = document.createElementNS(SVGNS, "use");
-          this.content.appendChild(node);
-          this.nodes.set(key, node);
-        }
-        // Sample this instance's lifecycle at the current cycle time. Its
-        // order (when it appears) comes from the active order preset.
-        let out: AnimOutput = EMPTY_ANIM;
-        if (animate && orderOf) {
-          out = sampleLifecycle(anim, orderOf(inst), tcyc, T);
-        }
-        this.applyCellBg(key, inst, cellSize, palette, out, state.cellRounded, state.cellGutter);
-        this.applyInstance(node, inst, cellSize, colorAt(palette, inst.colorIndex), out);
+    // Iterate instances (not cells) so multi-cell blocks render even when their
+    // origin is just off-screen; cull each by its block box vs the viewport.
+    for (const key in instances) {
+      const inst = instances[key];
+      const cw = inst.cw ?? 1;
+      const ch = inst.ch ?? 1;
+      if (
+        inst.col + cw <= r.minCol ||
+        inst.col > r.maxCol ||
+        inst.row + ch <= r.minRow ||
+        inst.row > r.maxRow
+      ) {
+        continue;
       }
+      seen.add(key);
+      this.ensureSymbol(inst.assetId);
+      let node = this.nodes.get(key);
+      if (!node) {
+        node = document.createElementNS(SVGNS, "use");
+        this.content.appendChild(node);
+        this.nodes.set(key, node);
+      }
+      // Sample this instance's lifecycle at the current cycle time. Its
+      // order (when it appears) comes from the active order preset.
+      let out: AnimOutput = EMPTY_ANIM;
+      if (animate && orderOf) {
+        out = sampleLifecycle(anim, orderOf(inst), tcyc, T);
+      }
+      this.applyCellBg(key, inst, cellSize, palette, out, state.cellRounded, state.cellGutter);
+      this.applyInstance(node, inst, cellSize, colorAt(palette, inst.colorIndex), out);
     }
 
     // Recycle nodes that scrolled out of view or were erased.
@@ -740,7 +804,7 @@ export class Renderer {
       this.cellBgLayer.appendChild(rect);
       this.cellBgNodes.set(key, rect);
     }
-    const box = cellBgRect(inst.col, inst.row, cellSize, rounded, gutter);
+    const box = cellBgRect(inst.col, inst.row, cellSize, rounded, gutter, inst.cw ?? 1, inst.ch ?? 1);
     rect.setAttribute("x", String(box.x));
     rect.setAttribute("y", String(box.y));
     rect.setAttribute("width", String(box.w));

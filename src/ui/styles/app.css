@@ -1053,6 +1053,17 @@ body {
   max-width: 240px;
 }
 
+/* Divider preview: subdivision lines. */
+.divider-lines {
+  fill: none;
+  stroke: var(--accent);
+  stroke-opacity: 0.85;
+}
+
+#div-density {
+  margin-bottom: 4px;
+}
+
 /* Block tool: reddish fill + a dotted, round-cornered silhouette. */
 .blocked-shape {
   fill: #e03131;

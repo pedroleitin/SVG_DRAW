@@ -11,6 +11,7 @@ import { BrushPanel } from "./brushPanel";
 import { BlockPanel } from "./blockPanel";
 import { GridPanel } from "./gridPanel";
 import { SeamlessPanel } from "./seamlessPanel";
+import { DividerPanel } from "./dividerPanel";
 import { ShapesPanel } from "./shapesPanel";
 import { ColorsPanel } from "./colorsPanel";
 import { Controls } from "./controls";
@@ -147,6 +148,7 @@ export class Shell {
     new GridPanel(make("grid"), this.store);
     new BlockPanel(make("block"), this.store);
     new SeamlessPanel(make("seamless"), this.store, this.history);
+    new DividerPanel(make("divider"), this.store, library, this.history);
     new ShapesPanel(make("shapes"), this.store, library);
     new ColorsPanel(make("colors"), this.store, this.renderer);
     new Controls(make("noise"), this.store, library, this.history);
@@ -257,6 +259,7 @@ export class Shell {
                 mask: { ...s.mask, seamless: !seamOpen },
               }),
           }),
+          this.ctxBtn("Divider", "divider", s, "Recursive subdivision"),
           this.sep(),
           this.ctxBtn("Grid", "grid", s, "Grid & cell appearance"),
         );

@@ -91,6 +91,7 @@ const initial: SceneState = {
       h: side,
     };
   })(),
+  divider: { density: 5, seed: 1337 },
   bgColor: savedTheme === "dark" ? "#111110" : "#f7f5ef",
   exportTransparent: false,
   camera: camera0,

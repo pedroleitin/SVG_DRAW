@@ -27,6 +27,7 @@ export type ContextPanel =
   | "block"
   | "noise"
   | "seamless"
+  | "divider"
   | "animate"
   | "export"
   | null;
@@ -59,6 +60,9 @@ export interface Instance {
   colorIndex: number;
   /** Optional cell-background color (palette index). Undefined = no fill. */
   bgIndex?: number;
+  /** Cell span (width × height in cells) for multi-cell blocks. Default 1×1. */
+  cw?: number;
+  ch?: number;
   /** Per-instance transform (fixed at placement; reserved for animation). */
   rotation: number; // degrees
   scale: number; // 1 = fills cell
@@ -137,6 +141,8 @@ export interface SceneState {
   frame: ExportFrame;
   /** Seamless tile region (shown in Compose while Seamless is on). */
   tileFrame: TileFrame;
+  /** Divider (recursive subdivision) generator parameters. */
+  divider: { density: number; seed: number };
   /** Canvas/working background color. */
   bgColor: string;
   /** When true, exports omit the background (transparent). */

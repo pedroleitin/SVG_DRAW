@@ -13,13 +13,15 @@ export function cellBgRect(
   cellSize: number,
   rounded: boolean,
   gutter: boolean,
+  cw = 1,
+  ch = 1,
 ) {
   const inset = gutter ? CELL_GUTTER / 2 : 0;
   return {
     x: col * cellSize + inset,
     y: row * cellSize + inset,
-    w: cellSize - inset * 2,
-    h: cellSize - inset * 2,
+    w: cw * cellSize - inset * 2,
+    h: ch * cellSize - inset * 2,
     rx: rounded ? CELL_RADIUS : 0,
   };
 }
@@ -38,9 +40,12 @@ export interface Box {
 }
 
 export function instanceGeom(inst: Instance, cellSize: number, anim: AnimOutput): Box {
-  const size = cellSize * inst.scale * (anim.scaleMul ?? 1);
-  const cx = (inst.col + 0.5 + inst.dx + (anim.dx ?? 0)) * cellSize;
-  const cy = (inst.row + 0.5 + inst.dy + (anim.dy ?? 0)) * cellSize;
+  const cw = inst.cw ?? 1;
+  const ch = inst.ch ?? 1;
+  // Square artwork, sized to the block's shorter side, centered in the block.
+  const size = cellSize * Math.min(cw, ch) * inst.scale * (anim.scaleMul ?? 1);
+  const cx = (inst.col + cw / 2 + inst.dx + (anim.dx ?? 0)) * cellSize;
+  const cy = (inst.row + ch / 2 + inst.dy + (anim.dy ?? 0)) * cellSize;
   return {
     x: cx - size / 2,
     y: cy - size / 2,

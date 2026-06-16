@@ -20,6 +20,8 @@ export function buildInstance(
   library: Library,
   col: number,
   row: number,
+  cw = 1,
+  ch = 1,
 ): Instance {
   const seed = hash2(col, row, state.mask.seed);
   const rng = mulberry32(seed);
@@ -48,6 +50,8 @@ export function buildInstance(
     row,
     colorIndex,
     ...(bgIndex != null ? { bgIndex } : {}),
+    ...(cw > 1 ? { cw } : {}),
+    ...(ch > 1 ? { ch } : {}),
     rotation: 0,
     scale: FILL_SCALE,
     dx: 0,

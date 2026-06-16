@@ -52,17 +52,22 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   leve fill; vermelho no Erase) + **ghost** esmaecido do asset do pincel na cor ativa.
   - Arquivos: [src/render/renderer.ts](src/render/renderer.ts) (`setHover`/`renderHover`), [src/tools/tools.ts](src/tools/tools.ts).
 
-## 2b. Escala multi-célula (estilo noise)
+## 2b. Escala multi-célula — Divider
 
-- [ ] 🔴 **SVG ocupando vários quadrantes (4 / 8 / 16 células)** — função extra
-  que distribui escalas diferentes pelo grid: alguns SVGs ocupam 1 célula, outros
-  um bloco 2×2 (4), 2×4 (8), 4×4 (16), etc., de forma randômica/controlada (campo
-  tipo noise para decidir o tamanho por região).
-  - Overlay que mostra a **divisão da tela** em blocos (preview das fusões de célula).
-  - Modelo: instância passa a ter um "span" (largura×altura em células) e ocupa as
-    células cobertas (resolver colisões/ocupação). Distribuição por noise/peso.
-  - Arquivos: [src/scene/types.ts](src/scene/types.ts) (span), [src/features/placement.ts](src/features/placement.ts),
-    [src/render/renderer.ts](src/render/renderer.ts) (tamanho + overlay de blocos)
+- [x] 🔴 **SVG ocupando vários quadrantes (Divider)** — _feito (v1)._ Botão **Divider**
+  no Compose subdivide a tela em **quadrados** de tamanhos variados (packing guiado por
+  noise; slider "Divisions" = densidade + Reseed), com **overlay ao vivo** das linhas e
+  **Apply to view** que preenche cada bloco com um SVG escalado. Instâncias ganharam
+  span `cw`/`ch`; o render itera por instância e culla pelo bloco. A limpeza do Apply é
+  por **interseção** (apaga qualquer instância que cubra a região, inclusive blocos
+  multi-célula ancorados fora dela).
+  - Arquivos: [src/features/divider.ts](src/features/divider.ts), [src/ui/dividerPanel.ts](src/ui/dividerPanel.ts), [src/scene/geom.ts](src/scene/geom.ts), [src/render/renderer.ts](src/render/renderer.ts), [src/features/placement.ts](src/features/placement.ts).
+  - Refino futuro: blocos retangulares opcionais, esticar SVG no bloco, preencher com
+    cor (Mondrian), e ancorar a subdivisão a uma região fixa.
+- [ ] 🟡 **Bug Seamless + multi-célula** — o Seamless aplicado sobre conteúdo do Divider
+  gera **sobreposições** (blocos maiores que o tile cruzam a borda e se sobrepõem ao
+  repetir). Tratar: clipar/pular blocos que cruzam o tile, ou mapear o span no toro.
+  - Arquivos: [src/features/placement.ts](src/features/placement.ts) (`tileFill`).
 
 ## 3. Ferramentas de desenho
 
