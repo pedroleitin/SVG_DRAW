@@ -77,6 +77,7 @@ export class Renderer {
     this.hoverLayer.style.pointerEvents = "none";
     this.hoverLayer.style.display = "none";
     this.hoverRect = document.createElementNS(SVGNS, "rect");
+    this.hoverRect.setAttribute("class", "hover-cell");
     this.hoverGhost = document.createElementNS(SVGNS, "use");
     this.hoverGhost.setAttribute("opacity", "0.4");
     this.hoverLayer.append(this.hoverRect, this.hoverGhost);
@@ -173,20 +174,16 @@ export class Renderer {
     }
     this.hoverLayer.style.display = "";
     const cs = state.cellSize;
-    const px = state.camera.w / this.hostSize.width; // world units per screen px
     const erase = state.tool === "erase";
-    const color = erase ? "#f03e3e" : "#1c3980";
+    const px = state.camera.w / this.hostSize.width; // world units per screen px
 
-    this.hoverRect.setAttribute("x", String(cell.col * cs));
-    this.hoverRect.setAttribute("y", String(cell.row * cs));
-    this.hoverRect.setAttribute("width", String(cs));
-    this.hoverRect.setAttribute("height", String(cs));
-    this.hoverRect.setAttribute("rx", String(cs * 0.08));
-    this.hoverRect.setAttribute("fill", color);
-    this.hoverRect.setAttribute("fill-opacity", "0.1");
-    this.hoverRect.setAttribute("stroke", color);
-    this.hoverRect.setAttribute("stroke-opacity", "0.7");
-    this.hoverRect.setAttribute("stroke-width", String(1.5 * px));
+    // Light slider-track color, no border, slight padding, ~10px radius.
+    const inset = 3 * px;
+    this.hoverRect.setAttribute("x", String(cell.col * cs + inset));
+    this.hoverRect.setAttribute("y", String(cell.row * cs + inset));
+    this.hoverRect.setAttribute("width", String(cs - inset * 2));
+    this.hoverRect.setAttribute("height", String(cs - inset * 2));
+    this.hoverRect.setAttribute("rx", String(10 * px));
 
     // Ghost preview of the asset that would be drawn (skip for random/erase).
     const assetId = state.brushAsset;

@@ -881,3 +881,8 @@ body {
 .grid-dot {
   fill: var(--grid-dot);
 }
+
+.hover-cell {
+  fill: var(--line);
+  fill-opacity: 0.75;
+}
