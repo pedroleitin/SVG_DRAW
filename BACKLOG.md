@@ -21,10 +21,9 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   compartilhados (Shapes/Colors). Refinamentos futuros: subgrupos dentro dos modos.
 - [ ] 🟡 **Blur nos menus** — backdrop-filter (vidro/glass) por trás das caixas
   flutuantes (toolbox, context, etc.). Arquivo: [src/ui/styles/app.css](src/ui/styles/app.css) (`.float`/`#context`).
-- [ ] 🟡 **Todos os combobox iguais ao "Size cell"** — trocar os `<select>` nativos
-  (Animation, Export…) pelo dropdown custom estilo pílula + lista flutuante (igual
-  ao seletor de Size). Extrair um componente reutilizável a partir de `sizeDropdown`.
-  - Arquivos: [src/ui/shell.ts](src/ui/shell.ts), [src/ui/animPanel.ts](src/ui/animPanel.ts), [src/ui/exportPanel.ts](src/ui/exportPanel.ts), [src/ui/styles/app.css](src/ui/styles/app.css)
+- [x] 🟡 **Todos os combobox iguais ao "Size cell"** — feito: componente `createDropdown`
+  reutilizável (pílula + menu flutuante portado pro body), usado no Size, Aspect, Res,
+  FPS e nos selects da Animation. Sliders e toggles também no estilo GG2.
 - [ ] ⚪ **Status (cell/placed) sem caixa** — tirar o box/borda do canto inf. esquerdo
   (texto solto) e **remover a palavra "placed"** (deixar só `cell x,y · N`).
   - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (`buildStatus`), [src/ui/styles/app.css](src/ui/styles/app.css) (`#status`).
