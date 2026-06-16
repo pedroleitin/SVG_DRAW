@@ -8,8 +8,9 @@ export interface ExportFrame {
   y: number;
   w: number;
   h: number;
-  /** Output width in pixels; height derives from the frame's w/h ratio. */
-  outWidth: number;
+  /** Output height in pixels (matches the "1080p"-style presets); width
+   *  derives from the frame's w/h ratio. */
+  outHeight: number;
   /** Show the letterbox overlay + border on the canvas. */
   show: boolean;
   /** Snap frame edges to cell boundaries so it never cuts a cell. */
@@ -49,11 +50,11 @@ export function aspectRatio(id: AspectId): number {
   return ASPECTS.find((a) => a.id === id)?.ratio ?? 1;
 }
 
-/** Output pixel size: width is fixed, height follows the frame's real ratio. */
+/** Output pixel size: height is fixed (the preset), width follows the ratio. */
 export function outSize(frame: ExportFrame): { outW: number; outH: number } {
   const ratio = frame.w / frame.h || 1;
-  const outW = Math.max(1, Math.round(frame.outWidth));
-  return { outW, outH: Math.max(1, Math.round(outW / ratio)) };
+  const outH = Math.max(1, Math.round(frame.outHeight));
+  return { outW: Math.max(1, Math.round(outH * ratio)), outH };
 }
 
 /** Largest rect of the given aspect that fits ~90% of the viewport, centered.

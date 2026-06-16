@@ -76,7 +76,7 @@ const initial: SceneState = {
     idleAmount: 0.6,
   },
   orderPath: [],
-  frame: { aspect: "1:1", ...fitFrame(camera0, "1:1"), outWidth: 1080, show: false, snap: true },
+  frame: { aspect: "1:1", ...fitFrame(camera0, "1:1"), outHeight: 1080, show: false, snap: true },
   bgColor: savedTheme === "dark" ? "#111110" : "#f7f5ef",
   exportTransparent: false,
   camera: camera0,

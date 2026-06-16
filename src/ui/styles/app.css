@@ -1005,11 +1005,20 @@ body {
 }
 
 .exp-progress {
+  align-self: flex-start;
+  display: inline-block;
   font-size: 12px;
-  color: var(--accent);
+  color: var(--accent-ink);
+  background: var(--accent);
+  padding: 5px 11px;
+  border-radius: 999px;
   font-variant-numeric: tabular-nums;
-  min-height: 16px;
   margin-top: 8px;
+}
+
+/* No empty pill before/after an export. */
+.exp-progress:empty {
+  display: none;
 }
 
 .frame-ui {

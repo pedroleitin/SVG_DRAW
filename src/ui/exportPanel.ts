@@ -28,6 +28,7 @@ export class ExportPanel {
   private fps = 30;
   private duration = 2;
   private busy = false;
+  private prevMode?: SceneState["mode"];
 
   constructor(host: HTMLElement, private store: Store, private library: Library, aboveHost: HTMLElement) {
     // Output size shows as a left-aligned pill above the context menu.
@@ -91,8 +92,8 @@ export class ExportPanel {
     panel.querySelector("#exp-aspect-slot")!.append(this.aspectDD.el);
     this.resDD = createDropdown(
       RESOLUTIONS.map((r) => ({ value: String(r), label: `${r}px` })),
-      String(f.outWidth),
-      (v) => this.setFrame({ outWidth: Number(v) }),
+      String(f.outHeight),
+      (v) => this.setFrame({ outHeight: Number(v) }),
       { prefix: "Res" },
     );
     panel.querySelector("#exp-res-slot")!.append(this.resDD.el);
@@ -195,8 +196,16 @@ export class ExportPanel {
   }
 
   private sync(s: SceneState): void {
+    // Entering Export refreshes the duration to the full animation length, so
+    // it always exports a complete pass (like the old "Loop length").
+    if (s.mode === "export" && this.prevMode !== "export") {
+      this.duration = clampDur(loopDuration(s.animation));
+      this.durInput.value = this.duration.toFixed(1);
+    }
+    this.prevMode = s.mode;
+
     this.aspectDD.setValue(s.frame.aspect);
-    this.resDD.setValue(String(s.frame.outWidth));
+    this.resDD.setValue(String(s.frame.outHeight));
     this.snapChk.checked = s.frame.snap;
     this.transpChk.checked = s.exportTransparent;
     // "Fit to view" is only relevant for the manually-positioned Free Form frame.
