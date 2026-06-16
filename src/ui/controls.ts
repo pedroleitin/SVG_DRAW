@@ -9,7 +9,8 @@ import { visibleCellRange } from "../scene/grid";
 import { createSlider } from "./widgets";
 import type { SliderHandle } from "./widgets";
 
-type MaskKey = keyof MaskParams;
+// Only the numeric mask params get sliders (excludes the boolean `seamless`).
+type MaskKey = Exclude<keyof MaskParams, "seamless">;
 
 interface SliderDef<K> {
   key: K;

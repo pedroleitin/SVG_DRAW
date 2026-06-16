@@ -1025,6 +1025,33 @@ body {
   touch-action: none;
 }
 
+/* Seamless tile frame: dashed accent border, no letterbox overlay. */
+.tile-frame-ui {
+  touch-action: none;
+}
+
+.tile-frame-border {
+  stroke: var(--accent);
+}
+
+.tile-frame-handle {
+  fill: var(--accent);
+  stroke: var(--accent-ink);
+}
+
+/* Seam highlight: cells on the tile edges that need to wrap around. */
+.tile-seam {
+  stroke: #06b6d4;
+}
+
+.ctx-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 240px;
+}
+
 .noise-actions {
   display: flex;
   gap: 8px;

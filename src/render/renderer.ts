@@ -25,6 +25,12 @@ export class Renderer {
   private gridPattern: SVGPatternElement;
   private cellBgLayer: SVGGElement;
   private cellBgNodes = new Map<string, SVGRectElement>(); // cellKey -> bg <rect>
+  private tileLayer: SVGGElement;
+  private tileGhosts: SVGGElement[] = [];
+  private tileClip: SVGClipPathElement;
+  private tileClipRect: SVGRectElement;
+  private tileSeamLayer: SVGGElement;
+  private tileSeamRects: SVGRectElement[] = [];
   private content: SVGGElement;
   private hoverLayer: SVGGElement;
   private hoverCellsGroup: SVGGElement;
@@ -78,6 +84,40 @@ export class Renderer {
 
     this.content = document.createElementNS(SVGNS, "g");
     this.content.setAttribute("class", "content");
+    this.content.setAttribute("id", "scene-content");
+
+    // Seamless tile preview: ghost copies of the tile's content repeated in the
+    // 8 neighbor positions, each clipped to the tile so only what's INSIDE the
+    // frame repeats. Lets the user nudge elements until the pattern is seamless.
+    this.tileClip = document.createElementNS(SVGNS, "clipPath");
+    this.tileClip.setAttribute("id", "tile-clip");
+    this.tileClip.setAttribute("clipPathUnits", "userSpaceOnUse");
+    this.tileClipRect = document.createElementNS(SVGNS, "rect");
+    this.tileClip.appendChild(this.tileClipRect);
+    this.defs.appendChild(this.tileClip);
+
+    this.tileLayer = document.createElementNS(SVGNS, "g");
+    this.tileLayer.setAttribute("class", "tile-preview");
+    this.tileLayer.style.pointerEvents = "none";
+    this.tileLayer.style.display = "none";
+    for (let i = 0; i < 8; i++) {
+      const outer = document.createElementNS(SVGNS, "g");
+      outer.setAttribute("opacity", "0.4");
+      const clipped = document.createElementNS(SVGNS, "g");
+      clipped.setAttribute("clip-path", "url(#tile-clip)");
+      const use = document.createElementNS(SVGNS, "use");
+      use.setAttribute("href", "#scene-content");
+      clipped.appendChild(use);
+      outer.appendChild(clipped);
+      this.tileGhosts.push(outer);
+      this.tileLayer.appendChild(outer);
+    }
+
+    // Seam highlight: rings around the instances sitting on the tile edges
+    // (drawn above the content so they read clearly).
+    this.tileSeamLayer = document.createElementNS(SVGNS, "g");
+    this.tileSeamLayer.setAttribute("class", "tile-seam-layer");
+    this.tileSeamLayer.style.pointerEvents = "none";
 
     // Hover overlay: a highlight on the cell under the cursor + a faint ghost
     // of the brush asset.
@@ -130,7 +170,9 @@ export class Renderer {
       this.defs,
       this.gridRect,
       this.cellBgLayer,
+      this.tileLayer,
       this.content,
+      this.tileSeamLayer,
       this.hoverLayer,
       this.maskLayer,
       this.pathLayer,
@@ -162,6 +204,7 @@ export class Renderer {
     const cam = state.camera;
     this.svg.setAttribute("viewBox", `${cam.x} ${cam.y} ${cam.w} ${cam.h}`);
     this.renderGrid(state);
+    this.renderTilePreview(state);
     this.renderInstances(state, time);
     this.renderHover();
     this.renderMask(state);
@@ -382,6 +425,69 @@ export class Renderer {
       rect = document.createElementNS(SVGNS, "rect");
       this.maskLayer.appendChild(rect);
       this.maskRects[i] = rect;
+    }
+    return rect;
+  }
+
+  /** Repeat the tile's content in the 8 neighbor positions + ring the cells on
+   *  the tile's edges (the seam). Shown while the Seamless panel is open. */
+  private renderTilePreview(state: SceneState): void {
+    if (state.contextPanel !== "seamless") {
+      this.tileLayer.style.display = "none";
+      this.tileSeamLayer.style.display = "none";
+      return;
+    }
+    this.tileLayer.style.display = "";
+    this.tileSeamLayer.style.display = "";
+    const t = state.tileFrame;
+    this.tileClipRect.setAttribute("x", String(t.x));
+    this.tileClipRect.setAttribute("y", String(t.y));
+    this.tileClipRect.setAttribute("width", String(t.w));
+    this.tileClipRect.setAttribute("height", String(t.h));
+    // 8 neighbor offsets (skip 0,0 — that's the real content).
+    const offsets = [
+      [-1, -1], [0, -1], [1, -1],
+      [-1, 0], [1, 0],
+      [-1, 1], [0, 1], [1, 1],
+    ];
+    offsets.forEach(([ox, oy], i) => {
+      this.tileGhosts[i].setAttribute("transform", `translate(${ox * t.w} ${oy * t.h})`);
+    });
+
+    // Ring the instances sitting on the tile's edge rows/cols — these touch the
+    // seam and must continue on the opposite edge for a clean tile.
+    const cs = state.cellSize;
+    const c0 = Math.round(t.x / cs);
+    const r0 = Math.round(t.y / cs);
+    const cols = Math.max(1, Math.round(t.w / cs));
+    const rows = Math.max(1, Math.round(t.h / cs));
+    const px = state.camera.w / this.hostSize.width;
+    let si = 0;
+    for (const inst of Object.values(state.instances)) {
+      const lc = inst.col - c0;
+      const lr = inst.row - r0;
+      if (lc < 0 || lc >= cols || lr < 0 || lr >= rows) continue;
+      if (lc !== 0 && lc !== cols - 1 && lr !== 0 && lr !== rows - 1) continue;
+      const rect = this.tileSeamRectAt(si++);
+      rect.setAttribute("x", String(inst.col * cs));
+      rect.setAttribute("y", String(inst.row * cs));
+      rect.setAttribute("width", String(cs));
+      rect.setAttribute("height", String(cs));
+      rect.setAttribute("rx", String(4 * px));
+      rect.setAttribute("stroke-width", String(2 * px));
+      rect.style.display = "";
+    }
+    for (; si < this.tileSeamRects.length; si++) this.tileSeamRects[si].style.display = "none";
+  }
+
+  private tileSeamRectAt(i: number): SVGRectElement {
+    let rect = this.tileSeamRects[i];
+    if (!rect) {
+      rect = document.createElementNS(SVGNS, "rect");
+      rect.setAttribute("class", "tile-seam");
+      rect.setAttribute("fill", "none");
+      this.tileSeamLayer.appendChild(rect);
+      this.tileSeamRects[i] = rect;
     }
     return rect;
   }

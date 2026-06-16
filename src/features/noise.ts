@@ -86,25 +86,61 @@ export interface MaskParams {
   seed: number;
   offsetX: number; // pan the field (cells) — enables interactive nudging
   offsetY: number;
+  seamless?: boolean; // tile the field (no seams) so patterns repeat
 }
 
 const LACUNARITY = 2;
 
-/** Sample the fractal mask at a grid cell -> [0,1] (post contrast/brightness). */
-export function sampleMask(field: Simplex, col: number, row: number, p: MaskParams): number {
+/** Plain fractal Brownian motion at (x,y) in cell space -> ~[0,1]. */
+function fbm(field: Simplex, x: number, y: number, p: MaskParams): number {
   let freq = 1 / Math.max(0.5, p.scale);
   let amp = 1;
   let sum = 0;
   let norm = 0;
-  const x = col + p.offsetX;
-  const y = row + p.offsetY;
   for (let o = 0; o < p.octaves; o++) {
     sum += amp * field.norm(x * freq, y * freq);
     norm += amp;
     amp *= p.persistence;
     freq *= LACUNARITY;
   }
-  let v = norm > 0 ? sum / norm : 0;
+  return norm > 0 ? sum / norm : 0;
+}
+
+/** Tileable fBm: bilinearly blend the four toroidal corners so the field is
+ *  periodic (seamless) with period P cells in both axes. */
+function fbmTileable(field: Simplex, x: number, y: number, p: MaskParams): number {
+  const P = Math.max(2, Math.round(Math.max(0.5, p.scale) * 4)); // tile size (cells)
+  const wx = ((x % P) + P) % P;
+  const wy = ((y % P) + P) % P;
+  const fx = wx / P;
+  const fy = wy / P;
+  let freq = 1 / Math.max(0.5, p.scale);
+  let amp = 1;
+  let sum = 0;
+  let norm = 0;
+  for (let o = 0; o < p.octaves; o++) {
+    const n00 = field.norm(wx * freq, wy * freq);
+    const n10 = field.norm((wx - P) * freq, wy * freq);
+    const n01 = field.norm(wx * freq, (wy - P) * freq);
+    const n11 = field.norm((wx - P) * freq, (wy - P) * freq);
+    const blended =
+      n00 * (1 - fx) * (1 - fy) +
+      n10 * fx * (1 - fy) +
+      n01 * (1 - fx) * fy +
+      n11 * fx * fy;
+    sum += amp * blended;
+    norm += amp;
+    amp *= p.persistence;
+    freq *= LACUNARITY;
+  }
+  return norm > 0 ? sum / norm : 0;
+}
+
+/** Sample the fractal mask at a grid cell -> [0,1] (post contrast/brightness). */
+export function sampleMask(field: Simplex, col: number, row: number, p: MaskParams): number {
+  const x = col + p.offsetX;
+  const y = row + p.offsetY;
+  let v = p.seamless ? fbmTileable(field, x, y, p) : fbm(field, x, y, p);
   v = (v - 0.5) * p.contrast + 0.5 + p.brightness;
   return clamp01(v);
 }

@@ -2,6 +2,7 @@ import type { Instance, SceneState } from "../scene/types";
 import type { Library } from "./library";
 import { mulberry32, hash2, randInt, pick } from "../util/rng";
 import { maskField, sampleMask } from "./noise";
+import { visibleCellRange } from "../scene/grid";
 import { cellKey } from "../scene/types";
 
 let idCounter = 0;
@@ -61,6 +62,47 @@ export interface MaskResult {
   places: Instance[];
   /** Cell keys for black cells that currently hold an instance. */
   eraseKeys: string[];
+}
+
+/** Bake the seamless tile: replicate the content inside the tile frame across
+ *  the visible viewport so the pattern becomes real instances. Places copies
+ *  where the tile has content and erases where it doesn't, so the result equals
+ *  the tile repeated. Pure — caller wraps it in one undoable command. */
+export function tileFill(state: SceneState): MaskResult {
+  const cs = state.cellSize;
+  const t = state.tileFrame;
+  const c0 = Math.round(t.x / cs);
+  const r0 = Math.round(t.y / cs);
+  const cols = Math.max(1, Math.round(t.w / cs));
+  const rows = Math.max(1, Math.round(t.h / cs));
+
+  // Index the tile's content by local cell.
+  const tile = new Map<string, Instance>();
+  for (const inst of Object.values(state.instances)) {
+    const lc = inst.col - c0;
+    const lr = inst.row - r0;
+    if (lc >= 0 && lc < cols && lr >= 0 && lr < rows) tile.set(`${lc},${lr}`, inst);
+  }
+
+  const range = visibleCellRange(state.camera, cs, 1);
+  const places: Instance[] = [];
+  const eraseKeys: string[] = [];
+  for (let row = range.minRow; row <= range.maxRow; row++) {
+    for (let col = range.minCol; col <= range.maxCol; col++) {
+      const lc = (((col - c0) % cols) + cols) % cols;
+      const lr = (((row - r0) % rows) + rows) % rows;
+      const src = tile.get(`${lc},${lr}`);
+      const key = cellKey(col, row);
+      if (src) {
+        if (src.col === col && src.row === row) continue; // original — keep as-is
+        const seq = idCounter;
+        places.push({ ...src, id: nextId(), col, row, seq });
+      } else if (state.instances[key]) {
+        eraseKeys.push(key);
+      }
+    }
+  }
+  return { places, eraseKeys };
 }
 
 /** Apply the fractal mask over a cell region: white (>= threshold) fills empty

@@ -6,10 +6,11 @@ import { Renderer } from "./render/renderer";
 import { InputController } from "./tools/tools";
 import { Shell } from "./ui/shell";
 import { FrameController } from "./ui/frameController";
+import { TileFrameController } from "./ui/tileFrameController";
 import { AnimationEngine } from "./anim/engine";
 import { loadUserAssets } from "./store/persistence";
 import { STARTER_PALETTES } from "./features/palette";
-import { fitFrame } from "./export/frame";
+import { fitFrame, snapToCell } from "./export/frame";
 import { makeCamera, resizeCamera } from "./scene/camera";
 import type { SceneState, ToolId } from "./scene/types";
 
@@ -58,6 +59,7 @@ const initial: SceneState = {
     seed: 1337,
     offsetX: 0,
     offsetY: 0,
+    seamless: false,
   },
   maskPreview: false,
   animation: {
@@ -77,6 +79,15 @@ const initial: SceneState = {
   },
   orderPath: [],
   frame: { aspect: "1:1", ...fitFrame(camera0, "1:1"), outHeight: 1080, show: false, snap: true },
+  tileFrame: (() => {
+    const side = 8 * 64; // 8×8 cells, centered in the initial view, cell-aligned
+    return {
+      x: snapToCell(camera0.x + (camera0.w - side) / 2, 64),
+      y: snapToCell(camera0.y + (camera0.h - side) / 2, 64),
+      w: side,
+      h: side,
+    };
+  })(),
   bgColor: savedTheme === "dark" ? "#111110" : "#f7f5ef",
   exportTransparent: false,
   camera: camera0,
@@ -135,6 +146,7 @@ const shell = new Shell(store, history, library, renderer);
 
 new InputController(store, history, library, renderer, (col, row) => shell.setCoords(col, row));
 new FrameController(store, renderer);
+new TileFrameController(store, renderer);
 
 // Restore user-uploaded assets from IndexedDB (async, after first paint).
 loadUserAssets().then((assets) => {

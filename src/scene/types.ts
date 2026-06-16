@@ -17,7 +17,15 @@ export type BrushShape = "square" | "circle";
 export type Mode = "draw" | "compose" | "animate" | "export";
 
 /** Which context menu is open, or null. */
-export type ContextPanel = "grid" | "shapes" | "colors" | "noise" | "animate" | "export" | null;
+export type ContextPanel =
+  | "grid"
+  | "shapes"
+  | "colors"
+  | "noise"
+  | "seamless"
+  | "animate"
+  | "export"
+  | null;
 
 export interface Point {
   x: number;
@@ -66,6 +74,14 @@ export interface Palette {
   colors: string[];
 }
 
+/** Seamless tile region (world coords). Content inside repeats as a pattern. */
+export interface TileFrame {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 /** viewBox camera over the infinite plane. */
 export interface Camera {
   x: number;
@@ -109,6 +125,8 @@ export interface SceneState {
   orderPath: Point[];
   /** Export frame (world-space crop + output resolution). */
   frame: ExportFrame;
+  /** Seamless tile region (shown in Compose while Seamless is on). */
+  tileFrame: TileFrame;
   /** Canvas/working background color. */
   bgColor: string;
   /** When true, exports omit the background (transparent). */

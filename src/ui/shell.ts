@@ -9,6 +9,7 @@ import { createDropdown } from "./widgets";
 import type { DropdownHandle } from "./widgets";
 import { BrushPanel } from "./brushPanel";
 import { GridPanel } from "./gridPanel";
+import { SeamlessPanel } from "./seamlessPanel";
 import { ShapesPanel } from "./shapesPanel";
 import { ColorsPanel } from "./colorsPanel";
 import { Controls } from "./controls";
@@ -143,6 +144,7 @@ export class Shell {
     // Brush lives in its own always-on bar, not the toggled context area.
     new BrushPanel(this.brushBarEl, this.store);
     new GridPanel(make("grid"), this.store);
+    new SeamlessPanel(make("seamless"), this.store, this.history);
     new ShapesPanel(make("shapes"), this.store, library);
     new ColorsPanel(make("colors"), this.store, this.renderer);
     new Controls(make("noise"), this.store, library, this.history);
@@ -227,19 +229,32 @@ export class Shell {
         add(
           paintBtn("Draw", "draw"),
           paintBtn("Erase", "erase"),
+          this.ctxBtn("Noise", "noise", s, "Noise mask: fill / erase"),
           this.sep(),
           this.ctxBtn("Shapes", "shapes", s),
           this.ctxBtn("Colors", "colors", s),
         );
         break;
       }
-      case "compose":
+      case "compose": {
+        // Seamless opens its context AND enables the tile frame; closing it
+        // turns the mode back off.
+        const seamOpen = s.contextPanel === "seamless";
         add(
-          this.ctxBtn("Noise", "noise", s, "Noise mask: fill / erase"),
+          this.btn("Seamless", {
+            active: seamOpen,
+            title: "Seamless tile pattern",
+            onClick: () =>
+              this.store.set({
+                contextPanel: seamOpen ? null : "seamless",
+                mask: { ...s.mask, seamless: !seamOpen },
+              }),
+          }),
           this.sep(),
           this.ctxBtn("Grid", "grid", s, "Grid & cell appearance"),
         );
         break;
+      }
       case "animate": {
         const playing = s.animation.playing;
         add(
@@ -317,7 +332,7 @@ export class Shell {
     );
 
     // Rebuild toolbox only when something it shows changes.
-    const sig = [s.mode, s.tool, s.contextPanel, s.cellSize, s.animation.playing, s.frame.show, s.showGrid].join("|");
+    const sig = [s.mode, s.tool, s.contextPanel, s.cellSize, s.animation.playing, s.frame.show, s.showGrid, s.mask.seamless].join("|");
     if (sig !== this.toolboxSig) {
       this.toolboxSig = sig;
       this.buildToolbox(s);
