@@ -49,6 +49,8 @@ const initial: SceneState = {
   blocked: {},
   blockMode: "drag",
   blockClean: false,
+  editOp: "rotate",
+  editRecolorRandom: false,
   palettes: STARTER_PALETTES,
   activePaletteId: STARTER_PALETTES[0].id,
   activeColorIndex: 0,

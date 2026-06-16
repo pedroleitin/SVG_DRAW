@@ -15,6 +15,43 @@ const SVGNS = "http://www.w3.org/2000/svg";
 const EMPTY_ANIM: AnimOutput = {};
 const ORDER_COLOR = "#e03131";
 
+/** The instance whose block covers cell (col,row), or null. */
+function instanceCovering(
+  instances: Record<string, Instance>,
+  col: number,
+  row: number,
+): Instance | null {
+  for (const k in instances) {
+    const i = instances[k];
+    if (col >= i.col && col < i.col + (i.cw ?? 1) && row >= i.row && row < i.row + (i.ch ?? 1)) {
+      return i;
+    }
+  }
+  return null;
+}
+
+/** Hover slots for Edit: the full block of any item under the footprint cells
+ *  (so big glyphs highlight at their real size), else the bare cell. */
+function editHoverSlots(
+  instances: Record<string, Instance>,
+  footprint: { col: number; row: number }[],
+): { col: number; row: number; cw: number; ch: number }[] {
+  const slots: { col: number; row: number; cw: number; ch: number }[] = [];
+  const seen = new Set<string>();
+  for (const c of footprint) {
+    const inst = instanceCovering(instances, c.col, c.row);
+    if (inst) {
+      const key = `${inst.col},${inst.row}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      slots.push({ col: inst.col, row: inst.row, cw: inst.cw ?? 1, ch: inst.ch ?? 1 });
+    } else {
+      slots.push({ col: c.col, row: c.row, cw: 1, ch: 1 });
+    }
+  }
+  return slots;
+}
+
 // Cardinal directions, y-down: 0=R, 1=D, 2=L, 3=U.
 const DIR_DX = [1, 0, -1, 0];
 const DIR_DY = [0, 1, 0, -1];
@@ -342,7 +379,8 @@ export class Renderer {
     const state = this.lastState;
     const pt = this.hoverPt;
     const isBlockBrush = !!state && state.tool === "block" && state.blockMode === "brush";
-    const placing = state && (state.tool === "draw" || state.tool === "erase" || isBlockBrush);
+    const isEdit = !!state && state.contextPanel === "edit";
+    const placing = state && (state.tool === "draw" || state.tool === "erase" || isBlockBrush || isEdit);
     if (!state || !pt || !placing) {
       this.hoverLayer.style.display = "none";
       return;
@@ -356,24 +394,42 @@ export class Renderer {
     // Anchor cell (under the cursor) for the single-cell bg/ghost previews.
     const anchor = { col: Math.floor(pt.cx), row: Math.floor(pt.cy) };
 
-    // Highlight what the brush would paint. Draw shows the span-block footprint
-    // (Brush × Size); erase/block show the plain footprint cells.
+    // Highlight what the brush would touch. Draw shows the span-block footprint
+    // (Brush × Size); Edit wraps the full item under the cursor (so a 2×2+ glyph
+    // highlights at its real size); erase/block show the plain footprint cells.
     const span = Math.max(1, Math.round(state.brushSpan ?? 1));
-    const drawing = !erase && !isBlockBrush;
-    const blockCells = drawing ? span : 1;
+    const drawing = !erase && !isBlockBrush && !isEdit;
     const off = Math.floor((span - 1) / 2);
     const bcol = anchor.col - off;
     const brow = anchor.row - off;
     const inset = 3 * px;
-    const slots = drawing
-      ? brushBlocks(pt.cx, pt.cy, state.brushSize, state.brushShape, span)
-      : brushCells(pt.cx, pt.cy, state.brushSize, state.brushShape);
+    let slots: { col: number; row: number; cw: number; ch: number }[];
+    if (isEdit) {
+      slots = editHoverSlots(
+        state.instances,
+        brushCells(pt.cx, pt.cy, state.brushSize, state.brushShape),
+      );
+    } else if (drawing) {
+      slots = brushBlocks(pt.cx, pt.cy, state.brushSize, state.brushShape, span).map((b) => ({
+        col: b.col,
+        row: b.row,
+        cw: span,
+        ch: span,
+      }));
+    } else {
+      slots = brushCells(pt.cx, pt.cy, state.brushSize, state.brushShape).map((c) => ({
+        col: c.col,
+        row: c.row,
+        cw: 1,
+        ch: 1,
+      }));
+    }
     slots.forEach((c, i) => {
       const r = this.hoverRectAt(i);
       r.setAttribute("x", String(c.col * cs + inset));
       r.setAttribute("y", String(c.row * cs + inset));
-      r.setAttribute("width", String(blockCells * cs - inset * 2));
-      r.setAttribute("height", String(blockCells * cs - inset * 2));
+      r.setAttribute("width", String(c.cw * cs - inset * 2));
+      r.setAttribute("height", String(c.ch * cs - inset * 2));
       r.setAttribute("rx", String(10 * px));
       r.style.display = "";
     });
@@ -382,7 +438,7 @@ export class Renderer {
     }
 
     // bg + asset ghost preview (only for a single footprint cell), sized to span.
-    const showPreview = state.brushSize <= 1 && !erase && !isBlockBrush;
+    const showPreview = state.brushSize <= 1 && !erase && !isBlockBrush && !isEdit;
     const palette = paletteById(state.palettes, state.activePaletteId);
     if (showPreview && state.activeBgIndex != null) {
       const bgIdx = state.activeBgIndex === "random" ? 0 : state.activeBgIndex;

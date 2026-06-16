@@ -1153,6 +1153,91 @@ body {
   flex-shrink: 0;
 }
 
+/* Edit panel: Edit (ops + brush/size) and Recolor sides, split by a divider. */
+.edit-cols {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+}
+
+.edit-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.edit-side h2 {
+  margin: 0;
+}
+
+.edit-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--line);
+}
+
+/* Left bottom row: Rotate / Swap buttons + Brush / Size sliders, side by side. */
+.edit-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.edit-row .tool-btn {
+  width: 84px;
+  flex-shrink: 0;
+}
+
+.edit-row .rng {
+  width: 132px;
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+.edit-btns {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.edit-btns .tool-btn {
+  flex: 1;
+}
+
+.edit-swatches {
+  display: flex;
+  gap: 6px;
+}
+
+.edit-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.edit-swatch.active {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Random-color (dice) swatch. */
+.edit-swatch.dice {
+  display: grid;
+  place-items: center;
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.edit-swatch.dice svg {
+  width: 20px;
+  height: 20px;
+}
+
 .noise-actions {
   display: flex;
   gap: 8px;

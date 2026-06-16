@@ -102,6 +102,13 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Onde: `buildInstance` define hoje `rotation: 0`. Adicionar flag no estado
     (ex.: `randomQuarterTurns: boolean`) e sortear com o seed da célula.
   - Arquivos: [src/features/placement.ts](src/features/placement.ts), [src/scene/types.ts](src/scene/types.ts)
+- [x] 🟡 **Modo Edit (Compose)** — _feito._ Botão **Edit** no Compose abre um menu
+  (ops + Brush à esquerda, Recolor à direita, com divisor) e edita os itens existentes
+  como um pincel: **Rotate** (gira 90° por clique), **Swap** (troca o ícone pelos shapes
+  selecionados), **Recolor → Gliph/Cell** (recolore o ícone ou o cell-bg com a cor ativa
+  ou aleatória via dado). Slider **Brush** define o footprint; ciente de multi-célula
+  (hover adapta ao tamanho do gliph); undoable.
+  - Arquivos: [src/ui/editPanel.ts](src/ui/editPanel.ts), [src/tools/tools.ts](src/tools/tools.ts) (`paintEdit`/`editInstance`), [src/render/renderer.ts](src/render/renderer.ts) (hover), [src/scene/types.ts](src/scene/types.ts), [src/ui/shell.ts](src/ui/shell.ts).
 
 ## 3b. Compose / Noise
 

@@ -8,11 +8,12 @@ import {
   ApplyMaskCommand,
   BlockCells,
 } from "../commands/sceneCommands";
-import { buildInstance } from "../features/placement";
+import { buildInstance, pickAsset } from "../features/placement";
+import { paletteById } from "../features/palette";
 import { screenToWorld, zoomAt, panBy } from "../scene/camera";
 import { worldToCell, brushCells, brushBlocks } from "../scene/grid";
 import { cellKey } from "../scene/types";
-import type { Instance } from "../scene/types";
+import type { Instance, SceneState } from "../scene/types";
 
 /** Wires pointer + wheel input on the SVG to tools. Draw and erase paint
  *  across cells during a drag and commit as a single undoable command. */
@@ -32,6 +33,9 @@ export class InputController {
   private blockKeys: string[] = [];
   private blockRemoved: Instance[] = [];
   private blockCleanStroke = false; // clean (un-block) vs block, captured at down
+  // Edit tool state.
+  private editing = false;
+  private editOriginals = new Map<string, Instance>(); // key -> pre-edit instance
 
   constructor(
     private store: Store,
@@ -99,6 +103,15 @@ export class InputController {
       }
       return;
     }
+    // Edit operates on existing instances while the Edit context is open.
+    if (this.store.get().contextPanel === "edit") {
+      this.editing = true;
+      this.strokeCells.clear();
+      this.strokePlaced = [];
+      this.editOriginals.clear();
+      this.paintEdit(e);
+      return;
+    }
     this.dragging = true;
     this.strokeCells.clear();
     this.strokePlaced = [];
@@ -148,6 +161,10 @@ export class InputController {
       this.paintBlock(e);
       return;
     }
+    if (this.editing) {
+      this.paintEdit(e);
+      return;
+    }
     if (this.dragging) this.paint(e);
   };
 
@@ -169,6 +186,10 @@ export class InputController {
     if (this.blockBrushing) {
       this.commitBlockStroke();
       this.blockBrushing = false;
+    }
+    if (this.editing) {
+      this.commitEditStroke();
+      this.editing = false;
     }
     if (this.dragging) this.commitStroke();
     this.dragging = false;
@@ -304,6 +325,39 @@ export class InputController {
     this.history.dispatch(new BlockCells(this.blockKeys, !this.blockCleanStroke));
   }
 
+  /** Edit (rotate / swap / recolor) the instance(s) under the brush footprint.
+   *  Deduped by instance so a drag touches each one once per stroke. */
+  private paintEdit(e: PointerEvent) {
+    const state = this.store.get();
+    const cs = state.cellSize;
+    const w = this.worldAt(e);
+    const cells = brushCells(w.x / cs, w.y / cs, state.brushSize, state.brushShape);
+    const instances = { ...state.instances };
+    let changed = false;
+    for (const c of cells) {
+      for (const k of coveringKeys(instances, c.col, c.row)) {
+        if (this.strokeCells.has(k)) continue;
+        this.strokeCells.add(k);
+        const inst = instances[k];
+        if (!this.editOriginals.has(k)) this.editOriginals.set(k, inst);
+        const edited = editInstance(state, this.library, inst);
+        instances[k] = edited;
+        this.strokePlaced.push(edited);
+        changed = true;
+      }
+    }
+    if (changed) this.store.set({ instances });
+  }
+
+  /** Restore the originals, then dispatch the edits as one undoable replace. */
+  private commitEditStroke() {
+    if (!this.strokePlaced.length) return;
+    const instances = { ...this.store.get().instances };
+    for (const [k, orig] of this.editOriginals) instances[k] = orig;
+    this.store.set({ instances }); // back to pre-edit
+    this.history.dispatch(new PlaceInstances(this.strokePlaced));
+  }
+
   /** Coalesce the eager per-cell edits into one undoable command. We first
    *  restore the pre-stroke state, then dispatch a single command so history
    *  captures the correct before/after for undo and redo. */
@@ -348,6 +402,27 @@ export class InputController {
   private onKey = (e: KeyboardEvent) => {
     if (e.code === "Space") this.spaceDown = e.type === "keydown";
   };
+}
+
+/** Apply the active Edit operation to one instance, returning a new instance. */
+function editInstance(state: SceneState, library: Library, inst: Instance): Instance {
+  const recolorIndex = () => {
+    if (!state.editRecolorRandom) return state.activeColorIndex;
+    const len = paletteById(state.palettes, state.activePaletteId).colors.length;
+    return Math.floor(Math.random() * len);
+  };
+  switch (state.editOp) {
+    case "rotate":
+      return { ...inst, rotation: (inst.rotation + 90) % 360 };
+    case "swap":
+      return { ...inst, assetId: pickAsset(state.brushAssets, library, Math.random) };
+    case "recolor-item":
+      return { ...inst, colorIndex: recolorIndex() };
+    case "recolor-cell":
+      return { ...inst, bgIndex: recolorIndex() };
+    default:
+      return inst;
+  }
 }
 
 /** Keys of instances whose block covers cell (col,row). Spans are ≤6, so only

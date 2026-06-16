@@ -8,6 +8,14 @@ import { cellKey } from "../scene/types";
 let idCounter = 0;
 const nextId = () => `i${(idCounter++).toString(36)}`;
 
+/** Pick one asset id from the selected shapes (a random one); "random" or an
+ *  empty selection means any shape from the library. */
+export function pickAsset(brushAssets: string[], library: Library, rng: () => number): string {
+  const pool = brushAssets.filter((id) => id !== "random" && library.get(id));
+  if (brushAssets.includes("random") || pool.length === 0) return pick(rng, library.ids());
+  return pool.length === 1 ? pool[0] : pool[randInt(rng, 0, pool.length - 1)];
+}
+
 /** Fraction of the cell an SVG fills (leaves a small gutter). */
 const FILL_SCALE = 0.85;
 
@@ -26,15 +34,7 @@ export function buildInstance(
   const seed = hash2(col, row, state.mask.seed);
   const rng = mulberry32(seed);
 
-  // Pick from the selected shapes (a random one per cell); "random" / empty
-  // means any shape from the library.
-  const pool = state.brushAssets.filter((id) => id !== "random" && library.get(id));
-  const assetId =
-    state.brushAssets.includes("random") || pool.length === 0
-      ? pick(rng, library.ids())
-      : pool.length === 1
-        ? pool[0]
-        : pool[randInt(rng, 0, pool.length - 1)];
+  const assetId = pickAsset(state.brushAssets, library, rng);
 
   // Spread colors across the active palette, deterministically per cell.
   const palette = state.palettes.find((p) => p.id === state.activePaletteId);

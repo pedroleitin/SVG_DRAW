@@ -16,6 +16,9 @@ export type BrushShape = "square" | "circle";
 /** How the Block tool marks cells: a click-drag rectangle, or a paint brush. */
 export type BlockMode = "drag" | "brush";
 
+/** Edit operation applied to the instance under the cursor (Compose → Edit). */
+export type EditOp = "rotate" | "swap" | "recolor-item" | "recolor-cell";
+
 /** Top-level UI mode (selected in the floating modes bar). */
 export type Mode = "draw" | "compose" | "animate" | "export";
 
@@ -28,6 +31,7 @@ export type ContextPanel =
   | "noise"
   | "seamless"
   | "divider"
+  | "edit"
   | "animate"
   | "export"
   | null;
@@ -124,6 +128,10 @@ export interface SceneState {
   blocked: Record<string, true>;
   /** Block tool mode: drag a rectangle or paint with the brush. */
   blockMode: BlockMode;
+  /** Active Edit operation (Compose → Edit). */
+  editOp: EditOp;
+  /** When true, Recolor uses a random palette color instead of the active one. */
+  editRecolorRandom: boolean;
   /** When true, the Block tool clears (un-blocks) cells instead of blocking. */
   blockClean: boolean;
   palettes: Palette[];

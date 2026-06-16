@@ -1,0 +1,116 @@
+import type { Store } from "../store/store";
+import type { EditOp, SceneState } from "../scene/types";
+import { paletteById } from "../features/palette";
+import { createSlider } from "./widgets";
+import type { SliderHandle } from "./widgets";
+
+/** Vector die (5 pips) for the "random color" swatch. */
+const DICE_ICON = `<svg viewBox="0 0 24 24" fill="none">
+  <rect x="3" y="3" width="18" height="18" rx="4.5" stroke="currentColor" stroke-width="2"/>
+  <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+  <circle cx="16" cy="8" r="1.5" fill="currentColor"/>
+  <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+  <circle cx="8" cy="16" r="1.5" fill="currentColor"/>
+  <circle cx="16" cy="16" r="1.5" fill="currentColor"/>
+</svg>`;
+
+const TARGETS: { op: EditOp; label: string; hint: string }[] = [
+  { op: "recolor-item", label: "Gliph", hint: "Recolor the icon with the selected color" },
+  { op: "recolor-cell", label: "Cell", hint: "Recolor the cell background with the selected color" },
+];
+
+/** Compose → Edit: Edit ops + Brush/Size (left) and Recolor (right), split by a
+ *  divider. Pick an op, then click/drag over canvas items to apply it. */
+export class EditPanel {
+  private btns = new Map<EditOp, HTMLButtonElement>();
+  private brushSlider: SliderHandle;
+  private swatchHost: HTMLElement;
+  private swatchSig = "";
+
+  constructor(host: HTMLElement, private store: Store) {
+    host.innerHTML = `
+      <div class="edit-cols">
+        <div class="edit-side">
+          <h2>Edit</h2>
+          <p class="ctx-hint">Click or drag over items on the canvas.</p>
+          <div class="edit-row">
+            <button class="tool-btn" id="edit-rotate">Rotate</button>
+            <button class="tool-btn" id="edit-swap">Swap</button>
+            <div id="edit-brush"></div>
+          </div>
+        </div>
+        <div class="edit-sep"></div>
+        <div class="edit-side">
+          <h2>Recolor</h2>
+          <div class="edit-swatches"></div>
+          <div class="edit-btns" id="edit-targets"></div>
+        </div>
+      </div>`;
+
+    const s = store.get();
+    this.addOp(host.querySelector("#edit-rotate") as HTMLButtonElement, "rotate", "Click an item to turn it 90°");
+    this.addOp(host.querySelector("#edit-swap") as HTMLButtonElement, "swap", "Replace the item with a shape selected in Shapes");
+    const tgtHost = host.querySelector("#edit-targets") as HTMLElement;
+    for (const o of TARGETS) {
+      const b = document.createElement("button");
+      b.className = "tool-btn";
+      b.textContent = o.label;
+      b.title = o.hint;
+      b.addEventListener("click", () => this.store.set({ editOp: o.op }));
+      this.btns.set(o.op, b);
+      tgtHost.appendChild(b);
+    }
+
+    this.brushSlider = createSlider({
+      label: "Brush",
+      min: 1,
+      max: 4,
+      step: 1,
+      value: s.brushSize,
+      format: (v) => String(v),
+      onChange: (v) => this.store.set({ brushSize: v }),
+    });
+    host.querySelector("#edit-brush")!.appendChild(this.brushSlider.el);
+
+    this.swatchHost = host.querySelector(".edit-swatches") as HTMLElement;
+    this.sync(s);
+    store.subscribe((st) => this.sync(st));
+  }
+
+  private addOp(btn: HTMLButtonElement, op: EditOp, hint: string): void {
+    btn.title = hint;
+    btn.addEventListener("click", () => this.store.set({ editOp: op }));
+    this.btns.set(op, btn);
+  }
+
+  private sync(s: SceneState): void {
+    for (const [op, b] of this.btns) b.classList.toggle("active", s.editOp === op);
+    this.brushSlider.setValue(s.brushSize);
+
+    const active = paletteById(s.palettes, s.activePaletteId);
+    const sig = [s.activePaletteId, JSON.stringify(active.colors)].join("|");
+    if (sig !== this.swatchSig) {
+      this.swatchSig = sig;
+      this.swatchHost.innerHTML = "";
+      const dice = document.createElement("button");
+      dice.className = "edit-swatch dice";
+      dice.innerHTML = DICE_ICON;
+      dice.title = "Recolor with a random palette color";
+      dice.addEventListener("click", () => this.store.set({ editRecolorRandom: true }));
+      this.swatchHost.appendChild(dice);
+      active.colors.forEach((color, i) => {
+        const sw = document.createElement("button");
+        sw.className = "edit-swatch color";
+        sw.style.background = color;
+        sw.title = `Recolor with color ${i}`;
+        sw.addEventListener("click", () => this.store.set({ activeColorIndex: i, editRecolorRandom: false }));
+        this.swatchHost.appendChild(sw);
+      });
+    }
+    const dice = this.swatchHost.querySelector(".edit-swatch.dice");
+    if (dice) dice.classList.toggle("active", s.editRecolorRandom);
+    this.swatchHost.querySelectorAll<HTMLElement>(".edit-swatch.color").forEach((el, i) =>
+      el.classList.toggle("active", !s.editRecolorRandom && i === s.activeColorIndex),
+    );
+  }
+}

@@ -12,6 +12,7 @@ import { BlockPanel } from "./blockPanel";
 import { GridPanel } from "./gridPanel";
 import { SeamlessPanel } from "./seamlessPanel";
 import { DividerPanel } from "./dividerPanel";
+import { EditPanel } from "./editPanel";
 import { ShapesPanel } from "./shapesPanel";
 import { ColorsPanel } from "./colorsPanel";
 import { Controls } from "./controls";
@@ -149,6 +150,7 @@ export class Shell {
     new BlockPanel(make("block"), this.store);
     new SeamlessPanel(make("seamless"), this.store, this.history);
     new DividerPanel(make("divider"), this.store, library, this.history);
+    new EditPanel(make("edit"), this.store);
     new ShapesPanel(make("shapes"), this.store, library);
     new ColorsPanel(make("colors"), this.store, this.renderer);
     new Controls(make("noise"), this.store, library, this.history);
@@ -260,6 +262,7 @@ export class Shell {
               }),
           }),
           this.ctxBtn("Divider", "divider", s, "Recursive subdivision"),
+          this.ctxBtn("Edit", "edit", s, "Edit items: rotate / swap / recolor"),
           this.sep(),
           this.ctxBtn("Grid", "grid", s, "Grid & cell appearance"),
         );
@@ -356,8 +359,8 @@ export class Shell {
       open === "noise" || open === "export" || open === "animate" || open === "colors",
     );
     this.contextEl.classList.toggle("anim", open === "animate");
-    // Shapes sizes to its single row of tiles (no scrollbar).
-    this.contextEl.classList.toggle("fit", open === "shapes");
+    // Shapes & Edit size to their content (no scrollbar / fixed width).
+    this.contextEl.classList.toggle("fit", open === "shapes" || open === "edit");
     // The output-size pill above the context belongs to Export only.
     this.ctxAboveEl.classList.toggle("hidden", open !== "export");
     for (const [key, host] of this.ctxHosts) host.classList.toggle("hidden", key !== open);
