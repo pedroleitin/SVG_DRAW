@@ -266,11 +266,10 @@ body {
   margin: 2px;
 }
 
-/* Corner boxes */
+/* Status: loose text in the bottom-left corner (no box). */
 #status {
-  left: 14px;
-  bottom: 16px;
-  padding: 12px 14px;
+  left: 18px;
+  bottom: 18px;
   font-size: 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;

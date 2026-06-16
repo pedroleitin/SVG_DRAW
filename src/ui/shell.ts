@@ -222,7 +222,7 @@ export class Shell {
 
   // ---- Status (bottom-left) ----
   private buildStatus(): void {
-    this.statusEl.innerHTML = `<span id="sh-coords">cell 0,0</span> · <span id="sh-count">0 placed</span>`;
+    this.statusEl.innerHTML = `<span id="sh-coords">cell 0,0</span> · <span id="sh-count">0</span>`;
   }
 
   setCoords(col: number, row: number): void {
@@ -232,7 +232,7 @@ export class Shell {
 
   private refreshStatus(): void {
     const count = this.statusEl.querySelector("#sh-count");
-    if (count) count.textContent = `${Object.keys(this.store.get().instances).length} placed`;
+    if (count) count.textContent = String(Object.keys(this.store.get().instances).length);
   }
 
   // ---- Zoom (bottom-right) ----
