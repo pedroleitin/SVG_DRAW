@@ -47,9 +47,9 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Gutter/espaçamento entre células.
   - Offset de origem do grid; mostrar/ocultar linhas; opacidade das linhas.
   - Arquivos: [src/scene/grid.ts](src/scene/grid.ts), [src/render/renderer.ts](src/render/renderer.ts)
-- [ ] 🟡 **Hover no grid** — destacar a célula sob o cursor (highlight) e/ou um ghost
-  preview do que será colocado, atualizando ao mover o mouse.
-  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (hover já existe p/ coords), [src/render/renderer.ts](src/render/renderer.ts) (overlay de hover).
+- [x] 🟡 **Hover no grid** — feito: highlight da célula sob o cursor (contorno +
+  leve fill; vermelho no Erase) + **ghost** esmaecido do asset do pincel na cor ativa.
+  - Arquivos: [src/render/renderer.ts](src/render/renderer.ts) (`setHover`/`renderHover`), [src/tools/tools.ts](src/tools/tools.ts).
 
 ## 2b. Escala multi-célula (estilo noise)
 

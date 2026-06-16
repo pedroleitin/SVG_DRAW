@@ -23,6 +23,11 @@ export class Renderer {
   private gridDot: SVGCircleElement;
   private gridPattern: SVGPatternElement;
   private content: SVGGElement;
+  private hoverLayer: SVGGElement;
+  private hoverRect: SVGRectElement;
+  private hoverGhost: SVGUseElement;
+  private hoverCell: { col: number; row: number } | null = null;
+  private lastState?: SceneState;
   private maskLayer: SVGGElement;
   private maskRects: SVGRectElement[] = [];
   private pathLayer: SVGGElement;
@@ -64,6 +69,18 @@ export class Renderer {
 
     this.content = document.createElementNS(SVGNS, "g");
     this.content.setAttribute("class", "content");
+
+    // Hover overlay: a highlight on the cell under the cursor + a faint ghost
+    // of the brush asset.
+    this.hoverLayer = document.createElementNS(SVGNS, "g");
+    this.hoverLayer.setAttribute("class", "hover-overlay");
+    this.hoverLayer.style.pointerEvents = "none";
+    this.hoverLayer.style.display = "none";
+    this.hoverRect = document.createElementNS(SVGNS, "rect");
+    this.hoverGhost = document.createElementNS(SVGNS, "use");
+    this.hoverGhost.setAttribute("opacity", "0.4");
+    this.hoverLayer.append(this.hoverRect, this.hoverGhost);
+
     this.maskLayer = document.createElementNS(SVGNS, "g");
     this.maskLayer.setAttribute("class", "mask-overlay");
     this.maskLayer.style.pointerEvents = "none";
@@ -101,6 +118,7 @@ export class Renderer {
       this.defs,
       this.gridRect,
       this.content,
+      this.hoverLayer,
       this.maskLayer,
       this.pathLayer,
       this.frameLayer,
@@ -127,13 +145,67 @@ export class Renderer {
   }
 
   render(state: SceneState, time = 0): void {
+    this.lastState = state;
     const cam = state.camera;
     this.svg.setAttribute("viewBox", `${cam.x} ${cam.y} ${cam.w} ${cam.h}`);
     this.renderGrid(state);
     this.renderInstances(state, time);
+    this.renderHover();
     this.renderMask(state);
     this.renderOrderPath(state);
     this.renderFrame(state);
+  }
+
+  /** Set the cell under the cursor (or null). Updates only the hover overlay. */
+  setHover(col: number | null, row = 0): void {
+    this.hoverCell = col === null ? null : { col, row };
+    this.renderHover();
+  }
+
+  /** Highlight the hovered cell + show a faint ghost of the brush asset. */
+  private renderHover(): void {
+    const state = this.lastState;
+    const cell = this.hoverCell;
+    const placing = state && (state.tool === "draw" || state.tool === "erase");
+    if (!state || !cell || !placing) {
+      this.hoverLayer.style.display = "none";
+      return;
+    }
+    this.hoverLayer.style.display = "";
+    const cs = state.cellSize;
+    const px = state.camera.w / this.hostSize.width; // world units per screen px
+    const erase = state.tool === "erase";
+    const color = erase ? "#f03e3e" : "#1c3980";
+
+    this.hoverRect.setAttribute("x", String(cell.col * cs));
+    this.hoverRect.setAttribute("y", String(cell.row * cs));
+    this.hoverRect.setAttribute("width", String(cs));
+    this.hoverRect.setAttribute("height", String(cs));
+    this.hoverRect.setAttribute("rx", String(cs * 0.08));
+    this.hoverRect.setAttribute("fill", color);
+    this.hoverRect.setAttribute("fill-opacity", "0.1");
+    this.hoverRect.setAttribute("stroke", color);
+    this.hoverRect.setAttribute("stroke-opacity", "0.7");
+    this.hoverRect.setAttribute("stroke-width", String(1.5 * px));
+
+    // Ghost preview of the asset that would be drawn (skip for random/erase).
+    const assetId = state.brushAsset;
+    if (!erase && assetId !== "random" && this.library.get(assetId)) {
+      this.ensureSymbol(assetId);
+      const size = cs * 0.85;
+      const x = (cell.col + 0.5) * cs - size / 2;
+      const y = (cell.row + 0.5) * cs - size / 2;
+      const palette = paletteById(state.palettes, state.activePaletteId);
+      this.hoverGhost.setAttribute("href", `#sym-${assetId}`);
+      this.hoverGhost.setAttribute("x", String(x));
+      this.hoverGhost.setAttribute("y", String(y));
+      this.hoverGhost.setAttribute("width", String(size));
+      this.hoverGhost.setAttribute("height", String(size));
+      this.hoverGhost.style.color = colorAt(palette, state.activeColorIndex);
+      this.hoverGhost.style.display = "";
+    } else {
+      this.hoverGhost.style.display = "none";
+    }
   }
 
   /** Letterbox overlay: darken everything outside the export frame + outline it. */

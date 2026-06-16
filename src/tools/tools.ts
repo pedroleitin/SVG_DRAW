@@ -32,6 +32,7 @@ export class InputController {
     const svg = renderer.svg;
     svg.addEventListener("pointerdown", this.onDown);
     svg.addEventListener("pointermove", this.onMove);
+    svg.addEventListener("pointerleave", () => this.renderer.setHover(null));
     window.addEventListener("pointerup", this.onUp);
     svg.addEventListener("wheel", this.onWheel, { passive: false });
     window.addEventListener("keydown", this.onKey);
@@ -82,6 +83,7 @@ export class InputController {
   private onMove = (e: PointerEvent) => {
     const cell = this.cellAt(e);
     this.onHover?.(cell.col, cell.row);
+    this.renderer.setHover(cell.col, cell.row);
     if (this.panning) {
       const dx = e.clientX - this.last.x;
       const dy = e.clientY - this.last.y;

@@ -193,9 +193,6 @@ export class Shell {
         add(
           this.ctxBtn("Noise", "noise", s, "Noise mask: fill / erase"),
           this.sep(),
-          this.ctxBtn("Shapes", "shapes", s),
-          this.ctxBtn("Colors", "colors", s),
-          this.sep(),
           this.btn("Grid", {
             active: s.showGrid,
             title: "Toggle grid",
