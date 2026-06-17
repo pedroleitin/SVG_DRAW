@@ -191,9 +191,18 @@ export class Shell {
     new ExportPanel(make("export"), this.store, library, this.ctxAboveEl);
   }
 
+  /** The context a mode falls back to when you close the current one. Animate &
+   *  Export have a primary panel with no toolbox button to reopen it, so closing
+   *  another context (e.g. Grid) must return there rather than to nothing. */
+  private homeContext(mode: Mode): ContextPanel {
+    if (mode === "animate") return "animate";
+    if (mode === "export") return "export";
+    return null;
+  }
+
   private toggleContext(key: Exclude<ContextPanel, null>): void {
-    const cur = this.store.get().contextPanel;
-    this.store.set({ contextPanel: cur === key ? null : key });
+    const s = this.store.get();
+    this.store.set({ contextPanel: s.contextPanel === key ? this.homeContext(s.mode) : key });
   }
 
   // ---- Toolbox (per mode) ----
@@ -318,14 +327,22 @@ export class Shell {
         add(
           this.btn(playing ? "⏸ Pause" : "▶ Play", {
             active: playing,
-            onClick: () => this.store.set({ animation: { ...s.animation, playing: !playing } }),
+            // Read the live animation state (the toolbox isn't rebuilt when the
+            // order combobox changes, so a captured `s` would revert it).
+            onClick: () => {
+              const a = this.store.get().animation;
+              this.store.set({ animation: { ...a, playing: !a.playing } });
+            },
           }),
-          this.btn("Order", {
+          this.btn("Path", {
             // Arm the path tool AND switch the order to "draw path" (free) so the
             // combobox stays in sync.
             active: s.tool === "path",
             title: "Draw reveal order: START→FINISH",
-            onClick: () => this.store.set({ tool: "path", animation: { ...s.animation, order: "free" } }),
+            onClick: () => {
+              const a = this.store.get().animation;
+              this.store.set({ tool: "path", animation: { ...a, order: "free" } });
+            },
           }),
         );
         break;
