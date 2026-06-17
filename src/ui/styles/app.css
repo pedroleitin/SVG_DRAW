@@ -762,7 +762,7 @@ body {
   cursor: pointer;
   flex-shrink: 0;
   margin: 0;
-  transition: background 0.2s ease;
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .chk input[type="checkbox"]:hover {
@@ -781,9 +781,9 @@ body {
   background: transparent;
   box-sizing: border-box;
   transition:
-    left 0.15s ease,
-    background 0.15s ease,
-    border-color 0.15s ease;
+    left 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .chk input[type="checkbox"]:checked::before {
@@ -1306,12 +1306,12 @@ body {
 .num-field,
 #theme-toggle {
   transition:
-    background-color 0.16s ease,
-    color 0.16s ease,
-    border-color 0.16s ease,
-    box-shadow 0.16s ease,
-    outline-color 0.16s ease,
-    transform 0.12s ease;
+    background-color 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+    outline-color 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Subtle press feedback on click (kept off .swatch so the native color
@@ -1337,16 +1337,16 @@ body {
  *  renderer flags a shape change, so drawing new cells stays instant). */
 .cell-bg.animating rect {
   transition:
-    x 0.22s ease,
-    y 0.22s ease,
-    width 0.22s ease,
-    height 0.22s ease,
-    rx 0.22s ease;
+    x 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    y 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    rx 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ---- Animated menu swap: fade content out, morph box size, fade in ---- */
 .morph > * {
-  transition: opacity 0.11s ease;
+  transition: opacity 0.11s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .morph.is-fading > * {
@@ -1354,34 +1354,26 @@ body {
   pointer-events: none;
 }
 
-.morph.is-sizing {
+/* Clip overflow for the whole morph (no scrollbar flash mid-resize). The
+ *  #context rule beats its own `overflow-y: auto` (higher specificity). */
+.morph {
   overflow: hidden;
+}
+#context.morph {
+  overflow: hidden;
+}
+
+.morph.is-sizing {
   transition:
     width 0.21s cubic-bezier(0.4, 0, 0.2, 1),
     height 0.21s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Context menu pops in when it first opens (from closed). */
-#context.opening {
-  animation: ctx-pop 0.18s ease;
-}
-
-@keyframes ctx-pop {
-  from {
-    opacity: 0;
-    transform: translateY(7px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* Canvas hover preview: fade in/out as the cursor enters/leaves the grid.
  *  Position is not animated — it snaps cell-to-cell, only opacity transitions. */
 .hover-overlay {
   opacity: 0;
-  transition: opacity 0.16s ease;
+  transition: opacity 0.16s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .hover-overlay.visible {

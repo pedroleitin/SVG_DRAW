@@ -7,7 +7,7 @@ import { ClearAll } from "../commands/sceneCommands";
 import { makeCamera, zoomOf, zoomAt } from "../scene/camera";
 import { createDropdown } from "./widgets";
 import type { DropdownHandle } from "./widgets";
-import { morphResize } from "./morph";
+import { morphResize, morphOpen, morphClose } from "./morph";
 import { BrushPanel } from "./brushPanel";
 import { BlockPanel } from "./blockPanel";
 import { GridPanel } from "./gridPanel";
@@ -60,6 +60,7 @@ export class Shell {
   private zoomEl: HTMLElement;
   private ctxHosts = new Map<string, HTMLElement>();
   private toolboxSig = "";
+  private prevToolboxMode: Mode | undefined;
   private prevOpen: ContextPanel | undefined;
 
   constructor(
@@ -128,7 +129,8 @@ export class Shell {
   private setMode(mode: Mode): void {
     const patch: Partial<SceneState> = { mode, contextPanel: null };
     if (mode === "draw" || mode === "compose") patch.tool = "draw";
-    // Animate & Export keep their context menu open by default.
+    // Compose, Animate & Export open with their primary context menu.
+    if (mode === "compose") patch.contextPanel = "edit";
     if (mode === "animate") patch.contextPanel = "animate";
     if (mode === "export") patch.contextPanel = "export";
     // Export mode shows the frame as its working affordance.
@@ -238,7 +240,9 @@ export class Shell {
           paintBtn("Draw", "draw"),
           paintBtn("Erase", "erase"),
           this.btn("Block", {
-            active: s.tool === "block",
+            // Stays the active tool while its own panel (or none) is open, but
+            // dims when another context takes over — like Draw/Erase do.
+            active: s.tool === "block" && (s.contextPanel === "block" || s.contextPanel === null),
             title: "Block cells — no SVGs allowed",
             onClick: () => this.store.set({ tool: "block", contextPanel: "block" }),
           }),
@@ -363,42 +367,55 @@ export class Shell {
       b.classList.toggle("active", b.dataset.mode === s.mode),
     );
 
-    // Rebuild toolbox only when something it shows changes. After the first
-    // build, swap with the fade-out → size-morph → fade-in animation.
+    // Toolbox: morph (fade out → resize → fade in) only when the MODE changes —
+    // within a mode the buttons are the same set (just the active highlight
+    // moves), so rebuild instantly.
     const sig = [s.mode, s.tool, s.contextPanel, s.cellSize, s.animation.playing, s.frame.show, s.showGrid, s.mask.seamless].join("|");
     if (sig !== this.toolboxSig) {
       const first = this.toolboxSig === "";
+      const modeChanged = this.prevToolboxMode !== s.mode;
       this.toolboxSig = sig;
-      if (first) this.buildToolbox(s);
+      this.prevToolboxMode = s.mode;
+      if (first || !modeChanged) this.buildToolbox(s);
       else morphResize(this.toolboxEl, () => this.buildToolbox(s));
     }
 
-    // Context menu. Switching between two open panels morphs the box size with
-    // the same fade/grow animation; opening from closed pops in.
+    // The "above the toolbox" slot holds either a context panel or the brush
+    // bar (Draw/Erase painting), never both. Animate transitions between them:
+    // the leaving box fades out + collapses, the arriving box grows + fades in.
     const open = s.contextPanel;
     const prev = this.prevOpen;
     this.prevOpen = open;
-    if (prev != null && open != null && prev !== open) {
-      morphResize(this.contextEl, () => this.applyContext(s));
-    } else {
-      this.applyContext(s);
-      if (prev == null && open != null) {
-        this.contextEl.classList.remove("opening");
-        void this.contextEl.offsetWidth;
-        this.contextEl.classList.add("opening");
-        this.contextEl.addEventListener(
-          "animationend",
-          () => this.contextEl.classList.remove("opening"),
-          { once: true },
-        );
-      }
-    }
-
-    // Brush bar: visible while painting (Draw mode, draw/erase tool), but only
-    // when no context panel is open — keep a single context menu on screen.
     const showBrush =
-      s.mode === "draw" && (s.tool === "draw" || s.tool === "erase") && s.contextPanel === null;
-    this.brushBarEl.classList.toggle("hidden", !showBrush);
+      s.mode === "draw" && (s.tool === "draw" || s.tool === "erase") && open === null;
+    const brushShown = !this.brushBarEl.classList.contains("hidden");
+    const setBrush = () => this.brushBarEl.classList.toggle("hidden", !showBrush);
+
+    if (prev === undefined || prev === open) {
+      // First sync (no animation on load), or unchanged context. Brush bar may
+      // still toggle (Draw↔Erase keep it; Pan hides it) — instant either way.
+      this.applyContext(s);
+      setBrush();
+    } else if (open == null) {
+      // Context → closed: collapse the panel, THEN grow the brush bar in (if it
+      // shows). Sequenced so the two boxes are never on screen together.
+      morphClose(this.contextEl, () => this.applyContext(s), () => {
+        if (showBrush) morphOpen(this.brushBarEl, () => this.brushBarEl.classList.remove("hidden"));
+      });
+    } else if (prev == null) {
+      // Closed → context: collapse the brush bar (if shown), THEN grow the panel.
+      if (brushShown) {
+        morphClose(this.brushBarEl, () => this.brushBarEl.classList.add("hidden"), () =>
+          morphOpen(this.contextEl, () => this.applyContext(s)),
+        );
+      } else {
+        morphOpen(this.contextEl, () => this.applyContext(s));
+      }
+    } else {
+      // Context → context: morph the box between the two panels' sizes.
+      morphResize(this.contextEl, () => this.applyContext(s));
+      setBrush();
+    }
 
     // Pan + zoom.
     this.sizeDD?.setValue(String(s.cellSize));
