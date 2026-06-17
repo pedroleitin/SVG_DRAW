@@ -25,15 +25,19 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 - [x] 🟡 **Todos os combobox iguais ao "Size cell"** — feito: componente `createDropdown`
   reutilizável (pílula + menu flutuante portado pro body), usado no Size, Aspect, Res,
   FPS e nos selects da Animation. Sliders e toggles também no estilo GG2.
-- [ ] ⚪ **Status (cell/placed) sem caixa** — tentado e revertido a pedido do
-  usuário (preferiu a caixa + "placed" como antes). Reabrir se mudar de ideia.
-- [ ] 🟡 **Transições suaves** — animar a troca de **modo**, abrir/fechar **menus de
-  contexto** e como o **conteúdo aparece** (fade/slide/scale, com easing). Cuidar
-  para não atrapalhar performance do canvas.
-  - Arquivos: [src/ui/styles/app.css](src/ui/styles/app.css), [src/ui/shell.ts](src/ui/shell.ts) (classes de estado/transição).
-- [ ] 🟡 **Micro-interações de hover** — animações de hover em botões e outros itens
-  (transition de cor/escala/sombra), consistentes em toda a UI.
-  - Arquivos: [src/ui/styles/app.css](src/ui/styles/app.css).
+- [x] ⚪ **Status (cell/placed) sem caixa** — _feito._
+- [~] 🟡 **Transições suaves** — _grande parte feita._ Ao trocar de modo / menu, o
+  **toolbox** e o **menu de contexto** fazem fade-out do conteúdo → **morph animado
+  do tamanho** (largura/altura) → fade-in do novo conteúdo (util `morphResize`). Abrir
+  o contexto a partir do fechado faz um **pop-in** (fade + translateY). Falta: animar o
+  **fechar** do contexto (hoje é instantâneo, por causa do `display:none`).
+  - Arquivos: [src/ui/morph.ts](src/ui/morph.ts), [src/ui/shell.ts](src/ui/shell.ts) (`applyContext` + `sync`), [src/ui/styles/app.css](src/ui/styles/app.css).
+- [x] 🟡 **Micro-interações de hover** — _feito._ Transição suave de cor/sombra no
+  **hover** e um leve **press** (scale) ao clicar, consistentes em todos os controles
+  (modos, tool-btns, segments, swatches, dropdowns, theme toggle). Bônus: as células
+  com **cell background** deslizam ao trocar **gutter** ou **rounded** (transição CSS
+  nas geometrias do rect, ativada só na troca via classe `.animating`).
+  - Arquivos: [src/ui/styles/app.css](src/ui/styles/app.css), [src/render/renderer.ts](src/render/renderer.ts) (`glideCellShape`).
 - [ ] 🟡 **Cursor por estado/ferramenta** — o ponteiro do mouse muda conforme o modo
   e a função ativa (ex.: crosshair no Draw, borracha no Erase, grab/grabbing no Pan,
   cursor de caminho no Order, move/resize no frame, brush quando houver brush size).
@@ -97,11 +101,8 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Arquivos: [src/scene/types.ts](src/scene/types.ts), [src/tools/tools.ts](src/tools/tools.ts), [src/commands/sceneCommands.ts](src/commands/sceneCommands.ts) (`BlockCells`),
     [src/features/placement.ts](src/features/placement.ts), [src/render/renderer.ts](src/render/renderer.ts), [src/ui/blockPanel.ts](src/ui/blockPanel.ts), [src/ui/shell.ts](src/ui/shell.ts).
   - Refinamento futuro: des-bloquear (apagar zona), e respeitar bloqueio na escala multi-célula.
-- [ ] ⚪ **Rotação randômica de 90°** — opção para que cada SVG colocado receba
-  uma rotação aleatória entre 0/90/180/270°.
-  - Onde: `buildInstance` define hoje `rotation: 0`. Adicionar flag no estado
-    (ex.: `randomQuarterTurns: boolean`) e sortear com o seed da célula.
-  - Arquivos: [src/features/placement.ts](src/features/placement.ts), [src/scene/types.ts](src/scene/types.ts)
+- [x] ⚪ **Rotação randômica de 90°** — _feito._ Cada SVG colocado recebe uma rotação
+  aleatória entre 0/90/180/270°.
 - [x] 🟡 **Modo Edit (Compose)** — _feito._ Botão **Edit** no Compose abre um menu
   (ops + Brush à esquerda, Recolor à direita, com divisor) e edita os itens existentes
   como um pincel: **Rotate** (gira 90° por clique), **Swap** (troca o ícone pelos shapes

@@ -7,6 +7,7 @@ import { ClearAll } from "../commands/sceneCommands";
 import { makeCamera, zoomOf, zoomAt } from "../scene/camera";
 import { createDropdown } from "./widgets";
 import type { DropdownHandle } from "./widgets";
+import { morphResize } from "./morph";
 import { BrushPanel } from "./brushPanel";
 import { BlockPanel } from "./blockPanel";
 import { GridPanel } from "./gridPanel";
@@ -59,6 +60,7 @@ export class Shell {
   private zoomEl: HTMLElement;
   private ctxHosts = new Map<string, HTMLElement>();
   private toolboxSig = "";
+  private prevOpen: ContextPanel | undefined;
 
   constructor(
     private store: Store,
@@ -337,23 +339,11 @@ export class Shell {
     );
   }
 
-  // ---- Reactive sync ----
-  private sync(s: SceneState): void {
-    // Modes highlight.
-    this.modesEl.querySelectorAll<HTMLButtonElement>(".mode-btn").forEach((b) =>
-      b.classList.toggle("active", b.dataset.mode === s.mode),
-    );
-
-    // Rebuild toolbox only when something it shows changes.
-    const sig = [s.mode, s.tool, s.contextPanel, s.cellSize, s.animation.playing, s.frame.show, s.showGrid, s.mask.seamless].join("|");
-    if (sig !== this.toolboxSig) {
-      this.toolboxSig = sig;
-      this.buildToolbox(s);
-    }
-
-    // Context menu visibility. Some panels use a wider 2-column layout.
+  /** Toggle the context container's layout classes + show the active panel. */
+  private applyContext(s: SceneState): void {
     const open = s.contextPanel;
     this.contextEl.classList.toggle("hidden", open === null);
+    // Some panels use a wider 2-column layout.
     this.contextEl.classList.toggle(
       "wide",
       open === "noise" || open === "export" || open === "animate" || open === "colors",
@@ -364,6 +354,45 @@ export class Shell {
     // The output-size pill above the context belongs to Export only.
     this.ctxAboveEl.classList.toggle("hidden", open !== "export");
     for (const [key, host] of this.ctxHosts) host.classList.toggle("hidden", key !== open);
+  }
+
+  // ---- Reactive sync ----
+  private sync(s: SceneState): void {
+    // Modes highlight.
+    this.modesEl.querySelectorAll<HTMLButtonElement>(".mode-btn").forEach((b) =>
+      b.classList.toggle("active", b.dataset.mode === s.mode),
+    );
+
+    // Rebuild toolbox only when something it shows changes. After the first
+    // build, swap with the fade-out → size-morph → fade-in animation.
+    const sig = [s.mode, s.tool, s.contextPanel, s.cellSize, s.animation.playing, s.frame.show, s.showGrid, s.mask.seamless].join("|");
+    if (sig !== this.toolboxSig) {
+      const first = this.toolboxSig === "";
+      this.toolboxSig = sig;
+      if (first) this.buildToolbox(s);
+      else morphResize(this.toolboxEl, () => this.buildToolbox(s));
+    }
+
+    // Context menu. Switching between two open panels morphs the box size with
+    // the same fade/grow animation; opening from closed pops in.
+    const open = s.contextPanel;
+    const prev = this.prevOpen;
+    this.prevOpen = open;
+    if (prev != null && open != null && prev !== open) {
+      morphResize(this.contextEl, () => this.applyContext(s));
+    } else {
+      this.applyContext(s);
+      if (prev == null && open != null) {
+        this.contextEl.classList.remove("opening");
+        void this.contextEl.offsetWidth;
+        this.contextEl.classList.add("opening");
+        this.contextEl.addEventListener(
+          "animationend",
+          () => this.contextEl.classList.remove("opening"),
+          { once: true },
+        );
+      }
+    }
 
     // Brush bar: visible while painting (Draw mode, draw/erase tool), but only
     // when no context panel is open — keep a single context menu on screen.

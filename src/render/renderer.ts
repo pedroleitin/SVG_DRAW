@@ -159,6 +159,8 @@ export class Renderer {
   private gridSig = "";
   private cellBgLayer: SVGGElement;
   private cellBgNodes = new Map<string, SVGRectElement>(); // cellKey -> bg <rect>
+  private cellShapeSig = ""; // gutter/rounded signature — drives the glide transition
+  private cellAnimTimer = 0;
   private tileLayer: SVGGElement;
   private tileGhosts: SVGGElement[] = [];
   private tileClip: SVGClipPathElement;
@@ -273,13 +275,14 @@ export class Renderer {
     this.hoverLayer = document.createElementNS(SVGNS, "g");
     this.hoverLayer.setAttribute("class", "hover-overlay");
     this.hoverLayer.style.pointerEvents = "none";
-    this.hoverLayer.style.display = "none";
     // Footprint highlights (one rect per brush cell), then the bg + asset ghost.
     this.hoverCellsGroup = document.createElementNS(SVGNS, "g");
     this.hoverCellsGroup.setAttribute("class", "hover-cells");
     this.hoverBg = document.createElementNS(SVGNS, "rect");
+    this.hoverBg.setAttribute("class", "hover-bg");
     this.hoverBg.setAttribute("opacity", "0.5");
     this.hoverGhost = document.createElementNS(SVGNS, "use");
+    this.hoverGhost.setAttribute("class", "hover-ghost");
     this.hoverGhost.setAttribute("opacity", "0.4");
     this.hoverLayer.append(this.hoverCellsGroup, this.hoverBg, this.hoverGhost);
 
@@ -356,6 +359,7 @@ export class Renderer {
     this.lastState = state;
     const cam = state.camera;
     this.svg.setAttribute("viewBox", `${cam.x} ${cam.y} ${cam.w} ${cam.h}`);
+    this.glideCellShape(state);
     this.renderGrid(state);
     this.renderTilePreview(state);
     this.renderInstances(state, time);
@@ -382,10 +386,11 @@ export class Renderer {
     const isEdit = !!state && state.contextPanel === "edit";
     const placing = state && (state.tool === "draw" || state.tool === "erase" || isBlockBrush || isEdit);
     if (!state || !pt || !placing) {
-      this.hoverLayer.style.display = "none";
+      // Fade out in place (kept in the DOM at its last spot; opacity → 0).
+      this.hoverLayer.classList.remove("visible");
       return;
     }
-    this.hoverLayer.style.display = "";
+    this.hoverLayer.classList.add("visible");
     // Block-brush footprint reads red (no-go zone); Clean reads neutral.
     this.hoverCellsGroup.classList.toggle("block", isBlockBrush && !state.blockClean);
     const cs = state.cellSize;
@@ -849,6 +854,22 @@ export class Renderer {
   /** Draw (or remove) the colored cell-background square behind an instance.
    *  Stays fixed to the cell; only the lifecycle opacity is shared so it
    *  fades in/out with its artwork. */
+  /** When gutter/rounded toggles, briefly enable CSS transitions on the cell
+   *  backgrounds so they glide to the new shape. Excludes cellSize (which moves
+   *  the glyphs too, and those don't transition) so the two never desync. */
+  private glideCellShape(state: SceneState): void {
+    const sig = `${state.cellRounded}|${state.cellGutter}`;
+    if (this.cellShapeSig && this.cellShapeSig !== sig) {
+      this.cellBgLayer.classList.add("animating");
+      clearTimeout(this.cellAnimTimer);
+      this.cellAnimTimer = window.setTimeout(
+        () => this.cellBgLayer.classList.remove("animating"),
+        260,
+      );
+    }
+    this.cellShapeSig = sig;
+  }
+
   private applyCellBg(
     key: string,
     inst: Instance,
@@ -876,8 +897,8 @@ export class Renderer {
     rect.setAttribute("y", String(box.y));
     rect.setAttribute("width", String(box.w));
     rect.setAttribute("height", String(box.h));
-    if (box.rx) rect.setAttribute("rx", String(box.rx));
-    else rect.removeAttribute("rx");
+    // Always numeric (0 when square) so rx can interpolate — `auto`↔number won't.
+    rect.setAttribute("rx", String(box.rx || 0));
     rect.setAttribute("fill", colorAt(palette, inst.bgIndex));
     const op = anim.opacity ?? 1;
     if (op < 1) rect.setAttribute("opacity", op.toFixed(3));

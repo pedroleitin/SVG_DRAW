@@ -1291,3 +1291,99 @@ body {
   fill: var(--line);
   fill-opacity: 0.75;
 }
+
+/* ---- Micro-interactions: smooth hover + press on interactive elements ---- */
+.mode-btn,
+.tool-btn,
+.seg-btn,
+.dd-btn,
+.dd-item,
+.swatch,
+.swatch-add,
+.swatch-del,
+.edit-swatch,
+.asset-btn,
+.num-field,
+#theme-toggle {
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    outline-color 0.16s ease,
+    transform 0.12s ease;
+}
+
+/* Subtle press feedback on click (kept off .swatch so the native color
+ *  picker keeps anchoring correctly). */
+.mode-btn:active,
+.tool-btn:active,
+.seg-btn:active,
+.dd-btn:active,
+.swatch-add:active,
+.edit-swatch:active,
+.asset-btn:active,
+#theme-toggle:active {
+  transform: scale(0.93);
+}
+
+.tool-btn:active,
+.seg-btn:active,
+.dd-btn:active {
+  transform: scale(0.96);
+}
+
+/* Cell-background squares glide when gutter / rounded toggles (only while the
+ *  renderer flags a shape change, so drawing new cells stays instant). */
+.cell-bg.animating rect {
+  transition:
+    x 0.22s ease,
+    y 0.22s ease,
+    width 0.22s ease,
+    height 0.22s ease,
+    rx 0.22s ease;
+}
+
+/* ---- Animated menu swap: fade content out, morph box size, fade in ---- */
+.morph > * {
+  transition: opacity 0.11s ease;
+}
+
+.morph.is-fading > * {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.morph.is-sizing {
+  overflow: hidden;
+  transition:
+    width 0.21s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.21s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Context menu pops in when it first opens (from closed). */
+#context.opening {
+  animation: ctx-pop 0.18s ease;
+}
+
+@keyframes ctx-pop {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Canvas hover preview: fade in/out as the cursor enters/leaves the grid.
+ *  Position is not animated — it snaps cell-to-cell, only opacity transitions. */
+.hover-overlay {
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.hover-overlay.visible {
+  opacity: 1;
+}
