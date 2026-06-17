@@ -47,8 +47,9 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 ## 2. Grid
 
 - [~] 🟡 **Layout do grid** — _parcial._ Feito: **gutter** (espaçamento entre células,
-  toggle 4px), **cantos arredondados** (rounded cells) e **mostrar/ocultar** o grid de
-  pontos — agrupados no menu de contexto **Grid** do modo Compose.
+  toggle 4px), **cantos arredondados** (rounded cells), **mostrar/ocultar** o grid de
+  pontos e **Show blockers** (liga/desliga o overlay das zonas bloqueadas) — no menu
+  **Grid**, agora um botão **global** na caixa de settings (junto de Size / Clear).
   Falta: grid retangular (largura ≠ altura de célula), offset de origem do grid,
   opacidade das linhas.
   - Arquivos: [src/scene/geom.ts](src/scene/geom.ts) (`cellBgRect`), [src/render/renderer.ts](src/render/renderer.ts), [src/ui/gridPanel.ts](src/ui/gridPanel.ts), [src/scene/types.ts](src/scene/types.ts)
@@ -64,8 +65,11 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   **Apply to view** que preenche cada bloco com um SVG escalado. Instâncias ganharam
   span `cw`/`ch`; o render itera por instância e culla pelo bloco. A limpeza do Apply é
   por **interseção** (apaga qualquer instância que cubra a região, inclusive blocos
-  multi-célula ancorados fora dela).
-  - Arquivos: [src/features/divider.ts](src/features/divider.ts), [src/ui/dividerPanel.ts](src/ui/dividerPanel.ts), [src/scene/geom.ts](src/scene/geom.ts), [src/render/renderer.ts](src/render/renderer.ts), [src/features/placement.ts](src/features/placement.ts).
+  multi-célula ancorados fora dela). Além do Apply, há um **brush por bloco**: com o
+  Divider aberto, o hover gruda no bloco sob o cursor e clicar preenche aquele bloco com
+  um SVG ocupando-o inteiro (geometria centralizada em `divider.ts` — preview/apply/brush
+  sempre concordam).
+  - Arquivos: [src/features/divider.ts](src/features/divider.ts), [src/ui/dividerPanel.ts](src/ui/dividerPanel.ts), [src/scene/geom.ts](src/scene/geom.ts), [src/render/renderer.ts](src/render/renderer.ts), [src/tools/tools.ts](src/tools/tools.ts), [src/features/placement.ts](src/features/placement.ts).
   - Refino futuro: blocos retangulares opcionais, esticar SVG no bloco, preencher com
     cor (Mondrian), e ancorar a subdivisão a uma região fixa.
 - [x] 🟡 **Bug Seamless + multi-célula** — _feito._ A `tileFill` virou block-aware: só
@@ -144,10 +148,10 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   **Play/Pause** (mesmo fora do modo Animate) para que dê para controlar a reprodução
   de qualquer modo.
   - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (`buildToolbox`/`sync`).
-- [ ] 🟡 **Bug: ligar o Order não troca o combobox de Order** — ao ativar a ferramenta
-  **Order**, o combobox de ordem (no painel Animation) deveria mudar para refletir a
-  ordem livre/desenhada (`free`); hoje fica dessincronizado.
-  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/ui/animPanel.ts](src/ui/animPanel.ts), [src/anim/order.ts](src/anim/order.ts).
+- [x] 🟡 **Ligar o Order sincroniza o combobox de Order** — _feito._ Clicar no botão
+  **Order** arma a ferramenta de caminho **e** seta a ordem para `free` ("draw path"),
+  mantendo o combobox em sincronia (o caminho desenhado também já fixava `free`).
+  - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (botão Order), [src/ui/animPanel.ts](src/ui/animPanel.ts).
 - [ ] 🟡 **Estilo "draw" / wipe (desenho)** — enter/exit por traço (stroke-dashoffset)
   ou wipe/clip que "desenha" o SVG aparecendo. Hoje temos fade/scale/pop/rotate.
   - True line-draw é difícil com `<use>`/`<symbol>` (precisa de pathLength por path);
