@@ -76,6 +76,9 @@ brush-relevant panels.
   seam highlighting; "Apply to view" / "Apply + Crop" bake the pattern
 - **Divider** — packs the view into varied square blocks (noise-driven); "Apply" fills each block with a
   scaled SVG, or **brush** individual blocks (the highlight snaps to the block under the cursor)
+- **Halftone** — render an uploaded image with the selected shapes: **halftone** (dot size by darkness),
+  **Bayer** / **Floyd–Steinberg** dithering, Contrast / Size sliders, with a live on-canvas ghost preview;
+  fits the view, so the cell size is the resolution
 - **Edit** — rotate / swap / recolor existing items like a brush (glyph or cell background), multi-cell aware
 - **Grid** — rounded cells, gutter, show/hide grid, show/hide blockers (lives in the settings box)
 

@@ -9,6 +9,7 @@ import { buildOrderField } from "../anim/order";
 import { instanceGeom, cellBgRect } from "../scene/geom";
 import { brushCells, brushBlocks } from "../scene/grid";
 import { dividerBlocks, blockAt } from "../features/divider";
+import { halftoneInstances, hasHalftoneImage } from "../features/halftone";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 const EMPTY_ANIM: AnimOutput = {};
@@ -180,6 +181,8 @@ export class Renderer {
   private hoverPt: { cx: number; cy: number } | null = null; // fractional cell coords
   private lastState?: SceneState;
   private stencilShape!: SVGPathElement;
+  private htPreviewLayer!: SVGGElement;
+  private htPreviewNodes: SVGUseElement[] = [];
   private pathLayer: SVGGElement;
   private pathLine: SVGPolylineElement;
   private pathStart: SVGTextElement;
@@ -284,6 +287,12 @@ export class Renderer {
     this.hoverGhost.setAttribute("opacity", "0.4");
     this.hoverLayer.append(this.hoverCellsGroup, this.hoverBg, this.hoverGhost);
 
+    // Faint ghost preview of the halftone result (while the panel is open).
+    this.htPreviewLayer = document.createElementNS(SVGNS, "g");
+    this.htPreviewLayer.setAttribute("class", "halftone-preview");
+    this.htPreviewLayer.style.pointerEvents = "none";
+    this.htPreviewLayer.style.display = "none";
+
     // Green stencil silhouette (rounded + dotted, like the Block overlay).
     this.stencilShape = document.createElementNS(SVGNS, "path");
     this.stencilShape.setAttribute("class", "stencil-shape");
@@ -330,6 +339,7 @@ export class Renderer {
       this.blockedShape,
       this.blockRectEl,
       this.hoverLayer,
+      this.htPreviewLayer,
       this.stencilShape,
       this.pathLayer,
       this.frameLayer,
@@ -367,8 +377,41 @@ export class Renderer {
     this.renderBlocked(state);
     this.renderHover();
     this.renderMask(state);
+    this.renderHalftonePreview(state);
     this.renderOrderPath(state);
     this.renderFrame(state);
+  }
+
+  /** Ghost preview of the halftone result while its panel is open. */
+  private renderHalftonePreview(state: SceneState): void {
+    if (state.contextPanel !== "halftone" || !hasHalftoneImage()) {
+      this.htPreviewLayer.style.display = "none";
+      return;
+    }
+    this.htPreviewLayer.style.display = "";
+    const cs = state.cellSize;
+    const palette = paletteById(state.palettes, state.activePaletteId);
+    const places = halftoneInstances(state, this.library).places;
+    let i = 0;
+    for (const inst of places) {
+      this.ensureSymbol(inst.assetId);
+      let node = this.htPreviewNodes[i];
+      if (!node) {
+        node = document.createElementNS(SVGNS, "use");
+        this.htPreviewLayer.appendChild(node);
+        this.htPreviewNodes[i] = node;
+      }
+      const g = instanceGeom(inst, cs, EMPTY_ANIM);
+      node.setAttribute("href", `#sym-${inst.assetId}`);
+      node.setAttribute("x", String(g.x));
+      node.setAttribute("y", String(g.y));
+      node.setAttribute("width", String(g.size));
+      node.setAttribute("height", String(g.size));
+      node.style.color = colorAt(palette, inst.colorIndex);
+      node.style.display = "";
+      i++;
+    }
+    for (; i < this.htPreviewNodes.length; i++) this.htPreviewNodes[i].style.display = "none";
   }
 
   /** Set the cursor position in fractional cell coords (or null). Updates only

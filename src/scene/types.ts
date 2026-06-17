@@ -19,6 +19,9 @@ export type BlockMode = "drag" | "brush";
 /** Stencil source — what defines the paintable "opening" (lit cells). */
 export type StencilType = "noise" | "stripes" | "image" | "text";
 
+/** How an uploaded image is rendered with the selected shapes. */
+export type HalftoneMode = "halftone" | "bayer" | "floyd";
+
 export interface StencilParams {
   type: StencilType;
   /** Lock the pattern to the viewport (pans with the screen) instead of world. */
@@ -60,6 +63,7 @@ export type ContextPanel =
   | "stencil"
   | "seamless"
   | "divider"
+  | "halftone"
   | "edit"
   | "animate"
   | "export"
@@ -175,6 +179,15 @@ export interface SceneState {
   mask: MaskParams;
   /** Stencil source selection + per-source params (the paintable opening). */
   stencil: StencilParams;
+  /** Halftone/dither: render an uploaded image with the selected shapes. It
+   *  aspect-fits live into the current view (pixels live in a module cache). */
+  halftone: {
+    mode: HalftoneMode;
+    invert: boolean;
+    /** Ink contrast around mid-gray (1 = none); shape scale (× cell). */
+    contrast: number;
+    scale: number;
+  };
   /** Global animation settings (time-driven, sampled per frame). */
   animation: AnimationConfig;
   /** Hand-drawn path (world coords) defining the "free" reveal order. */

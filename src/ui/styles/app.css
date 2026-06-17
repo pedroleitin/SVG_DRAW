@@ -1422,6 +1422,11 @@ body {
   cursor: grabbing;
 }
 
+/* Halftone result preview — faint ghost shapes while the panel is open. */
+.halftone-preview {
+  opacity: 0.5;
+}
+
 .grid-dot {
   fill: var(--grid-dot);
 }

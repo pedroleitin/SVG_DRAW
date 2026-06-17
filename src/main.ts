@@ -77,6 +77,7 @@ const initial: SceneState = {
     image: { box: null, threshold: 0.5, invert: false },
     text: { text: "HELLO", size: 6, bold: true, box: null },
   },
+  halftone: { mode: "halftone", invert: false, contrast: 1, scale: 1 },
   animation: {
     playing: false,
     playback: "loop",

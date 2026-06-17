@@ -204,12 +204,12 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 ## 6. Áudio
 
-- [~] ⚪ **Adicionar som** — _parcial._ Web Audio puro (osciladores + envelopes, sem lib,
+- [x] ⚪ **Adicionar som** — _feito._ Web Audio puro (osciladores + envelopes, sem lib,
   igual ao Grid-o-matic): nota afinada ao **colocar** SVG (pitch segue a célula), sweep no
   **apagar**, nota no **divider** e no **edit**, e chirp de 2 notas no **theme toggle**.
-  Botão de **mute** ao lado do trocador de tema (preferência persistida).
+  Botão de **mute** ao lado do trocador de tema (preferência persistida). (Som generativo na
+  animação e controle de volume foram dispensados.)
   - Arquivos: [src/features/audio.ts](src/features/audio.ts), [src/tools/tools.ts](src/tools/tools.ts), [src/ui/shell.ts](src/ui/shell.ts).
-  - Futuro: som generativo ligado à animação/playback, e volume.
 
 ## 7. Pesquisa / Direção
 
@@ -240,30 +240,24 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 ## 9. Imagem / vídeo como fonte (halftone & dithering)
 
-- [ ] 🔴 **Upload de imagem/vídeo como fonte de distribuição dos SVGs** — usar uma
-  mídia (imagem estática **ou** vídeo) como campo de entrada, igual a máscara de
-  noise, mas amostrando a mídia por célula.
-  - Por célula: amostrar luminância/cor da imagem → decide presença, escala,
-    cor e/ou escolha do SVG (análogo ao `sampleMask`, trocando o noise pela mídia).
-  - **Vídeo** = fonte animada: reamostrar por frame (liga com a animação/`t` e o
-    export frame-a-frame do Phase 6).
-  - Amostragem via `<canvas>`/`OffscreenCanvas` (`drawImage` + `getImageData`)
-    mapeando célula → pixel.
-  - **Base já existe**: o Stencil **Image** ([src/features/stencilImage.ts](src/features/stencilImage.ts)) já decodifica + amostra
-    luminância por célula. Aqui é o passo além: usar a amostra para escala/cor/escolha do
-    SVG (não só on/off da abertura).
-  - Arquivos prováveis: `src/features/` (fonte de mídia), [src/features/placement.ts](src/features/placement.ts),
-    [src/scene/types.ts](src/scene/types.ts).
-- [ ] 🔴 **Dithering / halftone com os SVGs** — preencher a imagem usando os SVGs
-  disponíveis como "pontos":
-  - **Halftone**: escala/densidade do SVG segue a luminância (claro = pequeno/esparso,
-    escuro = grande/denso); opção de ângulo de trama e por canal (CMYK).
-  - **Dithering**: ordered (Bayer) ou error-diffusion (Floyd–Steinberg) decidindo
-    on/off (ou qual SVG) por célula a partir da imagem.
-  - Reaproveita a biblioteca de SVGs e a paleta (cor por região da imagem).
+- [~] 🔴 **Dithering / halftone com os SVGs (Compose → Halftone)** — _imagem feito; vídeo
+  pendente._ Botão **Halftone** no Compose: upload de imagem (drag-drop + preview), lida em
+  luminância por célula, preenchida com os **shapes selecionados no Shapes** + paleta. Modos:
+  **Halftone** (área do shape ∝ tinta), **Bayer** (dither ordenado on/off), **Floyd–Steinberg**
+  (difusão de erro). Sliders **Contrast** e **Size**, toggle **Invert**. **Preview ao vivo** na
+  tela (shapes fantasma, sem commitar) e **Apply to view** (limpa a região + renderiza).
+  Ajusta à view ao vivo, então **cell size = resolução** (32 fino ↔ 128 grosso); pan/zoom
+  re-resolvem.
+  - Arquivos: [src/features/halftone.ts](src/features/halftone.ts), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts), [src/render/renderer.ts](src/render/renderer.ts) (`renderHalftonePreview`), [src/features/placement.ts](src/features/placement.ts) (`FILL_SCALE`).
+  - Futuro: **vídeo** como fonte (reamostrar por frame → halftone animado, liga com `t`/export);
+    cor da imagem por célula (hoje usa a paleta); ângulo de trama / CMYK; shape por luminância.
+- [ ] 🟡 **Acesso aos Shapes a partir do Halftone** — o Halftone usa os shapes selecionados
+  no **Shapes** (que hoje vive só no Draw). Pra trocar shapes do halftone hoje é preciso pular
+  de modo. Resolver: Shapes/Colors disponíveis no Compose (ou globais), ou um picker inline no
+  painel do Halftone. (Liga com "repensar os modos".)
 - [ ] 🟡 **Overlay de preview da fonte** — mostrar a imagem/vídeo por baixo/por cima
-  do grid (com opacidade) como referência enquanto distribui; toggle on/off, igual
-  ao preview da máscara.
+  do grid (com opacidade) como referência enquanto distribui; toggle on/off. (O Halftone já
+  tem o preview do **resultado**; isto seria o preview da **fonte** crua.)
   - Arquivos prováveis: [src/render/renderer.ts](src/render/renderer.ts), [src/ui/controls.ts](src/ui/controls.ts).
 
 ---

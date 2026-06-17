@@ -17,7 +17,7 @@ export function pickAsset(brushAssets: string[], library: Library, rng: () => nu
 }
 
 /** Fraction of the cell an SVG fills (leaves a small gutter). */
-const FILL_SCALE = 0.85;
+export const FILL_SCALE = 0.85;
 
 /** Build a single instance for a cell using the active brush + active color.
  *  Deterministic per cell (the seed drives "random" asset picks and future

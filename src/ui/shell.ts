@@ -14,6 +14,7 @@ import { BlockPanel } from "./blockPanel";
 import { GridPanel } from "./gridPanel";
 import { SeamlessPanel } from "./seamlessPanel";
 import { DividerPanel } from "./dividerPanel";
+import { HalftonePanel } from "./halftonePanel";
 import { EditPanel } from "./editPanel";
 import { ShapesPanel } from "./shapesPanel";
 import { ColorsPanel } from "./colorsPanel";
@@ -190,6 +191,7 @@ export class Shell {
     new BlockPanel(make("block"), this.store);
     new SeamlessPanel(make("seamless"), this.store, this.history);
     new DividerPanel(make("divider"), this.store, library, this.history);
+    new HalftonePanel(make("halftone"), this.store, library, this.history);
     new EditPanel(make("edit"), this.store);
     new ShapesPanel(make("shapes"), this.store, library);
     new ColorsPanel(make("colors"), this.store, this.renderer);
@@ -339,6 +341,7 @@ export class Shell {
               }),
           }),
           this.ctxBtn("Divider", "divider", s, "Recursive subdivision"),
+          this.ctxBtn("Halftone", "halftone", s, "Render an image with the shapes"),
           this.ctxBtn("Edit", "edit", s, "Edit items: rotate / swap / recolor"),
         );
         break;
@@ -451,7 +454,7 @@ export class Shell {
     this.contextEl.classList.toggle("anim", open === "animate");
     // Any non-wide box that carries the brush footer fits its content, so a
     // small panel doesn't crowd the footer's controls on narrow windows.
-    this.contextEl.classList.toggle("fit", !wide && (brush || open === "shapes"));
+    this.contextEl.classList.toggle("fit", !wide && (brush || open === "shapes" || open === "halftone"));
     // Drop the footer's divider when there's no panel above it.
     this.contextEl.classList.toggle("brush-only", open === null && brush);
     // The output-size pill above the context belongs to Export only.

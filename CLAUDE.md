@@ -32,7 +32,8 @@ Unidirectional **Store → Render → Input → Commands** loop:
 - `src/tools/` — pointer/wheel input → draw / erase / pan / zoom / block / path (`tools.ts`).
 - `src/commands/` — Command pattern → undo/redo; a stroke coalesces into one step.
 - `src/features/` — `library`, `palette`, `placement`, `noise`, `divider`, `svgImport`,
-  `audio`, and the stencil sources (`stencil` → `litFn` per cell, `stencilImage`, `stencilText`).
+  `audio`, `halftone` (image → shapes), and the stencil sources (`stencil` → `litFn` per cell,
+  `stencilImage`, `stencilText`).
 - `src/anim/` — time-driven engine + reveal order (drives export too).
 - `src/export/` — frame, SVG/PNG raster, animated PNG-zip / MP4 muxers.
 - `src/ui/` — floating shell: modes bar, per-mode toolbox, context panels, menu morph.
@@ -47,7 +48,7 @@ Key ideas:
 
 Four **modes** (Draw, Compose, Animate, Export) swap the bottom toolbox. Tools open
 **context panels** above it, gated by `state.contextPanel` (`shapes`, `colors`, `stencil`,
-`seamless`, `divider`, `edit`, `grid`, `block`, `animate`, `export`).
+`seamless`, `divider`, `halftone`, `edit`, `grid`, `block`, `animate`, `export`).
 
 The context box (`#context`) wraps a scrollable **`#ctx-body`** (the active panel) + a shared
 **`#ctx-brush`** footer (Brush / Size / Cell). The footer shows for brush-relevant contexts
