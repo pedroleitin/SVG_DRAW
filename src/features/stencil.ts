@@ -1,6 +1,7 @@
 import type { SceneState } from "../scene/types";
 import { maskField, sampleMask } from "./noise";
 import { hasStencilImage, sampleStencilLum, stencilImageAspect } from "./stencilImage";
+import { hasStencilText, sampleTextLum, stencilTextAspect } from "./stencilText";
 import { visibleCellRange } from "../scene/grid";
 
 /** A stencil resolves to a per-cell predicate: is this cell inside the paintable
@@ -28,6 +29,22 @@ export function fitBox(state: SceneState, aspect: number): CellBox {
     br = rows;
     bc = Math.max(1, Math.round(rows * aspect));
   }
+  return {
+    col: r.minCol + Math.floor((cols - bc) / 2),
+    row: r.minRow + Math.floor((rows - br) / 2),
+    cols: bc,
+    rows: br,
+  };
+}
+
+/** A box `size` cells tall (width follows the aspect), centered in the view —
+ *  for the text source, whose glyph height the user controls directly. */
+export function textBox(state: SceneState, aspect: number, size: number): CellBox {
+  const r = visibleCellRange(state.camera, state.cellSize, 0);
+  const cols = r.maxCol - r.minCol + 1;
+  const rows = r.maxRow - r.minRow + 1;
+  const br = Math.max(1, Math.min(rows, Math.round(size)));
+  const bc = Math.max(1, Math.min(cols, Math.round(br * aspect)));
   return {
     col: r.minCol + Math.floor((cols - bc) / 2),
     row: r.minRow + Math.floor((rows - br) / 2),
@@ -79,6 +96,23 @@ export function stencilLit(state: SceneState): LitFn {
       if (lc < 0 || lr < 0 || lc >= b.cols || lr >= b.rows) return false;
       const lum = sampleStencilLum((lc + 0.5) / b.cols, (lr + 0.5) / b.rows);
       return invert ? lum < threshold : lum >= threshold;
+    };
+  }
+
+  if (st.type === "text") {
+    if (!hasStencilText()) return () => false;
+    let box = st.text.box;
+    if (st.lock) {
+      const ar = stencilTextAspect();
+      box = ar == null ? null : textBox(state, ar, st.text.size);
+    }
+    if (!box) return () => false;
+    const b = box;
+    return (col, row) => {
+      const lc = col - b.col;
+      const lr = row - b.row;
+      if (lc < 0 || lr < 0 || lc >= b.cols || lr >= b.rows) return false;
+      return sampleTextLum((lc + 0.5) / b.cols, (lr + 0.5) / b.rows) >= 0.5;
     };
   }
 

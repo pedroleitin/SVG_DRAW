@@ -6,7 +6,8 @@ import { ApplyMaskCommand } from "../commands/sceneCommands";
 import { applyMask } from "../features/placement";
 import { maskField, sampleMask } from "../features/noise";
 import { setStencilImage, hasStencilImage, sampleStencilLum } from "../features/stencilImage";
-import { fitBox } from "../features/stencil";
+import { fitBox, textBox } from "../features/stencil";
+import { renderStencilText } from "../features/stencilText";
 import { visibleCellRange } from "../scene/grid";
 import { morphResize } from "./morph";
 import { createSlider } from "./widgets";
@@ -51,12 +52,21 @@ const IMAGE_THRESHOLD: SliderDef<"threshold"> = {
   format: pct,
 };
 
+const TEXT_SIZE: SliderDef<"size"> = {
+  key: "size",
+  label: "Size",
+  min: 2,
+  max: 14,
+  step: 1,
+  format: (v) => String(v),
+};
+
 /** Stencil sources (Image / Text are placeholders until wired up). */
 const SOURCES: { type: StencilType; label: string; soon?: boolean }[] = [
   { type: "noise", label: "Noise" },
   { type: "stripes", label: "Stripes" },
   { type: "image", label: "Image" },
-  { type: "text", label: "Text", soon: true },
+  { type: "text", label: "Text" },
 ];
 
 const PREVIEW_RES = 80; // sampled pixels per side
@@ -73,9 +83,14 @@ export class Controls {
   private imgDrop!: HTMLElement;
   private imgCanvas!: HTMLCanvasElement;
   private lockChk!: HTMLInputElement;
+  private addChk!: HTMLInputElement;
+  private textInput!: HTMLInputElement;
+  private textBold!: HTMLInputElement;
+  private textSize!: SliderHandle;
   private noiseEl!: HTMLElement;
   private stripesEl!: HTMLElement;
   private imageEl!: HTMLElement;
+  private textEl!: HTMLElement;
   private reseedEl!: HTMLElement;
   private canvas!: HTMLCanvasElement;
   private ctxBody: HTMLElement | null;
@@ -91,7 +106,10 @@ export class Controls {
     panel.className = "panel";
     panel.id = "mask-panel";
     panel.innerHTML = `
-      <h2>Stencil</h2>
+      <div class="panel-head">
+        <h2>Stencil</h2>
+        <label class="chk"><input type="checkbox" id="stencil-add" /> <span>Add mode</span></label>
+      </div>
       <div class="seg stencil-src" id="stencil-src"></div>
       <div id="src-noise">
         <div class="noise-body">
@@ -122,6 +140,13 @@ export class Controls {
           </div>
         </div>
       </div>
+      <div id="src-text">
+        <input class="text-input" id="stencil-text" type="text" placeholder="Type text…" maxlength="40" />
+        <div class="noise-right">
+          <div class="sliders" id="text-sliders"></div>
+          <label class="chk"><span>Bold</span><input type="checkbox" id="text-bold" /></label>
+        </div>
+      </div>
       <label class="chk stencil-lock"><input type="checkbox" id="stencil-lock" />
         <span>Lock projection (pan moves the view, the stencil stays put)</span></label>
       <div class="noise-actions">
@@ -143,6 +168,7 @@ export class Controls {
       b.title = src.soon ? `${src.label} — coming soon` : src.label;
       b.addEventListener("click", () => {
         if (b.disabled) return;
+        if (src.type === "text") return this.updateText({}); // (re)render + select
         this.store.set({ stencil: { ...this.store.get().stencil, type: src.type } });
       });
       this.srcBtns.set(src.type, b);
@@ -152,6 +178,7 @@ export class Controls {
     this.noiseEl = panel.querySelector("#src-noise") as HTMLElement;
     this.stripesEl = panel.querySelector("#src-stripes") as HTMLElement;
     this.imageEl = panel.querySelector("#src-image") as HTMLElement;
+    this.textEl = panel.querySelector("#src-text") as HTMLElement;
     this.reseedEl = panel.querySelector("#mask-reseed") as HTMLElement;
     this.canvas = panel.querySelector(".mask-preview") as HTMLCanvasElement;
 
@@ -219,9 +246,30 @@ export class Controls {
       this.loadImage((e as DragEvent).dataTransfer?.files?.[0] ?? null),
     );
 
+    // Text source: text input + size + bold (each re-rasterizes + re-fits).
+    this.textInput = panel.querySelector("#stencil-text") as HTMLInputElement;
+    this.textInput.value = this.store.get().stencil.text.text;
+    this.textInput.addEventListener("input", () => this.updateText({ text: this.textInput.value }));
+    this.textBold = panel.querySelector("#text-bold") as HTMLInputElement;
+    this.textBold.addEventListener("change", () => this.updateText({ bold: this.textBold.checked }));
+    this.textSize = createSlider({
+      label: TEXT_SIZE.label,
+      min: TEXT_SIZE.min,
+      max: TEXT_SIZE.max,
+      step: TEXT_SIZE.step,
+      value: this.store.get().stencil.text.size,
+      format: TEXT_SIZE.format!,
+      onChange: (v) => this.updateText({ size: v }),
+    });
+    panel.querySelector("#text-sliders")!.appendChild(this.textSize.el);
+
     this.lockChk = panel.querySelector("#stencil-lock") as HTMLInputElement;
     this.lockChk.addEventListener("change", () =>
       this.store.set({ stencil: { ...this.store.get().stencil, lock: this.lockChk.checked } }),
+    );
+    this.addChk = panel.querySelector("#stencil-add") as HTMLInputElement;
+    this.addChk.addEventListener("change", () =>
+      this.store.set({ stencil: { ...this.store.get().stencil, add: this.addChk.checked } }),
     );
 
     this.reseedEl.addEventListener("click", () => this.reseed());
@@ -244,6 +292,15 @@ export class Controls {
   private setImage(patch: Partial<SceneState["stencil"]["image"]>): void {
     const st = this.store.get().stencil;
     this.store.set({ stencil: { ...st, image: { ...st.image, ...patch } } });
+  }
+
+  /** Rasterize the text, fit it to the view, and select the text source. */
+  private updateText(patch: Partial<SceneState["stencil"]["text"]>): void {
+    const st = this.store.get().stencil;
+    const t = { ...st.text, ...patch };
+    const dims = renderStencilText(t.text, t.bold);
+    const box = dims ? textBox(this.store.get(), dims.w / dims.h, t.size) : null;
+    this.store.set({ stencil: { ...st, type: "text", text: { ...t, box } } });
   }
 
   /** Decode the file, place it (aspect-fit) in the current view, and stencil. */
@@ -279,6 +336,7 @@ export class Controls {
     this.noiseEl.classList.toggle("hidden", type !== "noise");
     this.stripesEl.classList.toggle("hidden", type !== "stripes");
     this.imageEl.classList.toggle("hidden", type !== "image");
+    this.textEl.classList.toggle("hidden", type !== "text");
     this.reseedEl.classList.toggle("hidden", type !== "noise"); // seed is noise-only
   }
 
@@ -290,7 +348,11 @@ export class Controls {
     for (const def of STRIPE_SLIDERS) this.stripeSliders.get(def.key)!.setValue(s.stencil.stripes[def.key]);
     this.imgThreshold.setValue(s.stencil.image.threshold);
     this.imgInvert.checked = s.stencil.image.invert;
+    this.textSize.setValue(s.stencil.text.size);
+    this.textBold.checked = s.stencil.text.bold;
+    if (document.activeElement !== this.textInput) this.textInput.value = s.stencil.text.text;
     this.lockChk.checked = s.stencil.lock;
+    this.addChk.checked = s.stencil.add;
     if (type === "noise") this.drawPreview(s);
 
     // Animate the box when the source changes (the sections have different

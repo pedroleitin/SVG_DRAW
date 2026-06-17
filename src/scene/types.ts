@@ -23,6 +23,9 @@ export interface StencilParams {
   type: StencilType;
   /** Lock the pattern to the viewport (pans with the screen) instead of world. */
   lock: boolean;
+  /** Additive: Apply only fills the opening's empty cells, keeping the rest
+   *  (instead of clearing the region and repainting just the opening). */
+  add: boolean;
   /** Diagonal zebra stripes: angle (deg), period (cells), lit fraction (0..1). */
   stripes: { angle: number; period: number; ratio: number };
   /** Uploaded image read as B/W. `box` is the world cell region it covers
@@ -31,6 +34,14 @@ export interface StencilParams {
     box: { col: number; row: number; cols: number; rows: number } | null;
     threshold: number;
     invert: boolean;
+  };
+  /** Text rasterized to B/W. `size` = glyph height in cells; `box` is the world
+   *  region it covers (the rendered pixels live in a module cache). */
+  text: {
+    text: string;
+    size: number;
+    bold: boolean;
+    box: { col: number; row: number; cols: number; rows: number } | null;
   };
 }
 

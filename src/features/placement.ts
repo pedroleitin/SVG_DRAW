@@ -146,10 +146,10 @@ export function tileFill(state: SceneState): MaskResult {
   return { places, eraseKeys };
 }
 
-/** Apply the active stencil over a cell region: the lit cells are the opening.
- *  Apply CLEARS the whole region and paints only the opening — so lit cells get
- *  a fresh SVG and everything else ends up empty (re-running with a new source /
- *  seed re-stencils cleanly). Pure — caller wraps the result in one command. */
+/** Apply the active stencil over a cell region. Default (replace): CLEARS the
+ *  region and paints only the opening — lit cells get a fresh SVG, the rest end
+ *  up empty. Add mode: only fills the opening's empty cells, keeping everything
+ *  else. Pure — caller wraps the result in one command. */
 export function applyMask(
   state: SceneState,
   library: Library,
@@ -159,16 +159,18 @@ export function applyMask(
   maxRow: number,
 ): MaskResult {
   const lit = stencilLit(state);
+  const add = state.stencil.add;
   const places: Instance[] = [];
   const eraseKeys: string[] = [];
   for (let row = minRow; row <= maxRow; row++) {
     for (let col = minCol; col <= maxCol; col++) {
       const key = cellKey(col, row);
       if (state.blocked[key]) continue; // never touch blocked cells
+      const occupied = !!state.instances[key];
       if (lit(col, row)) {
-        places.push(buildInstance(state, library, col, row)); // opening → (re)paint
-      } else if (state.instances[key]) {
-        eraseKeys.push(key); // outside the opening → clear
+        if (!add || !occupied) places.push(buildInstance(state, library, col, row)); // (re)paint
+      } else if (occupied && !add) {
+        eraseKeys.push(key); // replace mode: clear outside the opening
       }
     }
   }

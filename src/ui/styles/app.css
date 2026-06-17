@@ -1284,6 +1284,19 @@ body {
   height: 20px;
 }
 
+/* Panel title row: heading on the left, a toggle (e.g. Add mode) on the right. */
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.panel-head h2 {
+  margin: 0;
+}
+
 /* Stencil source selector (Noise / Stripes / …) + hideable source sections. */
 .stencil-src {
   display: flex;
@@ -1301,8 +1314,33 @@ body {
 #src-noise.hidden,
 #src-stripes.hidden,
 #src-image.hidden,
+#src-text.hidden,
 #mask-reseed.hidden {
   display: none;
+}
+
+/* Text stencil source: text field + size/bold. */
+#src-text {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.text-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 38px;
+  padding: 0 12px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  outline: none;
+}
+
+.text-input:focus {
+  outline: 2px solid var(--accent);
 }
 
 /* Image stencil source: preview/dropzone (left) + threshold/invert (right). */
