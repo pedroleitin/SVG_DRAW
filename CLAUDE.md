@@ -5,9 +5,10 @@ Guidance for Claude Code working in this repo. Keep it current as the project ev
 ## What this is
 
 A browser-based generative tool that fills an infinite, zoomable grid with SVG shapes:
-draw/erase brushes, palette recoloring, per-cell backgrounds, a fractal noise mask,
-seamless tiling, a square-packing divider, multi-cell scaling, time-driven animation,
-and SVG / PNG / MP4 export. Vite + TypeScript, native SVG DOM as the source of truth.
+draw/erase brushes, palette recoloring, per-cell backgrounds, a multi-source **Stencil**
+(noise / stripes / image / text masks you paint inside), seamless tiling, a square-packing
+divider, multi-cell scaling, time-driven animation, and SVG / PNG / MP4 export.
+Vite + TypeScript, native SVG DOM as the source of truth.
 
 ## Commands
 
@@ -30,7 +31,8 @@ Unidirectional **Store → Render → Input → Commands** loop:
 - `src/render/` — diffs scene → SVG; virtualizes to the visible cell range (`renderer.ts`).
 - `src/tools/` — pointer/wheel input → draw / erase / pan / zoom / block / path (`tools.ts`).
 - `src/commands/` — Command pattern → undo/redo; a stroke coalesces into one step.
-- `src/features/` — `library`, `palette`, `placement`, `noise`, `divider`, `svgImport`.
+- `src/features/` — `library`, `palette`, `placement`, `noise`, `divider`, `svgImport`,
+  `audio`, and the stencil sources (`stencil` → `litFn` per cell, `stencilImage`, `stencilText`).
 - `src/anim/` — time-driven engine + reveal order (drives export too).
 - `src/export/` — frame, SVG/PNG raster, animated PNG-zip / MP4 muxers.
 - `src/ui/` — floating shell: modes bar, per-mode toolbox, context panels, menu morph.
@@ -44,14 +46,19 @@ Key ideas:
 ## UI model
 
 Four **modes** (Draw, Compose, Animate, Export) swap the bottom toolbox. Tools open
-**context panels** above it, gated by `state.contextPanel` (`shapes`, `colors`, `noise`,
-`seamless`, `divider`, `edit`, `grid`, `block`, `animate`, `export`). The Brush bar and a
-context panel share one slot above the toolbox (never both at once).
+**context panels** above it, gated by `state.contextPanel` (`shapes`, `colors`, `stencil`,
+`seamless`, `divider`, `edit`, `grid`, `block`, `animate`, `export`).
+
+The context box (`#context`) wraps a scrollable **`#ctx-body`** (the active panel) + a shared
+**`#ctx-brush`** footer (Brush / Size / Cell). The footer shows for brush-relevant contexts
+(stencil/divider/seamless/block/edit + base draw/erase), hidden for shapes/colors. Only the
+body scrolls, so the footer is always visible.
 
 Menu transitions use `src/ui/morph.ts` (`morphResize` / `morphOpen` / `morphClose`):
-fade content out → morph the box size → fade in. The toolbox morphs only on **mode change**;
-the context morphs on open/switch and sequences with the brush bar on close. **If you change
-a morph CSS duration, sync the matching `SIZE`/`FADE` constant in `morph.ts`.**
+fade content out → morph the box size → fade in. The toolbox morphs on **mode change**. The
+context **box** morphs open/close (`#context`); a **panel→panel switch morphs only `#ctx-body`**
+so the footer stays fixed (the bottom-anchored dock keeps it in place). **If you change a morph
+CSS duration, sync the matching `SIZE`/`FADE` constant in `morph.ts`.**
 
 ## Conventions
 

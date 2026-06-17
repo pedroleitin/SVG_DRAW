@@ -46,8 +46,9 @@ the foundation for frame-accurate export.
 
 The UI is organized into four **modes** (Draw, Compose, Animate, Export). Each
 mode swaps the bottom toolbox; tools open **context panels** above it (Shapes,
-Colors, Noise, Seamless, Divider, Edit, Grid, …), animated with a fade-out →
-size-morph → fade-in transition.
+Colors, Stencil, Seamless, Divider, Edit, Grid, …), animated with a fade-out →
+size-morph → fade-in transition. A shared Brush/Size/Cell footer sits inside the
+brush-relevant panels.
 
 ## Features
 
@@ -60,10 +61,12 @@ size-morph → fade-in transition.
 **Draw mode**
 - Draw + Erase brushes — size 1–4, square/circle/cross footprint, multi-cell **Size** (one SVG over N×N)
 - Optional random 90° rotation per placed SVG
-- **Block** tool — mark no-go cells (drag rectangle or paint); draw + noise skip them
-- **Fractal noise mask** (Maxon-style fBm): Scale / Octaves / Roughness / Contrast / Brightness /
-  Threshold, with a live grayscale + B/W preview and an on-canvas green-fills / red-erases overlay;
-  "Apply to view" + "Reseed"
+- **Block** tool — mark no-go cells (drag rectangle or paint); draw + stencil skip them
+- **Stencil** — paint inside a mask "opening" (a green rounded/dotted silhouette). Pluggable
+  sources: **Noise** (fBm), **Stripes** (diagonal zebra), **Image** (upload read as B/W,
+  threshold/invert), **Text** (rasterized glyphs). The brush only paints inside the opening;
+  "Apply to view" stencils it. Plus **Lock projection** (stays put on screen while you pan)
+  and **Add mode** (additive instead of replace)
 - **Shapes** library: starter set + per-asset multi-select (or Random), Select all, and SVG upload
   (drag-drop / file picker) — sanitized, normalized to `currentColor`, persisted in IndexedDB
 - **Colors**: palette picker + swatch editor (add/edit/remove), canvas background, per-cell random fill

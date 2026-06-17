@@ -105,14 +105,21 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   Rotate/Swap/Recolor) e **mostrar só os controles relevantes por context** (ex.: esconder
   Size/Cell no Block, que é por célula).
   - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (`brushVisible`/`applyContext`), [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/ui/styles/app.css](src/ui/styles/app.css) (`#ctx-brush`).
-- [x] 🔴 **Modo Stencil no Noise** — _feito._ O Noise virou um **stencil de pintura**:
-  a zona acesa (silhueta **verde** arredondada + pontilhada, estilo Block) é a abertura.
-  O **pincel** só pinta dentro dela (células fora ficam mascaradas) e o **Apply to view**
-  limpa a região e repinta só a abertura (re-estêncila ao trocar o seed). A silhueta
-  aparece enquanto o context do Noise está aberto; sai do Noise → pincel volta a ser livre.
-  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (`litAt`), [src/features/placement.ts](src/features/placement.ts) (`applyMask`), [src/render/renderer.ts](src/render/renderer.ts) (`renderMask`/`.stencil-shape`), [src/ui/controls.ts](src/ui/controls.ts).
-  - Futuro: outros formatos além do Noise como abertura do stencil (imagem, formas), e
-    inverter a máscara.
+- [x] 🔴 **Modo Stencil (multi-fonte)** — _feito._ Botão **Stencil** no Draw: a zona acesa
+  (silhueta **verde** arredondada + pontilhada, estilo Block) é a abertura; o **pincel** só
+  pinta dentro dela e o **Apply to view** limpa a região e repinta só a abertura. Sistema de
+  **fontes plugáveis** (`stencilLit` → `litFn` por célula), com seletor:
+  - **Noise** (fBm), **Stripes** (zebra diagonal: ângulo/período/lit%), **Image** (upload
+    lido em B/W, threshold/invert, drag-drop + preview), **Text** (string rasterizada B/W:
+    texto/size/bold). Image/Text são posicionados com `fitBox`/`textBox` na view.
+  - **Lock projection**: amostra relativo à origem da view (o stencil fica preso à tela ao
+    panear, em vez de fixo ao canvas).
+  - **Add mode** (rótulo na barra de título): Apply **aditivo** (só preenche vazias da
+    abertura, mantém o resto) vs replace (limpa + repinta).
+  - Trocar de fonte **anima** o corpo do menu (morph do `#ctx-body`).
+  - Arquivos: [src/features/stencil.ts](src/features/stencil.ts), [src/features/stencilImage.ts](src/features/stencilImage.ts), [src/features/stencilText.ts](src/features/stencilText.ts), [src/features/placement.ts](src/features/placement.ts) (`applyMask`), [src/render/renderer.ts](src/render/renderer.ts) (`.stencil-shape`), [src/tools/tools.ts](src/tools/tools.ts), [src/ui/controls.ts](src/ui/controls.ts).
+  - Futuro: inverter a máscara global; ancorar image/text mais acima (hoje centraliza, fica
+    atrás do painel); mais formas geométricas como fonte.
 - [x] 🟡 **Modo Block (zona bloqueada)** — _feito._ Ferramenta **Block** (entre Erase
   e Noise) marca células onde **não se pode colocar SVG**: o draw pula essas células e
   o noise (`applyMask`) também. Menu de contexto com segmented **Drag** (retângulo
@@ -242,6 +249,9 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
     export frame-a-frame do Phase 6).
   - Amostragem via `<canvas>`/`OffscreenCanvas` (`drawImage` + `getImageData`)
     mapeando célula → pixel.
+  - **Base já existe**: o Stencil **Image** ([src/features/stencilImage.ts](src/features/stencilImage.ts)) já decodifica + amostra
+    luminância por célula. Aqui é o passo além: usar a amostra para escala/cor/escolha do
+    SVG (não só on/off da abertura).
   - Arquivos prováveis: `src/features/` (fonte de mídia), [src/features/placement.ts](src/features/placement.ts),
     [src/scene/types.ts](src/scene/types.ts).
 - [ ] 🔴 **Dithering / halftone com os SVGs** — preencher a imagem usando os SVGs
