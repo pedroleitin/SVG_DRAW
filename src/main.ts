@@ -69,7 +69,6 @@ const initial: SceneState = {
     offsetY: 0,
     seamless: false,
   },
-  maskPreview: false,
   animation: {
     playing: false,
     playback: "loop",

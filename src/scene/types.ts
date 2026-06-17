@@ -142,10 +142,8 @@ export interface SceneState {
   /** Selected cell-background color: a palette index, "random" to spread across
    *  the palette per cell, or null for none. */
   activeBgIndex: number | "random" | null;
-  /** Maxon-style fractal fill mask (white fills, black erases). */
+  /** Maxon-style fractal stencil mask (lit cells = the paintable opening). */
   mask: MaskParams;
-  /** When true, the renderer overlays a live preview of the mask selection. */
-  maskPreview: boolean;
   /** Global animation settings (time-driven, sampled per frame). */
   animation: AnimationConfig;
   /** Hand-drawn path (world coords) defining the "free" reveal order. */

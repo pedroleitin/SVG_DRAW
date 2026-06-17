@@ -41,7 +41,6 @@ const PREVIEW_CELLS = 36; // grid cells shown across the preview window
 export class Controls {
   private maskSliders = new Map<MaskKey, SliderHandle>();
   private canvas!: HTMLCanvasElement;
-  private previewBW = false;
 
   constructor(
     host: HTMLElement,
@@ -58,10 +57,6 @@ export class Controls {
         <div class="noise-left">
           <canvas class="mask-preview" width="${PREVIEW_RES}" height="${PREVIEW_RES}"
             title="Drag to move the noise"></canvas>
-          <div class="mask-preview-row">
-            <label class="chk"><input type="checkbox" id="mask-live" /> Preview on canvas</label>
-            <label class="chk"><input type="checkbox" id="mask-bw" /> B/W</label>
-          </div>
         </div>
         <div class="noise-right">
           <div class="sliders" id="mask-sliders"></div>
@@ -89,14 +84,6 @@ export class Controls {
       slHost.appendChild(sl.el);
     }
 
-    const live = panel.querySelector("#mask-live") as HTMLInputElement;
-    live.checked = this.store.get().maskPreview;
-    live.addEventListener("change", () => this.store.set({ maskPreview: live.checked }));
-    const bw = panel.querySelector("#mask-bw") as HTMLInputElement;
-    bw.addEventListener("change", () => {
-      this.previewBW = bw.checked;
-      this.drawPreview(this.store.get());
-    });
 
     panel.querySelector("#mask-apply")!.addEventListener("click", () => this.apply());
     panel.querySelector("#mask-reseed")!.addEventListener("click", () => this.reseed());
@@ -117,7 +104,7 @@ export class Controls {
     this.drawPreview(s);
   }
 
-  /** Render the fractal mask into the preview canvas (grayscale or thresholded). */
+  /** Render the fractal mask into the preview canvas (grayscale). */
   private drawPreview(s: SceneState): void {
     const ctx = this.canvas.getContext("2d");
     if (!ctx) return;
@@ -127,8 +114,7 @@ export class Controls {
       for (let px = 0; px < PREVIEW_RES; px++) {
         const col = (px / PREVIEW_RES) * PREVIEW_CELLS;
         const row = (py / PREVIEW_RES) * PREVIEW_CELLS;
-        let v = sampleMask(field, col, row, s.mask);
-        if (this.previewBW) v = v >= s.mask.threshold ? 1 : 0;
+        const v = sampleMask(field, col, row, s.mask);
         const g = (v * 255) | 0;
         const o = (py * PREVIEW_RES + px) * 4;
         img.data[o] = img.data[o + 1] = img.data[o + 2] = g;
@@ -163,12 +149,13 @@ export class Controls {
     this.canvas.addEventListener("pointerup", () => (dragging = false));
   }
 
-  /** Fill white cells / erase black cells across the visible region (1 undo). */
+  /** Stencil the visible region: clear it, then paint the lit (white) opening.
+   *  One undo step. */
   private apply(): void {
     const s = this.store.get();
     const r = visibleCellRange(s.camera, s.cellSize, 0);
     const { places, eraseKeys } = applyMask(s, this.library, r.minCol, r.minRow, r.maxCol, r.maxRow);
-    if (places.length || eraseKeys.length) {
+    if (places.length) {
       this.history.dispatch(new ApplyMaskCommand(places, eraseKeys));
     }
   }

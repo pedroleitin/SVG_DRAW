@@ -1,5 +1,4 @@
 import type { SceneState, Instance } from "../scene/types";
-import { cellKey } from "../scene/types";
 import { visibleCellRange } from "../scene/grid";
 import type { Library } from "../features/library";
 import { paletteById, colorAt } from "../features/palette";
@@ -180,8 +179,7 @@ export class Renderer {
   private hoverGhost: SVGUseElement;
   private hoverPt: { cx: number; cy: number } | null = null; // fractional cell coords
   private lastState?: SceneState;
-  private maskLayer: SVGGElement;
-  private maskRects: SVGRectElement[] = [];
+  private stencilShape!: SVGPathElement;
   private pathLayer: SVGGElement;
   private pathLine: SVGPolylineElement;
   private pathStart: SVGTextElement;
@@ -286,9 +284,11 @@ export class Renderer {
     this.hoverGhost.setAttribute("opacity", "0.4");
     this.hoverLayer.append(this.hoverCellsGroup, this.hoverBg, this.hoverGhost);
 
-    this.maskLayer = document.createElementNS(SVGNS, "g");
-    this.maskLayer.setAttribute("class", "mask-overlay");
-    this.maskLayer.style.pointerEvents = "none";
+    // Green stencil silhouette (rounded + dotted, like the Block overlay).
+    this.stencilShape = document.createElementNS(SVGNS, "path");
+    this.stencilShape.setAttribute("class", "stencil-shape");
+    this.stencilShape.style.pointerEvents = "none";
+    this.stencilShape.style.display = "none";
 
     // Order-path overlay: the drawn reveal line with START / FINISH labels.
     this.pathLayer = document.createElementNS(SVGNS, "g");
@@ -330,7 +330,7 @@ export class Renderer {
       this.blockedShape,
       this.blockRectEl,
       this.hoverLayer,
-      this.maskLayer,
+      this.stencilShape,
       this.pathLayer,
       this.frameLayer,
     );
@@ -614,56 +614,34 @@ export class Renderer {
   }
 
   /** Live mask preview: shade visible cells by the fractal field (grayscale)
-   *  and outline the cells that "Apply" would fill (accent) or erase (red). */
+   *  and outline the stencil opening (lit cells, green) — where Apply paints.
+   *  Cells outside the opening are masked off (cleared on Apply). */
   private renderMask(state: SceneState): void {
-    if (!state.maskPreview) {
-      for (const rect of this.maskRects) rect.style.display = "none";
+    // The stencil opening (lit cells), traced like the Block overlay — rounded +
+    // dotted, in green. Shown only while the Noise context is open.
+    if (state.contextPanel !== "noise") {
+      this.stencilShape.style.display = "none";
       return;
     }
     const { camera: cam, cellSize, mask } = state;
     const field = maskField(mask.seed);
     const r = visibleCellRange(cam, cellSize, 0);
-    let i = 0;
+    const lit: Record<string, true> = {};
     for (let row = r.minRow; row <= r.maxRow; row++) {
       for (let col = r.minCol; col <= r.maxCol; col++) {
-        const rect = this.maskRect(i++);
-        const v = sampleMask(field, col, row, mask);
-        const lit = v >= mask.threshold;
-        const occupied = !!state.instances[cellKey(col, row)];
-        const g = Math.round(v * 255);
-        rect.setAttribute("x", String(col * cellSize));
-        rect.setAttribute("y", String(row * cellSize));
-        rect.setAttribute("width", String(cellSize));
-        rect.setAttribute("height", String(cellSize));
-        rect.setAttribute("fill", `rgb(${g},${g},${g})`);
-        // Keep the overlay faint so the artwork (and its animation) show
-        // through; the action outlines below carry the important info.
-        rect.setAttribute("fill-opacity", "0.18");
-        // Action hints: green where it will add, red where it will remove.
-        if (lit && !occupied) {
-          rect.setAttribute("stroke", "#37b24d");
-          rect.setAttribute("stroke-opacity", "0.9");
-        } else if (!lit && occupied) {
-          rect.setAttribute("stroke", "#f03e3e");
-          rect.setAttribute("stroke-opacity", "0.9");
-        } else {
-          rect.setAttribute("stroke", "none");
-        }
-        rect.setAttribute("stroke-width", String(2 / (this.hostSize.width / cam.w)));
-        rect.style.display = "";
+        if (sampleMask(field, col, row, mask) >= mask.threshold) lit[`${col},${row}`] = true;
       }
     }
-    for (; i < this.maskRects.length; i++) this.maskRects[i].style.display = "none";
-  }
-
-  private maskRect(i: number): SVGRectElement {
-    let rect = this.maskRects[i];
-    if (!rect) {
-      rect = document.createElementNS(SVGNS, "rect");
-      this.maskLayer.appendChild(rect);
-      this.maskRects[i] = rect;
+    const px = cam.w / this.hostSize.width;
+    const d = blockedRegionPath(lit, cellSize, cellSize * 0.3);
+    if (d) {
+      this.stencilShape.setAttribute("d", d);
+      this.stencilShape.setAttribute("stroke-width", String(2.2 * px));
+      this.stencilShape.setAttribute("stroke-dasharray", `0 ${6 * px}`); // round dots
+      this.stencilShape.style.display = "";
+    } else {
+      this.stencilShape.style.display = "none";
     }
-    return rect;
   }
 
   /** Repeat the tile's content in the 8 neighbor positions + ring the cells on

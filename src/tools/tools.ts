@@ -10,6 +10,7 @@ import {
 } from "../commands/sceneCommands";
 import { buildInstance, pickAsset } from "../features/placement";
 import { dividerBlocks, blockAt } from "../features/divider";
+import { maskField, sampleMask } from "../features/noise";
 import { paletteById } from "../features/palette";
 import type { AudioEngine } from "../features/audio";
 import { screenToWorld, zoomAt, panBy } from "../scene/camera";
@@ -239,16 +240,25 @@ export class InputController {
       return;
     }
 
+    // While the Noise stencil is open, the brush may only paint inside the lit
+    // (green) opening — cells outside it are masked off. The green silhouette is
+    // always shown there, so the constraint doesn't depend on "Show preview".
+    const stencil = state.contextPanel === "noise";
+    const field = stencil ? maskField(state.mask.seed) : null;
+    const litAt = (col: number, row: number): boolean =>
+      !field || sampleMask(field, col, row, state.mask) >= state.mask.threshold;
+
     // DRAW: an N×N footprint (Brush) of span×span blocks (Size). Each block
     // clears what it covers, so placements never overlap.
     const blocks = brushBlocks(w.x / cs, w.y / cs, state.brushSize, state.brushShape, span);
     for (const blk of blocks) {
-      // Skip if any covered cell is already painted this stroke, or is blocked.
+      // Skip if any covered cell is already painted this stroke, is blocked, or
+      // (with the stencil on) falls outside the lit opening.
       let skip = false;
       for (let y = blk.row; y < blk.row + span && !skip; y++) {
         for (let x = blk.col; x < blk.col + span; x++) {
           const k = cellKey(x, y);
-          if (this.strokeCells.has(k) || state.blocked[k]) {
+          if (this.strokeCells.has(k) || state.blocked[k] || !litAt(x, y)) {
             skip = true;
             break;
           }

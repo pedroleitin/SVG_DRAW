@@ -146,9 +146,11 @@ export function tileFill(state: SceneState): MaskResult {
   return { places, eraseKeys };
 }
 
-/** Apply the fractal mask over a cell region: white (>= threshold) fills empty
- *  cells, black (< threshold) erases occupied ones. Pure — caller wraps the
- *  result in one undoable command. */
+/** Apply the fractal mask as a STENCIL over a cell region: the lit (white,
+ *  >= threshold) cells are the stencil opening. Apply CLEARS the whole region
+ *  and paints only the opening — so lit cells get a fresh SVG and everything
+ *  else ends up empty (re-running with a new seed re-stencils cleanly). Pure —
+ *  caller wraps the result in one undoable command. */
 export function applyMask(
   state: SceneState,
   library: Library,
@@ -163,11 +165,13 @@ export function applyMask(
   for (let row = minRow; row <= maxRow; row++) {
     for (let col = minCol; col <= maxCol; col++) {
       const key = cellKey(col, row);
-      if (state.blocked[key]) continue; // never fill blocked cells
-      const occupied = !!state.instances[key];
+      if (state.blocked[key]) continue; // never touch blocked cells
       const lit = sampleMask(field, col, row, state.mask) >= state.mask.threshold;
-      if (lit && !occupied) places.push(buildInstance(state, library, col, row));
-      else if (!lit && occupied) eraseKeys.push(key);
+      if (lit) {
+        places.push(buildInstance(state, library, col, row)); // opening → (re)paint
+      } else if (state.instances[key]) {
+        eraseKeys.push(key); // outside the opening → clear
+      }
     }
   }
   return { places, eraseKeys };

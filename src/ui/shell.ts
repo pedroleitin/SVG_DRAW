@@ -67,6 +67,7 @@ export class Shell {
   private toolboxSig = "";
   private prevToolboxMode: Mode | undefined;
   private prevOpen: ContextPanel | undefined;
+  private prevBrushShown: boolean | undefined;
 
   constructor(
     private store: Store,
@@ -202,7 +203,14 @@ export class Shell {
 
   private toggleContext(key: Exclude<ContextPanel, null>): void {
     const s = this.store.get();
-    this.store.set({ contextPanel: s.contextPanel === key ? this.homeContext(s.mode) : key });
+    const opening = s.contextPanel !== key;
+    const patch: Partial<SceneState> = {
+      contextPanel: opening ? key : this.homeContext(s.mode),
+    };
+    // The Block tool is bound to its own panel; opening any other context exits
+    // it, so the new panel's drawing (e.g. the Noise stencil) works right away.
+    if (opening && key !== "block" && s.tool === "block") patch.tool = "draw";
+    this.store.set(patch);
   }
 
   // ---- Toolbox (per mode) ----
@@ -296,7 +304,7 @@ export class Shell {
             title: "Block cells — no SVGs allowed",
             onClick: () => this.store.set({ tool: "block", contextPanel: "block" }),
           }),
-          this.ctxBtn("Noise", "noise", s, "Noise mask: fill / erase"),
+          this.ctxBtn("Noise", "noise", s, "Noise stencil mask"),
           this.sep(),
           this.ctxBtn("Shapes", "shapes", s),
           this.ctxBtn("Colors", "colors", s),
@@ -442,42 +450,32 @@ export class Shell {
       else morphResize(this.toolboxEl, () => this.buildToolbox(s));
     }
 
-    // The "above the toolbox" slot holds either a context panel or the brush
-    // bar (Draw/Erase painting), never both. Animate transitions between them:
-    // the leaving box fades out + collapses, the arriving box grows + fades in.
+    // Context panel — morphs in its own slot, independent of the brush bar.
     const open = s.contextPanel;
     const prev = this.prevOpen;
     this.prevOpen = open;
-    const showBrush =
-      s.mode === "draw" && (s.tool === "draw" || s.tool === "erase") && open === null;
-    const brushShown = !this.brushBarEl.classList.contains("hidden");
-    const setBrush = () => this.brushBarEl.classList.toggle("hidden", !showBrush);
-
     if (prev === undefined || prev === open) {
-      // First sync (no animation on load), or unchanged context. Brush bar may
-      // still toggle (Draw↔Erase keep it; Pan hides it) — instant either way.
-      this.applyContext(s);
-      setBrush();
+      this.applyContext(s); // first sync (no anim) or unchanged
     } else if (open == null) {
-      // Context → closed: collapse the panel, THEN grow the brush bar in (if it
-      // shows). Sequenced so the two boxes are never on screen together.
-      morphClose(this.contextEl, () => this.applyContext(s), () => {
-        if (showBrush) morphOpen(this.brushBarEl, () => this.brushBarEl.classList.remove("hidden"));
-      });
+      morphClose(this.contextEl, () => this.applyContext(s));
     } else if (prev == null) {
-      // Closed → context: collapse the brush bar (if shown), THEN grow the panel.
-      if (brushShown) {
-        morphClose(this.brushBarEl, () => this.brushBarEl.classList.add("hidden"), () =>
-          morphOpen(this.contextEl, () => this.applyContext(s)),
-        );
-      } else {
-        morphOpen(this.contextEl, () => this.applyContext(s));
-      }
+      morphOpen(this.contextEl, () => this.applyContext(s));
     } else {
-      // Context → context: morph the box between the two panels' sizes.
       morphResize(this.contextEl, () => this.applyContext(s));
-      setBrush();
     }
+
+    // Brush bar (Brush / Size / Cell) is now PERSISTENT: it sits below any open
+    // context and stays visible whenever the draw/erase brush is active — so the
+    // brush settings are available while Shapes / Colors / Noise are open too.
+    const showBrush = s.mode === "draw" && (s.tool === "draw" || s.tool === "erase");
+    const brushShown = !this.brushBarEl.classList.contains("hidden");
+    if (this.prevBrushShown === undefined) {
+      this.brushBarEl.classList.toggle("hidden", !showBrush); // first sync, no anim
+    } else if (showBrush !== brushShown) {
+      if (showBrush) morphOpen(this.brushBarEl, () => this.brushBarEl.classList.remove("hidden"));
+      else morphClose(this.brushBarEl, () => this.brushBarEl.classList.add("hidden"));
+    }
+    this.prevBrushShown = showBrush;
 
     // Settings box: Grid toggle highlight + cell size. The Play/Pause button
     // shows only while an animation plays outside Animate mode (Animate already

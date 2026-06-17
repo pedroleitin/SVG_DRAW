@@ -79,25 +79,25 @@ body {
   position: absolute;
 }
 
-/* Top-right settings box (sound + theme), styled like the zoom box. */
+/* Top-right settings box (sound + theme) — compact. */
 #topbar {
   top: 14px;
   right: 14px;
-  padding: 10px;
+  padding: 5px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
 }
 
 #topbar button {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: none;
   background: none;
-  border-radius: 10px;
+  border-radius: 16px;
   color: var(--text);
   cursor: pointer;
 }
@@ -754,12 +754,6 @@ body {
   cursor: grabbing;
 }
 
-.mask-preview-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
 .chk {
   display: flex;
   align-items: center;
@@ -1130,6 +1124,16 @@ body {
   fill: #e03131;
   fill-opacity: 0.14;
   stroke: #e03131;
+  stroke-opacity: 0.95;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Noise stencil opening — same look as the Block silhouette, but green. */
+.stencil-shape {
+  fill: #37b24d;
+  fill-opacity: 0.12;
+  stroke: #37b24d;
   stroke-opacity: 0.95;
   stroke-linecap: round;
   stroke-linejoin: round;
