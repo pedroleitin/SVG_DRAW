@@ -910,16 +910,25 @@ body {
 }
 
 /* Always-on brush bar (Draw/Erase): two titled groups in a row. */
-#brush-bar {
+/* Shared Brush/Size/Cell footer inside the context box (below the panel). */
+#ctx-brush {
   display: flex;
   align-items: stretch;
   gap: 14px;
-  padding: 8px 14px;
-  border-radius: 16px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
-#brush-bar.hidden {
+#ctx-brush.hidden {
   display: none;
+}
+
+/* Brush-only box (no panel above): drop the divider. */
+#context.brush-only #ctx-brush {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .brush-group {
@@ -945,13 +954,13 @@ body {
   gap: 10px;
 }
 
-/* Override the slider's stacked-layout bottom margin inside the bar. */
-#brush-bar #brush-size,
-#brush-bar #brush-span {
+/* Override the slider's stacked-layout bottom margin inside the footer. */
+#ctx-brush #brush-size,
+#ctx-brush #brush-span {
   width: 150px;
 }
 
-#brush-bar .rng {
+#ctx-brush .rng {
   margin-bottom: 0;
 }
 
@@ -1376,6 +1385,12 @@ body {
 .morph.is-fading > * {
   opacity: 0;
   pointer-events: none;
+}
+
+/* The shared brush footer persists across context switches — don't fade it. */
+.morph.is-fading > #ctx-brush {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* Clip overflow for the whole morph (no scrollbar flash mid-resize). The

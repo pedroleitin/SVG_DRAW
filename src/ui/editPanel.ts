@@ -1,8 +1,6 @@
 import type { Store } from "../store/store";
 import type { EditOp, SceneState } from "../scene/types";
 import { paletteById } from "../features/palette";
-import { createSlider } from "./widgets";
-import type { SliderHandle } from "./widgets";
 
 /** Vector die (5 pips) for the "random color" swatch. */
 const DICE_ICON = `<svg viewBox="0 0 24 24" fill="none">
@@ -23,7 +21,6 @@ const TARGETS: { op: EditOp; label: string; hint: string }[] = [
  *  divider. Pick an op, then click/drag over canvas items to apply it. */
 export class EditPanel {
   private btns = new Map<EditOp, HTMLButtonElement>();
-  private brushSlider: SliderHandle;
   private swatchHost: HTMLElement;
   private swatchSig = "";
 
@@ -36,7 +33,6 @@ export class EditPanel {
           <div class="edit-row">
             <button class="tool-btn" id="edit-rotate">Rotate</button>
             <button class="tool-btn" id="edit-swap">Swap</button>
-            <div id="edit-brush"></div>
           </div>
         </div>
         <div class="edit-sep"></div>
@@ -61,17 +57,6 @@ export class EditPanel {
       tgtHost.appendChild(b);
     }
 
-    this.brushSlider = createSlider({
-      label: "Brush",
-      min: 1,
-      max: 4,
-      step: 1,
-      value: s.brushSize,
-      format: (v) => String(v),
-      onChange: (v) => this.store.set({ brushSize: v }),
-    });
-    host.querySelector("#edit-brush")!.appendChild(this.brushSlider.el);
-
     this.swatchHost = host.querySelector(".edit-swatches") as HTMLElement;
     this.sync(s);
     store.subscribe((st) => this.sync(st));
@@ -85,7 +70,6 @@ export class EditPanel {
 
   private sync(s: SceneState): void {
     for (const [op, b] of this.btns) b.classList.toggle("active", s.editOp === op);
-    this.brushSlider.setValue(s.brushSize);
 
     const active = paletteById(s.palettes, s.activePaletteId);
     const sig = [s.activePaletteId, JSON.stringify(active.colors)].join("|");

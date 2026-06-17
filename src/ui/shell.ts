@@ -28,6 +28,9 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "export", label: "Export" },
 ];
 
+/** Contexts whose menu carries the shared Brush / Size / Cell footer. */
+const BRUSH_CONTEXTS = new Set<ContextPanel>(["noise", "divider", "seamless", "block", "edit"]);
+
 /** Minimal line icons (inherit currentColor). */
 const SVG = (inner: string) =>
   `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
@@ -59,15 +62,14 @@ export class Shell {
   private playBtn!: HTMLButtonElement;
   private sizeDD?: DropdownHandle;
   private contextEl: HTMLElement;
-  private brushBarEl: HTMLElement;
+  private brushHostEl!: HTMLElement;
   private ctxAboveEl: HTMLElement;
   private statusEl: HTMLElement;
   private zoomEl: HTMLElement;
   private ctxHosts = new Map<string, HTMLElement>();
   private toolboxSig = "";
   private prevToolboxMode: Mode | undefined;
-  private prevOpen: ContextPanel | undefined;
-  private prevBrushShown: boolean | undefined;
+  private prevCtxSig: string | null | undefined;
 
   constructor(
     private store: Store,
@@ -81,7 +83,6 @@ export class Shell {
     this.editsEl = document.getElementById("edits") as HTMLElement;
     this.settingsEl = document.getElementById("settings") as HTMLElement;
     this.contextEl = document.getElementById("context") as HTMLElement;
-    this.brushBarEl = document.getElementById("brush-bar") as HTMLElement;
     this.ctxAboveEl = document.getElementById("ctx-above") as HTMLElement;
     this.statusEl = document.getElementById("status") as HTMLElement;
     this.zoomEl = document.getElementById("zoombox") as HTMLElement;
@@ -178,8 +179,6 @@ export class Shell {
       this.ctxHosts.set(key, div);
       return div;
     };
-    // Brush lives in its own always-on bar, not the toggled context area.
-    new BrushPanel(this.brushBarEl, this.store);
     new GridPanel(make("grid"), this.store);
     new BlockPanel(make("block"), this.store);
     new SeamlessPanel(make("seamless"), this.store, this.history);
@@ -190,6 +189,13 @@ export class Shell {
     new Controls(make("noise"), this.store, library, this.history);
     new AnimPanel(make("animate"), this.store);
     new ExportPanel(make("export"), this.store, library, this.ctxAboveEl);
+
+    // Shared Brush / Size / Cell controls — a footer inside the context box,
+    // shown below the active panel for brush-relevant contexts (and base draw).
+    this.brushHostEl = document.createElement("div");
+    this.brushHostEl.id = "ctx-brush";
+    this.contextEl.appendChild(this.brushHostEl);
+    new BrushPanel(this.brushHostEl, this.store);
   }
 
   /** The context a mode falls back to when you close the current one. Animate &
@@ -413,21 +419,38 @@ export class Shell {
     );
   }
 
-  /** Toggle the context container's layout classes + show the active panel. */
+  /** The Brush/Size/Cell footer shows for brush-relevant contexts (generators)
+   *  and for base draw/erase — but not Shapes/Colors or appearance panels. */
+  private brushVisible(s: SceneState): boolean {
+    if (s.contextPanel && BRUSH_CONTEXTS.has(s.contextPanel)) return true;
+    return (
+      s.contextPanel === null &&
+      (s.mode === "draw" || s.mode === "compose") &&
+      (s.tool === "draw" || s.tool === "erase")
+    );
+  }
+
+  /** Toggle the context container's layout classes + show the active panel and
+   *  the shared brush footer. */
   private applyContext(s: SceneState): void {
     const open = s.contextPanel;
-    this.contextEl.classList.toggle("hidden", open === null);
-    // Some panels use a wider 2-column layout.
-    this.contextEl.classList.toggle(
-      "wide",
-      open === "noise" || open === "export" || open === "animate" || open === "colors",
-    );
+    const brush = this.brushVisible(s);
+    const showCtx = open != null || brush;
+    this.contextEl.classList.toggle("hidden", !showCtx);
+    // Wider 2-column panels. Noise also has 2 columns but carries the footer, so
+    // it fits its content instead (the fixed width would crop the footer).
+    const wide = open === "export" || open === "animate" || open === "colors";
+    this.contextEl.classList.toggle("wide", wide);
     this.contextEl.classList.toggle("anim", open === "animate");
-    // Shapes & Edit size to their content (no scrollbar / fixed width).
-    this.contextEl.classList.toggle("fit", open === "shapes" || open === "edit");
+    // Any non-wide box that carries the brush footer fits its content, so a
+    // small panel doesn't crowd the footer's controls on narrow windows.
+    this.contextEl.classList.toggle("fit", !wide && (brush || open === "shapes"));
+    // Drop the footer's divider when there's no panel above it.
+    this.contextEl.classList.toggle("brush-only", open === null && brush);
     // The output-size pill above the context belongs to Export only.
     this.ctxAboveEl.classList.toggle("hidden", open !== "export");
     for (const [key, host] of this.ctxHosts) host.classList.toggle("hidden", key !== open);
+    this.brushHostEl.classList.toggle("hidden", !brush);
   }
 
   // ---- Reactive sync ----
@@ -450,32 +473,25 @@ export class Shell {
       else morphResize(this.toolboxEl, () => this.buildToolbox(s));
     }
 
-    // Context panel — morphs in its own slot, independent of the brush bar.
+    // Context box (active panel + shared brush footer). It morphs on any change
+    // to what it shows — the panel OR the footer's visibility. The footer is the
+    // same element across brush contexts, so switching among them only swaps the
+    // body above it.
     const open = s.contextPanel;
-    const prev = this.prevOpen;
-    this.prevOpen = open;
-    if (prev === undefined || prev === open) {
-      this.applyContext(s); // first sync (no anim) or unchanged
-    } else if (open == null) {
-      morphClose(this.contextEl, () => this.applyContext(s));
-    } else if (prev == null) {
-      morphOpen(this.contextEl, () => this.applyContext(s));
+    const showCtx = open != null || this.brushVisible(s);
+    const ctxSig = showCtx ? `${open}|${this.brushVisible(s)}` : null;
+    const prev = this.prevCtxSig;
+    this.prevCtxSig = ctxSig;
+    const commit = () => this.applyContext(s);
+    if (prev === undefined || prev === ctxSig) {
+      commit(); // first sync (no anim) or unchanged
+    } else if (ctxSig === null) {
+      morphClose(this.contextEl, commit);
+    } else if (prev === null) {
+      morphOpen(this.contextEl, commit);
     } else {
-      morphResize(this.contextEl, () => this.applyContext(s));
+      morphResize(this.contextEl, commit);
     }
-
-    // Brush bar (Brush / Size / Cell) is now PERSISTENT: it sits below any open
-    // context and stays visible whenever the draw/erase brush is active — so the
-    // brush settings are available while Shapes / Colors / Noise are open too.
-    const showBrush = s.mode === "draw" && (s.tool === "draw" || s.tool === "erase");
-    const brushShown = !this.brushBarEl.classList.contains("hidden");
-    if (this.prevBrushShown === undefined) {
-      this.brushBarEl.classList.toggle("hidden", !showBrush); // first sync, no anim
-    } else if (showBrush !== brushShown) {
-      if (showBrush) morphOpen(this.brushBarEl, () => this.brushBarEl.classList.remove("hidden"));
-      else morphClose(this.brushBarEl, () => this.brushBarEl.classList.add("hidden"));
-    }
-    this.prevBrushShown = showBrush;
 
     // Settings box: Grid toggle highlight + cell size. The Play/Pause button
     // shows only while an animation plays outside Animate mode (Animate already

@@ -81,21 +81,33 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 ## 3. Ferramentas de desenho
 
 - [~] 🔴 **Controles finos de desenhar e apagar** — _parcial._
-  Feito: **Brush** 1–4 (footprint NxN, quadrado/círculo/cruz, centrado no cursor) +
-  **Size** 1–6 (span: cada SVG ocupa N×N células). Brush e Size combinam: Brush =
-  quantos blocos, Size = tamanho de cada (espaçados pelo Size, sem sobrepor). Placement
-  **limpa o que cobre** (sem overlaps) e o arrasto estampa blocos; **Erase** remove
-  qualquer SVG que cubra a célula (ciente de multi-célula); preview/ghost no tamanho do
-  bloco. Respeita zonas bloqueadas.
+  Feito: **Brush** 1–4 (footprint NxN, centrado no cursor) + **Size** 1–6 (span: cada SVG
+  ocupa N×N células). Brush e Size combinam: Brush = quantos blocos, Size = tamanho de
+  cada (espaçados pelo Size, sem sobrepor). Placement **limpa o que cobre** (sem overlaps)
+  e o arrasto estampa blocos; **Erase** remove qualquer SVG que cubra a célula (ciente de
+  multi-célula); preview/ghost no tamanho do bloco. Respeita zonas bloqueadas.
+  O seletor de **formato** (círculo/cruz) está oculto por enquanto — footprint fixo em
+  **quadrado**.
   Falta: densidade do traço, modo "só preencher vazias" vs "sobrescrever", apagar por
   filtro (por asset / por cor).
   - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/scene/grid.ts](src/scene/grid.ts) (`brushCells`/`brushBlocks`), [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/render/renderer.ts](src/render/renderer.ts)
-- [ ] 🔴 **Modo stencil no Noise (pincel de máscara)** — em vez de só "Apply to view",
-  um **brush** que pinta/apaga a máscara de noise na tela com um **brush size**
-  (revela/oculta SVGs pintando, em vez de aplicar a tela inteira).
-  - Liga com o overlay de preview do noise; pintar adiciona/remove células conforme
-    o valor do campo sob o pincel.
-  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/features/placement.ts](src/features/placement.ts) (applyMask), [src/ui/controls.ts](src/ui/controls.ts)
+- [~] 🟡 **Brush/Size como rodapé compartilhado do context** — _parcial._ A barra
+  **Brush / Size / Cell background** virou um **rodapé dentro da caixa do context**,
+  aparecendo nos geradores (Noise/Divider/Seamless/Block/Edit) e no Draw/Erase, e some em
+  Shapes/Colors. Só o corpo do menu muda ao trocar de context; o rodapé persiste. Caixas
+  menores ajustam à largura do rodapé (`fit`) pra não encavalar.
+  Falta: **Brush/Size controlarem a ferramenta ativa** (ex.: no Edit, aplicar-se ao
+  Rotate/Swap/Recolor) e **mostrar só os controles relevantes por context** (ex.: esconder
+  Size/Cell no Block, que é por célula).
+  - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (`brushVisible`/`applyContext`), [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/ui/styles/app.css](src/ui/styles/app.css) (`#ctx-brush`).
+- [x] 🔴 **Modo Stencil no Noise** — _feito._ O Noise virou um **stencil de pintura**:
+  a zona acesa (silhueta **verde** arredondada + pontilhada, estilo Block) é a abertura.
+  O **pincel** só pinta dentro dela (células fora ficam mascaradas) e o **Apply to view**
+  limpa a região e repinta só a abertura (re-estêncila ao trocar o seed). A silhueta
+  aparece enquanto o context do Noise está aberto; sai do Noise → pincel volta a ser livre.
+  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (`litAt`), [src/features/placement.ts](src/features/placement.ts) (`applyMask`), [src/render/renderer.ts](src/render/renderer.ts) (`renderMask`/`.stencil-shape`), [src/ui/controls.ts](src/ui/controls.ts).
+  - Futuro: outros formatos além do Noise como abertura do stencil (imagem, formas), e
+    inverter a máscara.
 - [x] 🟡 **Modo Block (zona bloqueada)** — _feito._ Ferramenta **Block** (entre Erase
   e Noise) marca células onde **não se pode colocar SVG**: o draw pula essas células e
   o noise (`applyMask`) também. Menu de contexto com segmented **Drag** (retângulo
