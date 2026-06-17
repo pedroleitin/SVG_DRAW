@@ -8,6 +8,7 @@ import { makeCamera, zoomOf, zoomAt } from "../scene/camera";
 import { createDropdown } from "./widgets";
 import type { DropdownHandle } from "./widgets";
 import { morphResize, morphOpen, morphClose } from "./morph";
+import type { AudioEngine } from "../features/audio";
 import { BrushPanel } from "./brushPanel";
 import { BlockPanel } from "./blockPanel";
 import { GridPanel } from "./gridPanel";
@@ -39,6 +40,8 @@ const ICONS = {
     `<circle cx="12" cy="12" r="4"/><path d="M12 3v1.6M12 19.4V21M4.6 4.6l1.1 1.1M18.3 18.3l1.1 1.1M3 12h1.6M19.4 12H21M4.6 19.4l1.1-1.1M18.3 5.7l1.1-1.1"/>`,
   ),
   moon: SVG(`<path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/>`),
+  soundOn: SVG(`<polygon points="4 9 8 9 13 4 13 20 8 15 4 15"/><path d="M17 8a5 5 0 0 1 0 8"/><path d="M19.5 5.5a9 9 0 0 1 0 13"/>`),
+  soundOff: SVG(`<polygon points="4 9 8 9 13 4 13 20 8 15 4 15"/><path d="M22 9l-5 6M17 9l5 6"/>`),
 };
 
 const THEME_BG: Record<string, string> = { light: "#f7f5ef", dark: "#111110" };
@@ -69,6 +72,7 @@ export class Shell {
     private history: History,
     library: Library,
     private renderer: Renderer,
+    private audio: AudioEngine,
   ) {
     this.modesEl = document.getElementById("modes") as HTMLElement;
     this.toolboxEl = document.getElementById("toolbox") as HTMLElement;
@@ -82,6 +86,7 @@ export class Shell {
 
     this.buildModes();
     this.buildTheme();
+    this.buildSound();
     this.buildEdits();
     this.buildSettings();
     this.buildStatus();
@@ -124,6 +129,28 @@ export class Shell {
       }
       this.store.set({ bgColor: THEME_BG[next] });
       render();
+      void this.audio.theme(next === "dark");
+    });
+  }
+
+  /** Sound on/off toggle (top-right, left of the theme toggle). */
+  private buildSound(): void {
+    const btn = document.getElementById("sound-toggle") as HTMLButtonElement;
+    const render = () => {
+      btn.innerHTML = this.audio.muted ? ICONS.soundOff : ICONS.soundOn;
+      btn.title = this.audio.muted ? "Sound off" : "Sound on";
+    };
+    render();
+    btn.addEventListener("click", () => {
+      this.audio.setMuted(!this.audio.muted);
+      try {
+        localStorage.setItem("muted", this.audio.muted ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      render();
+      // A little confirmation note when turning sound back on.
+      if (!this.audio.muted) this.audio.note(9);
     });
   }
 

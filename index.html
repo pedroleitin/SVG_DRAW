@@ -22,7 +22,10 @@
       <!-- Floating UI over the full-bleed canvas. Containers are filled by the Shell. -->
       <div id="ui">
         <div id="modes" class="float"></div>
-        <button id="theme-toggle" class="float" title="Toggle theme"></button>
+        <div id="topbar" class="float corner">
+          <button id="sound-toggle" title="Toggle sound"></button>
+          <button id="theme-toggle" title="Toggle theme"></button>
+        </div>
         <div id="dock">
           <div id="ctx-above" class="hidden"></div>
           <div id="context" class="float"></div>

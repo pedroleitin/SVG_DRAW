@@ -75,27 +75,38 @@ body {
 #modes,
 #status,
 #zoombox,
-#theme-toggle {
+#topbar {
   position: absolute;
 }
 
-#theme-toggle {
+/* Top-right settings box (sound + theme), styled like the zoom box. */
+#topbar {
   top: 14px;
   right: 14px;
-  width: 42px;
-  height: 42px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#topbar button {
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: none;
+  background: none;
+  border-radius: 10px;
   color: var(--text);
   cursor: pointer;
 }
 
-#theme-toggle:hover {
+#topbar button:hover {
   background: var(--hover);
 }
 
-#theme-toggle svg {
+#topbar button svg {
   display: block;
 }
 
@@ -1313,7 +1324,7 @@ body {
 .edit-swatch,
 .asset-btn,
 .num-field,
-#theme-toggle {
+#topbar button {
   transition:
     background-color 0.16s cubic-bezier(0.4, 0, 0.2, 1),
     color 0.16s cubic-bezier(0.4, 0, 0.2, 1),
@@ -1332,7 +1343,7 @@ body {
 .swatch-add:active,
 .edit-swatch:active,
 .asset-btn:active,
-#theme-toggle:active {
+#topbar button:active {
   transform: scale(0.93);
 }
 

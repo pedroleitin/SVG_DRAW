@@ -176,9 +176,12 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 ## 6. Áudio
 
-- [ ] ⚪ **Adicionar som** — feedback sonoro (ex.: ao desenhar/apagar) e/ou som
-  generativo ligado à animação. Web Audio API, com mute global.
-  - Referência de abordagem: projeto irmão Grid-o-matic usa Web Audio.
+- [~] ⚪ **Adicionar som** — _parcial._ Web Audio puro (osciladores + envelopes, sem lib,
+  igual ao Grid-o-matic): nota afinada ao **colocar** SVG (pitch segue a célula), sweep no
+  **apagar**, nota no **divider** e no **edit**, e chirp de 2 notas no **theme toggle**.
+  Botão de **mute** ao lado do trocador de tema (preferência persistida).
+  - Arquivos: [src/features/audio.ts](src/features/audio.ts), [src/tools/tools.ts](src/tools/tools.ts), [src/ui/shell.ts](src/ui/shell.ts).
+  - Futuro: som generativo ligado à animação/playback, e volume.
 
 ## 7. Pesquisa / Direção
 

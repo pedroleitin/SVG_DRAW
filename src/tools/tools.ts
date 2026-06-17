@@ -11,6 +11,7 @@ import {
 import { buildInstance, pickAsset } from "../features/placement";
 import { dividerBlocks, blockAt } from "../features/divider";
 import { paletteById } from "../features/palette";
+import type { AudioEngine } from "../features/audio";
 import { screenToWorld, zoomAt, panBy } from "../scene/camera";
 import { worldToCell, brushCells, brushBlocks } from "../scene/grid";
 import { cellKey } from "../scene/types";
@@ -43,6 +44,7 @@ export class InputController {
     private history: History,
     private library: Library,
     private renderer: Renderer,
+    private audio: AudioEngine,
     private onHover?: (col: number, row: number) => void,
   ) {
     const svg = renderer.svg;
@@ -230,7 +232,10 @@ export class InputController {
           }
         }
       }
-      if (changed) this.store.set({ instances });
+      if (changed) {
+        this.store.set({ instances });
+        this.audio.erase();
+      }
       return;
     }
 
@@ -267,7 +272,10 @@ export class InputController {
       this.strokePlaced.push(inst);
       changed = true;
     }
-    if (changed) this.store.set({ instances });
+    if (changed) {
+      this.store.set({ instances });
+      this.audio.note(Math.floor(w.x / cs) + Math.floor(w.y / cs));
+    }
   }
 
   /** Divider brush: fill the subdivision block under the cursor with one SVG
@@ -302,6 +310,7 @@ export class InputController {
     instances[cellKey(b.col, b.row)] = inst;
     this.strokePlaced.push(inst);
     this.store.set({ instances });
+    this.audio.note(b.col + b.row);
   }
 
   /** Block brush: block (or, in Clean mode, un-block) footprint cells, removing
@@ -387,7 +396,10 @@ export class InputController {
         changed = true;
       }
     }
-    if (changed) this.store.set({ instances });
+    if (changed) {
+      this.store.set({ instances });
+      this.audio.note(Math.floor(w.x / cs) + Math.floor(w.y / cs));
+    }
   }
 
   /** Restore the originals, then dispatch the edits as one undoable replace. */

@@ -9,6 +9,7 @@ import { FrameController } from "./ui/frameController";
 import { TileFrameController } from "./ui/tileFrameController";
 import { AnimationEngine } from "./anim/engine";
 import { loadUserAssets } from "./store/persistence";
+import { AudioEngine } from "./features/audio";
 import { STARTER_PALETTES } from "./features/palette";
 import { fitFrame, snapToCell } from "./export/frame";
 import { makeCamera, resizeCamera } from "./scene/camera";
@@ -150,10 +151,21 @@ store.subscribe((state) => {
   }
 });
 
-// Floating UI shell (modes / toolbox / context / status / zoom).
-const shell = new Shell(store, history, library, renderer);
+// Generative UI sound (muted preference persisted, like the theme).
+const audio = new AudioEngine(
+  (() => {
+    try {
+      return localStorage.getItem("muted") === "1";
+    } catch {
+      return false;
+    }
+  })(),
+);
 
-new InputController(store, history, library, renderer, (col, row) => shell.setCoords(col, row));
+// Floating UI shell (modes / toolbox / context / status / zoom).
+const shell = new Shell(store, history, library, renderer, audio);
+
+new InputController(store, history, library, renderer, audio, (col, row) => shell.setCoords(col, row));
 new FrameController(store, renderer);
 new TileFrameController(store, renderer);
 
