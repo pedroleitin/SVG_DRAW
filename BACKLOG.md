@@ -72,6 +72,11 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Arquivos: [src/features/divider.ts](src/features/divider.ts), [src/ui/dividerPanel.ts](src/ui/dividerPanel.ts), [src/scene/geom.ts](src/scene/geom.ts), [src/render/renderer.ts](src/render/renderer.ts), [src/tools/tools.ts](src/tools/tools.ts), [src/features/placement.ts](src/features/placement.ts).
   - Refino futuro: blocos retangulares opcionais, esticar SVG no bloco, preencher com
     cor (Mondrian), e ancorar a subdivisão a uma região fixa.
+- [ ] ⚪ **Divider ciente das zonas bloqueadas** — quando houver **Blocks** ativos, o
+  Divider deveria calcular a subdivisão **em volta da área desenhável** (excluindo as
+  células bloqueadas), em vez de cobrir tudo e deixar espaços vazios/cortados nos blocks.
+  O packing rodaria só sobre as células livres.
+  - Arquivos: [src/features/divider.ts](src/features/divider.ts) (`subdivide` considerar `state.blocked`).
 - [x] 🟡 **Bug Seamless + multi-célula** — _feito._ A `tileFill` virou block-aware: só
   replica blocos que cabem **inteiros** no tile (cópias espaçadas 1 tile, sem overlap);
   blocos que cruzam a borda são descartados (um retângulo único não tem como dar a volta
