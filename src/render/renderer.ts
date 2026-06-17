@@ -9,7 +9,7 @@ import type { AnimOutput } from "../anim/animations";
 import { buildOrderField } from "../anim/order";
 import { instanceGeom, cellBgRect } from "../scene/geom";
 import { brushCells, brushBlocks } from "../scene/grid";
-import { subdivide } from "../features/divider";
+import { dividerBlocks, blockAt } from "../features/divider";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 const EMPTY_ANIM: AnimOutput = {};
@@ -384,6 +384,7 @@ export class Renderer {
     const pt = this.hoverPt;
     const isBlockBrush = !!state && state.tool === "block" && state.blockMode === "brush";
     const isEdit = !!state && state.contextPanel === "edit";
+    const isDivider = !!state && state.contextPanel === "divider";
     const placing = state && (state.tool === "draw" || state.tool === "erase" || isBlockBrush || isEdit);
     if (!state || !pt || !placing) {
       // Fade out in place (kept in the DOM at its last spot; opacity → 0).
@@ -403,13 +404,17 @@ export class Renderer {
     // (Brush × Size); Edit wraps the full item under the cursor (so a 2×2+ glyph
     // highlights at its real size); erase/block show the plain footprint cells.
     const span = Math.max(1, Math.round(state.brushSpan ?? 1));
-    const drawing = !erase && !isBlockBrush && !isEdit;
+    const drawing = !erase && !isBlockBrush && !isEdit && !isDivider;
     const off = Math.floor((span - 1) / 2);
     const bcol = anchor.col - off;
     const brow = anchor.row - off;
     const inset = 3 * px;
     let slots: { col: number; row: number; cw: number; ch: number }[];
-    if (isEdit) {
+    if (isDivider) {
+      // Snap the highlight to the subdivision block under the cursor.
+      const b = blockAt(dividerBlocks(state), anchor.col, anchor.row);
+      slots = b ? [{ col: b.col, row: b.row, cw: b.cw, ch: b.ch }] : [];
+    } else if (isEdit) {
       slots = editHoverSlots(
         state.instances,
         brushCells(pt.cx, pt.cy, state.brushSize, state.brushShape),
@@ -443,7 +448,7 @@ export class Renderer {
     }
 
     // bg + asset ghost preview (only for a single footprint cell), sized to span.
-    const showPreview = state.brushSize <= 1 && !erase && !isBlockBrush && !isEdit;
+    const showPreview = state.brushSize <= 1 && !erase && !isBlockBrush && !isEdit && !isDivider;
     const palette = paletteById(state.palettes, state.activePaletteId);
     if (showPreview && state.activeBgIndex != null) {
       const bgIdx = state.activeBgIndex === "random" ? 0 : state.activeBgIndex;
@@ -482,6 +487,10 @@ export class Renderer {
    *  path is cached against the (immutable) blocked set so playback is cheap. */
   private renderBlocked(state: SceneState): void {
     const { cellSize: cs, blocked } = state;
+    if (!state.showBlockers) {
+      this.blockedShape.style.display = "none";
+      return;
+    }
     const px = state.camera.w / this.hostSize.width;
     if (!this.blockedCache || this.blockedCache.ref !== blocked || this.blockedCache.cs !== cs) {
       this.blockedCache = { ref: blocked, cs, d: blockedRegionPath(blocked, cs, cs * 0.3) };
@@ -735,7 +744,7 @@ export class Renderer {
     const sig = `${minCol},${minRow},${cols},${rows},${state.divider.density},${state.divider.seed}`;
     if (this.dividerCache?.sig !== sig) {
       let d = "";
-      for (const b of subdivide(minCol, minRow, cols, rows, state.divider.density, state.divider.seed)) {
+      for (const b of dividerBlocks(state)) {
         const x = b.col * cs;
         const y = b.row * cs;
         d += `M${x} ${y}h${b.cw * cs}v${b.ch * cs}h${-b.cw * cs}Z`;

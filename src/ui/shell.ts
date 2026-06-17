@@ -52,6 +52,7 @@ export class Shell {
   private toolboxEl: HTMLElement;
   private editsEl: HTMLElement;
   private settingsEl: HTMLElement;
+  private gridBtn!: HTMLButtonElement;
   private sizeDD?: DropdownHandle;
   private contextEl: HTMLElement;
   private brushBarEl: HTMLElement;
@@ -180,10 +181,6 @@ export class Shell {
     return b;
   }
 
-  private toolBtn(label: string, tool: ToolId, s: SceneState, title?: string): HTMLButtonElement {
-    return this.btn(label, { title, active: s.tool === tool, onClick: () => this.store.set({ tool }) });
-  }
-
   private ctxBtn(label: string, key: Exclude<ContextPanel, null>, s: SceneState, title?: string): HTMLButtonElement {
     return this.btn(label, { title, active: s.contextPanel === key, onClick: () => this.toggleContext(key) });
   }
@@ -203,9 +200,14 @@ export class Shell {
     );
   }
 
-  /** Cell size + Clear — a separate floating box right of the toolbox. */
+  /** Grid + cell size + Clear — a separate floating box right of the toolbox. */
   private buildSettings(): void {
     this.settingsEl.innerHTML = "";
+    // Grid appearance toggle (global) — first button.
+    this.gridBtn = this.btn("Grid", {
+      title: "Grid & cell appearance",
+      onClick: () => this.toggleContext("grid"),
+    });
     const clear = this.btn("Clear", {
       title: "Clear all",
       onClick: () => {
@@ -218,7 +220,7 @@ export class Shell {
       (v) => this.store.set({ cellSize: Number(v) }),
       { prefix: "Size" },
     );
-    this.settingsEl.append(this.sizeDD.el, clear);
+    this.settingsEl.append(this.gridBtn, this.sizeDD.el, clear);
   }
 
   private buildToolbox(s: SceneState): void {
@@ -269,8 +271,6 @@ export class Shell {
           }),
           this.ctxBtn("Divider", "divider", s, "Recursive subdivision"),
           this.ctxBtn("Edit", "edit", s, "Edit items: rotate / swap / recolor"),
-          this.sep(),
-          this.ctxBtn("Grid", "grid", s, "Grid & cell appearance"),
         );
         break;
       }
@@ -281,7 +281,13 @@ export class Shell {
             active: playing,
             onClick: () => this.store.set({ animation: { ...s.animation, playing: !playing } }),
           }),
-          this.toolBtn("Order", "path", s, "Draw reveal order: START→FINISH"),
+          this.btn("Order", {
+            // Arm the path tool AND switch the order to "draw path" (free) so the
+            // combobox stays in sync.
+            active: s.tool === "path",
+            title: "Draw reveal order: START→FINISH",
+            onClick: () => this.store.set({ tool: "path", animation: { ...s.animation, order: "free" } }),
+          }),
         );
         break;
       }
@@ -417,7 +423,8 @@ export class Shell {
       setBrush();
     }
 
-    // Pan + zoom.
+    // Settings box: Grid toggle highlight + cell size.
+    this.gridBtn.classList.toggle("active", s.contextPanel === "grid");
     this.sizeDD?.setValue(String(s.cellSize));
     this.zoomEl.querySelector("#sh-pan")!.classList.toggle("active", s.tool === "pan");
     const zl = this.zoomEl.querySelector("#sh-zlabel");

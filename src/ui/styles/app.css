@@ -491,7 +491,17 @@ body {
 
 .asset-list {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+/* Divider between the Random tile and the shape library. */
+.asset-sep {
+  flex-shrink: 0;
+  align-self: stretch;
+  width: 1px;
+  background: var(--line);
+  margin: 3px 3px;
 }
 
 .asset-btn {
@@ -530,23 +540,33 @@ body {
   opacity: 1;
 }
 
-.asset-del {
+/* Shared delete badge — sits inside the top-right corner (never clipped by an
+ *  overflow container) and appears on hover. Used by upload shapes + swatches. */
+.del-badge {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 16px;
-  height: 16px;
+  top: 3px;
+  right: 3px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   background: #e03131;
   color: #fff;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 11px;
+  line-height: 15px;
   text-align: center;
+  cursor: pointer;
   display: none;
+  z-index: 2;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
-.asset-btn:hover .asset-del {
+.asset-btn:hover .del-badge,
+.swatch:hover .del-badge {
   display: block;
+}
+
+.del-badge:hover {
+  background: #c92a2a;
 }
 
 /* Upload tile (last in the row): two tiles wide, with a label. */
@@ -634,17 +654,6 @@ body {
   padding: 0;
   background: none;
   cursor: pointer;
-}
-
-.swatch-del {
-  position: absolute;
-  top: 0;
-  right: 1px;
-  font-size: 12px;
-  color: #fff;
-  text-shadow: 0 0 3px #000;
-  cursor: pointer;
-  line-height: 1;
 }
 
 .swatch-add {

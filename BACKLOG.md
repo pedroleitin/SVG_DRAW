@@ -139,6 +139,15 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/anim/order.ts](src/anim/order.ts), [src/render/renderer.ts](src/render/renderer.ts)
   - Refinamentos futuros: editar/limpar caminho, snap, suavização, e decidir o que
     fazer com células muito longe da linha (hoje pegam a projeção mais próxima).
+- [ ] 🟡 **Manter o Play visível ao trocar de modo durante a reprodução** — quando uma
+  animação está tocando e o usuário muda de modo pelo menu superior, exibir o botão
+  **Play/Pause** (mesmo fora do modo Animate) para que dê para controlar a reprodução
+  de qualquer modo.
+  - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (`buildToolbox`/`sync`).
+- [ ] 🟡 **Bug: ligar o Order não troca o combobox de Order** — ao ativar a ferramenta
+  **Order**, o combobox de ordem (no painel Animation) deveria mudar para refletir a
+  ordem livre/desenhada (`free`); hoje fica dessincronizado.
+  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/ui/animPanel.ts](src/ui/animPanel.ts), [src/anim/order.ts](src/anim/order.ts).
 - [ ] 🟡 **Estilo "draw" / wipe (desenho)** — enter/exit por traço (stroke-dashoffset)
   ou wipe/clip que "desenha" o SVG aparecendo. Hoje temos fade/scale/pop/rotate.
   - True line-draw é difícil com `<use>`/`<symbol>` (precisa de pathLength por path);
@@ -160,6 +169,10 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   ou cor fixa; respeita rounded/gutter e vai junto no export.
   Falta: modos de cor dos SVGs (sempre da paleta / sempre cor fixa) independentes do fundo.
   - Arquivos: [src/ui/colorsPanel.ts](src/ui/colorsPanel.ts), [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/features/placement.ts](src/features/placement.ts), [src/render/renderer.ts](src/render/renderer.ts), [src/export/svgExport.ts](src/export/svgExport.ts)
+- [ ] 🟡 **Menu de apoio para o Cell fill** — um menu dedicado para o preenchimento de
+  fundo da célula (cell background): escolher None / Random / cor fixa, e futuros
+  controles (opacidade, modo de cor) num lugar próprio em vez do checkbox no Brush.
+  - Arquivos: [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/ui/colorsPanel.ts](src/ui/colorsPanel.ts), [src/scene/types.ts](src/scene/types.ts).
 
 ## 6. Áudio
 

@@ -48,6 +48,9 @@ export class ShapesPanel {
     const grid = this.root.querySelector(".asset-list") as HTMLElement;
     grid.innerHTML = "";
     grid.appendChild(this.assetButton("random", DICE_ICON, "Random", sel.has("random")));
+    const sep = document.createElement("div");
+    sep.className = "asset-sep";
+    grid.appendChild(sep);
     for (const asset of this.library.all()) {
       grid.appendChild(
         this.assetButton(asset.id, this.preview(asset), asset.name, sel.has(asset.id), asset),
@@ -81,7 +84,7 @@ export class ShapesPanel {
     btn.addEventListener("click", () => this.toggle(id));
     if (asset?.user) {
       const del = document.createElement("span");
-      del.className = "asset-del";
+      del.className = "del-badge";
       del.textContent = "×";
       del.title = "Delete asset";
       del.addEventListener("click", (e) => {

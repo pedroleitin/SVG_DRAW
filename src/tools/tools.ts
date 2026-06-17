@@ -9,6 +9,7 @@ import {
   BlockCells,
 } from "../commands/sceneCommands";
 import { buildInstance, pickAsset } from "../features/placement";
+import { dividerBlocks, blockAt } from "../features/divider";
 import { paletteById } from "../features/palette";
 import { screenToWorld, zoomAt, panBy } from "../scene/camera";
 import { worldToCell, brushCells, brushBlocks } from "../scene/grid";
@@ -202,6 +203,12 @@ export class InputController {
    *  them); Erase removes any SVG covering a touched cell (multi-cell aware). */
   private paint(e: PointerEvent) {
     const state = this.store.get();
+    // Divider context: the brush fills the subdivision block under the cursor
+    // with one SVG spanning the whole block (size adapts to the preview).
+    if (state.contextPanel === "divider" && state.tool !== "erase") {
+      this.paintDivider(e, state);
+      return;
+    }
     const cs = state.cellSize;
     const w = this.worldAt(e);
     const span = Math.max(1, Math.round(state.brushSpan ?? 1));
@@ -261,6 +268,40 @@ export class InputController {
       changed = true;
     }
     if (changed) this.store.set({ instances });
+  }
+
+  /** Divider brush: fill the subdivision block under the cursor with one SVG
+   *  spanning the whole block. Drag to fill several; uses the normal stroke
+   *  buffers so commitStroke coalesces it into one undo step. */
+  private paintDivider(e: PointerEvent, state: SceneState) {
+    const cs = state.cellSize;
+    const w = this.worldAt(e);
+    const col = Math.floor(w.x / cs);
+    const row = Math.floor(w.y / cs);
+    const b = blockAt(dividerBlocks(state), col, row);
+    if (!b) return;
+    const originKey = cellKey(b.col, b.row);
+    if (this.strokeCells.has(originKey)) return; // block already filled this stroke
+    // Skip if any of the block's cells is blocked.
+    for (let y = b.row; y < b.row + b.ch; y++) {
+      for (let x = b.col; x < b.col + b.cw; x++) {
+        if (state.blocked[cellKey(x, y)]) return;
+      }
+    }
+    const instances = { ...state.instances };
+    // Clear whatever the block covers, then place the spanning SVG.
+    for (const k of instancesInRect(instances, b.col, b.row, b.cw, b.ch)) {
+      const inst = instances[k];
+      if (inst) {
+        delete instances[k];
+        this.strokeErased.push(inst);
+      }
+    }
+    this.strokeCells.add(originKey);
+    const inst = buildInstance(state, this.library, b.col, b.row, b.cw, b.ch);
+    instances[cellKey(b.col, b.row)] = inst;
+    this.strokePlaced.push(inst);
+    this.store.set({ instances });
   }
 
   /** Block brush: block (or, in Clean mode, un-block) footprint cells, removing

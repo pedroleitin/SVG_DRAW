@@ -4,22 +4,10 @@ import type { History } from "../commands/command";
 import type { SceneState } from "../scene/types";
 import { ApplyMaskCommand } from "../commands/sceneCommands";
 import { buildInstance } from "../features/placement";
-import { subdivide } from "../features/divider";
-import { visibleCellRange } from "../scene/grid";
+import { dividerRegion, dividerBlocks } from "../features/divider";
 import { cellKey } from "../scene/types";
 import { createSlider } from "./widgets";
 import type { SliderHandle } from "./widgets";
-
-/** Region (in cells) the Divider works on: the visible range, capped. */
-function dividerRegion(s: SceneState) {
-  const r = visibleCellRange(s.camera, s.cellSize, 0);
-  return {
-    minCol: r.minCol,
-    minRow: r.minRow,
-    cols: Math.min(80, r.maxCol - r.minCol + 1),
-    rows: Math.min(80, r.maxRow - r.minRow + 1),
-  };
-}
 
 /** Compose "Divider": recursively splits the view into rectangular blocks
  *  (live preview) and Apply fills each block with a scaled SVG. */
@@ -71,7 +59,7 @@ export class DividerPanel {
   private apply(): void {
     const s = this.store.get();
     const { minCol, minRow, cols, rows } = dividerRegion(s);
-    const blocks = subdivide(minCol, minRow, cols, rows, s.divider.density, s.divider.seed);
+    const blocks = dividerBlocks(s);
 
     const blockedHit = (col: number, row: number, cw: number, ch: number): boolean => {
       for (let y = row; y < row + ch; y++) {

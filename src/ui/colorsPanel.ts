@@ -141,7 +141,7 @@ export class ColorsPanel {
       wrap.appendChild(input);
       if (active.colors.length > 1) {
         const del = document.createElement("span");
-        del.className = "swatch-del";
+        del.className = "del-badge";
         del.textContent = "×";
         del.addEventListener("click", (e) => {
           e.stopPropagation();

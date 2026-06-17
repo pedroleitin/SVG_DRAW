@@ -109,6 +109,8 @@ export interface SceneState {
   cellSize: number;
   /** Show the dot grid on the canvas. */
   showGrid: boolean;
+  /** Show the blocked-cells overlay (the Block tool's red zones). */
+  showBlockers: boolean;
   /** Selected brush asset ids — a random one is placed per cell. The special
    *  id "random" (or an empty list) means "any shape from the library". */
   brushAssets: string[];

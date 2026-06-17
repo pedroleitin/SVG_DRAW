@@ -39,6 +39,7 @@ const initial: SceneState = {
   tool: "draw",
   cellSize: 64,
   showGrid: true,
+  showBlockers: true,
   brushAssets: ["random"],
   brushSize: 1,
   brushSpan: 1,

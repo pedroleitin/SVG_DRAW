@@ -1,4 +1,6 @@
 import { Simplex } from "./noise";
+import { visibleCellRange } from "../scene/grid";
+import type { SceneState } from "../scene/types";
 
 /** A square block of cells (origin + span; cw === ch). */
 export interface Block {
@@ -6,6 +8,32 @@ export interface Block {
   row: number;
   cw: number;
   ch: number;
+}
+
+/** Cell region the Divider works on: the visible range, capped to 80×80. */
+export function dividerRegion(s: SceneState) {
+  const r = visibleCellRange(s.camera, s.cellSize, 0);
+  return {
+    minCol: r.minCol,
+    minRow: r.minRow,
+    cols: Math.min(80, r.maxCol - r.minCol + 1),
+    rows: Math.min(80, r.maxRow - r.minRow + 1),
+  };
+}
+
+/** Blocks for the current view (single source of truth for preview / apply /
+ *  brush, so they always agree). */
+export function dividerBlocks(s: SceneState): Block[] {
+  const { minCol, minRow, cols, rows } = dividerRegion(s);
+  return subdivide(minCol, minRow, cols, rows, s.divider.density, s.divider.seed);
+}
+
+/** The block covering cell (col,row), or null. */
+export function blockAt(blocks: Block[], col: number, row: number): Block | null {
+  for (const b of blocks) {
+    if (col >= b.col && col < b.col + b.cw && row >= b.row && row < b.row + b.ch) return b;
+  }
+  return null;
 }
 
 /** Subdivide a cell region into varied-size SQUARE blocks. A noise field gives

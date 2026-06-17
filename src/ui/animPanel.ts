@@ -40,17 +40,17 @@ export class AnimPanel {
     // "free" is the hand-drawn path mode — show it as "draw path".
     this.addSelect(selHost, "order", "Order", ORDER_MODES, { free: "draw path" });
     this.addSelect(selHost, "direction", "Dir", DIRECTIONS);
-    this.addSelect(selHost, "enter", "Enter", ENTER_EXITS);
-    this.addSelect(selHost, "exit", "Exit", ENTER_EXITS);
+    this.addSelect(selHost, "enter", "Intro", ENTER_EXITS);
+    this.addSelect(selHost, "exit", "Outro", ENTER_EXITS);
     this.addSelect(selHost, "playback", "Playback", PLAYBACK_MODES);
     this.addSelect(selHost, "idle", "Idle", IDLE_IDS);
 
     const slHost = panel.querySelector("#anim-sliders")!;
     this.addSlider(slHost, "speed", "Speed", 0.1, 3, 0.05);
     this.addSlider(slHost, "spread", "Spread", 0, 6, 0.1);
-    this.addSlider(slHost, "enterDur", "Enter dur", 0, 3, 0.05);
+    this.addSlider(slHost, "enterDur", "Intro dur", 0, 3, 0.05);
     this.addSlider(slHost, "hold", "Hold", 0, 5, 0.1);
-    this.addSlider(slHost, "exitDur", "Exit dur", 0, 3, 0.05);
+    this.addSlider(slHost, "exitDur", "Outro dur", 0, 3, 0.05);
     this.addSlider(slHost, "idleAmount", "Idle amt", 0, 1, 0.01);
 
     this.sync(store.get());

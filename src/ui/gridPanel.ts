@@ -7,6 +7,7 @@ export class GridPanel {
   private roundedChk: HTMLInputElement;
   private gutterChk: HTMLInputElement;
   private showChk: HTMLInputElement;
+  private blockersChk: HTMLInputElement;
 
   constructor(host: HTMLElement, private store: Store) {
     host.innerHTML = `
@@ -15,6 +16,7 @@ export class GridPanel {
         <label class="chk"><input type="checkbox" id="grid-rounded" /> Rounded cells</label>
         <label class="chk"><input type="checkbox" id="grid-gutter" /> Gutter</label>
         <label class="chk"><input type="checkbox" id="grid-show" /> Show grid</label>
+        <label class="chk"><input type="checkbox" id="grid-blockers" /> Show blockers</label>
       </div>`;
 
     this.roundedChk = host.querySelector("#grid-rounded") as HTMLInputElement;
@@ -27,6 +29,10 @@ export class GridPanel {
     );
     this.showChk = host.querySelector("#grid-show") as HTMLInputElement;
     this.showChk.addEventListener("change", () => this.store.set({ showGrid: this.showChk.checked }));
+    this.blockersChk = host.querySelector("#grid-blockers") as HTMLInputElement;
+    this.blockersChk.addEventListener("change", () =>
+      this.store.set({ showBlockers: this.blockersChk.checked }),
+    );
 
     this.sync(store.get());
     store.subscribe((s) => this.sync(s));
@@ -36,5 +42,6 @@ export class GridPanel {
     this.roundedChk.checked = s.cellRounded;
     this.gutterChk.checked = s.cellGutter;
     this.showChk.checked = s.showGrid;
+    this.blockersChk.checked = s.showBlockers;
   }
 }
