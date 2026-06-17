@@ -21,8 +21,17 @@ export type StencilType = "noise" | "stripes" | "image" | "text";
 
 export interface StencilParams {
   type: StencilType;
+  /** Lock the pattern to the viewport (pans with the screen) instead of world. */
+  lock: boolean;
   /** Diagonal zebra stripes: angle (deg), period (cells), lit fraction (0..1). */
   stripes: { angle: number; period: number; ratio: number };
+  /** Uploaded image read as B/W. `box` is the world cell region it covers
+   *  (captured on upload); the pixels live in a module cache, not in state. */
+  image: {
+    box: { col: number; row: number; cols: number; rows: number } | null;
+    threshold: number;
+    invert: boolean;
+  };
 }
 
 /** Edit operation applied to the instance under the cursor (Compose → Edit). */

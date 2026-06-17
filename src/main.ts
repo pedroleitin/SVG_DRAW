@@ -71,7 +71,9 @@ const initial: SceneState = {
   },
   stencil: {
     type: "noise",
+    lock: false,
     stripes: { angle: 45, period: 4, ratio: 0.5 },
+    image: { box: null, threshold: 0.5, invert: false },
   },
   animation: {
     playing: false,

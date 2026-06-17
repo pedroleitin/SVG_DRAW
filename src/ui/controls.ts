@@ -5,7 +5,10 @@ import type { MaskParams, SceneState, StencilType } from "../scene/types";
 import { ApplyMaskCommand } from "../commands/sceneCommands";
 import { applyMask } from "../features/placement";
 import { maskField, sampleMask } from "../features/noise";
+import { setStencilImage, hasStencilImage, sampleStencilLum } from "../features/stencilImage";
+import { fitBox } from "../features/stencil";
 import { visibleCellRange } from "../scene/grid";
+import { morphResize } from "./morph";
 import { createSlider } from "./widgets";
 import type { SliderHandle } from "./widgets";
 
@@ -39,11 +42,20 @@ const STRIPE_SLIDERS: SliderDef<StripeKey>[] = [
   { key: "ratio", label: "Lit", min: 0.1, max: 0.9, step: 0.05, format: pct },
 ];
 
+const IMAGE_THRESHOLD: SliderDef<"threshold"> = {
+  key: "threshold",
+  label: "Threshold",
+  min: 0,
+  max: 1,
+  step: 0.01,
+  format: pct,
+};
+
 /** Stencil sources (Image / Text are placeholders until wired up). */
 const SOURCES: { type: StencilType; label: string; soon?: boolean }[] = [
   { type: "noise", label: "Noise" },
   { type: "stripes", label: "Stripes" },
-  { type: "image", label: "Image", soon: true },
+  { type: "image", label: "Image" },
   { type: "text", label: "Text", soon: true },
 ];
 
@@ -56,10 +68,18 @@ export class Controls {
   private maskSliders = new Map<MaskKey, SliderHandle>();
   private stripeSliders = new Map<StripeKey, SliderHandle>();
   private srcBtns = new Map<StencilType, HTMLButtonElement>();
+  private imgThreshold!: SliderHandle;
+  private imgInvert!: HTMLInputElement;
+  private imgDrop!: HTMLElement;
+  private imgCanvas!: HTMLCanvasElement;
+  private lockChk!: HTMLInputElement;
   private noiseEl!: HTMLElement;
   private stripesEl!: HTMLElement;
+  private imageEl!: HTMLElement;
   private reseedEl!: HTMLElement;
   private canvas!: HTMLCanvasElement;
+  private ctxBody: HTMLElement | null;
+  private prevType: StencilType | undefined;
 
   constructor(
     host: HTMLElement,
@@ -87,11 +107,31 @@ export class Controls {
       <div id="src-stripes">
         <div class="sliders" id="stripe-sliders"></div>
       </div>
+      <div id="src-image">
+        <div class="noise-body">
+          <div class="noise-left">
+            <label class="img-drop" id="img-drop" title="Drop an image or click to upload">
+              <input type="file" accept="image/*" hidden />
+              <canvas class="mask-preview img-preview" width="${PREVIEW_RES}" height="${PREVIEW_RES}"></canvas>
+              <span class="img-hint">⬆ Drop image<br>or click</span>
+            </label>
+          </div>
+          <div class="noise-right">
+            <div class="sliders" id="image-sliders"></div>
+            <label class="chk"><span>Invert</span><input type="checkbox" id="img-invert" /></label>
+          </div>
+        </div>
+      </div>
+      <label class="chk stencil-lock"><input type="checkbox" id="stencil-lock" />
+        <span>Lock projection (pan moves the view, the stencil stays put)</span></label>
       <div class="noise-actions">
         <button id="mask-apply">Apply to view</button>
         <button id="mask-reseed">Reseed</button>
       </div>`;
     host.appendChild(panel);
+    // The scrollable body wrapper (parent of this panel) is the morph target
+    // when the source changes — so the box animates its size.
+    this.ctxBody = host.parentElement;
 
     // Source selector.
     const srcHost = panel.querySelector("#stencil-src") as HTMLElement;
@@ -111,6 +151,7 @@ export class Controls {
 
     this.noiseEl = panel.querySelector("#src-noise") as HTMLElement;
     this.stripesEl = panel.querySelector("#src-stripes") as HTMLElement;
+    this.imageEl = panel.querySelector("#src-image") as HTMLElement;
     this.reseedEl = panel.querySelector("#mask-reseed") as HTMLElement;
     this.canvas = panel.querySelector(".mask-preview") as HTMLCanvasElement;
 
@@ -144,6 +185,45 @@ export class Controls {
       stripeHost.appendChild(sl.el);
     }
 
+    // Image source: threshold slider + invert + upload.
+    this.imgThreshold = createSlider({
+      label: IMAGE_THRESHOLD.label,
+      min: IMAGE_THRESHOLD.min,
+      max: IMAGE_THRESHOLD.max,
+      step: IMAGE_THRESHOLD.step,
+      value: this.store.get().stencil.image.threshold,
+      format: IMAGE_THRESHOLD.format!,
+      onChange: (v) => this.setImage({ threshold: v }),
+    });
+    panel.querySelector("#image-sliders")!.appendChild(this.imgThreshold.el);
+    this.imgInvert = panel.querySelector("#img-invert") as HTMLInputElement;
+    this.imgInvert.addEventListener("change", () => this.setImage({ invert: this.imgInvert.checked }));
+    this.imgDrop = panel.querySelector("#img-drop") as HTMLElement;
+    this.imgCanvas = panel.querySelector(".img-preview") as HTMLCanvasElement;
+    const fileInput = this.imgDrop.querySelector("input") as HTMLInputElement;
+    fileInput.addEventListener("change", () => this.loadImage(fileInput.files?.[0] ?? null));
+    // Drag-and-drop onto the preview.
+    ["dragover", "dragenter"].forEach((ev) =>
+      this.imgDrop.addEventListener(ev, (e) => {
+        e.preventDefault();
+        this.imgDrop.classList.add("over");
+      }),
+    );
+    ["dragleave", "drop"].forEach((ev) =>
+      this.imgDrop.addEventListener(ev, (e) => {
+        e.preventDefault();
+        this.imgDrop.classList.remove("over");
+      }),
+    );
+    this.imgDrop.addEventListener("drop", (e) =>
+      this.loadImage((e as DragEvent).dataTransfer?.files?.[0] ?? null),
+    );
+
+    this.lockChk = panel.querySelector("#stencil-lock") as HTMLInputElement;
+    this.lockChk.addEventListener("change", () =>
+      this.store.set({ stencil: { ...this.store.get().stencil, lock: this.lockChk.checked } }),
+    );
+
     this.reseedEl.addEventListener("click", () => this.reseed());
     panel.querySelector("#mask-apply")!.addEventListener("click", () => this.apply());
     this.wirePreviewDrag();
@@ -161,17 +241,66 @@ export class Controls {
     this.store.set({ stencil: { ...st, stripes: { ...st.stripes, [key]: value } } });
   }
 
+  private setImage(patch: Partial<SceneState["stencil"]["image"]>): void {
+    const st = this.store.get().stencil;
+    this.store.set({ stencil: { ...st, image: { ...st.image, ...patch } } });
+  }
+
+  /** Decode the file, place it (aspect-fit) in the current view, and stencil. */
+  private async loadImage(file: File | null): Promise<void> {
+    if (!file) return;
+    const dims = await setStencilImage(file);
+    if (!dims) return;
+    const s = this.store.get();
+    const box = fitBox(s, dims.w / dims.h);
+    this.imgDrop.classList.add("has-image");
+    this.drawImagePreview();
+    this.store.set({ stencil: { ...s.stencil, type: "image", image: { ...s.stencil.image, box } } });
+  }
+
+  /** Grayscale preview of the uploaded image (luminance per pixel). */
+  private drawImagePreview(): void {
+    const ctx = this.imgCanvas.getContext("2d");
+    if (!ctx || !hasStencilImage()) return;
+    const img = ctx.createImageData(PREVIEW_RES, PREVIEW_RES);
+    for (let py = 0; py < PREVIEW_RES; py++) {
+      for (let px = 0; px < PREVIEW_RES; px++) {
+        const g = (sampleStencilLum(px / PREVIEW_RES, py / PREVIEW_RES) * 255) | 0;
+        const o = (py * PREVIEW_RES + px) * 4;
+        img.data[o] = img.data[o + 1] = img.data[o + 2] = g;
+        img.data[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  /** Show only the active source's controls (+ Reseed for Noise). */
+  private applySections(type: StencilType): void {
+    this.noiseEl.classList.toggle("hidden", type !== "noise");
+    this.stripesEl.classList.toggle("hidden", type !== "stripes");
+    this.imageEl.classList.toggle("hidden", type !== "image");
+    this.reseedEl.classList.toggle("hidden", type !== "noise"); // seed is noise-only
+  }
+
   /** Reflect store changes (source, reseed, drag-offset) back into the UI. */
   private sync(s: SceneState): void {
     const type = s.stencil.type;
     for (const [t, b] of this.srcBtns) b.classList.toggle("active", t === type);
-    this.noiseEl.classList.toggle("hidden", type !== "noise");
-    this.stripesEl.classList.toggle("hidden", type !== "stripes");
-    this.reseedEl.classList.toggle("hidden", type !== "noise"); // seed is noise-only
-
     for (const def of MASK_SLIDERS) this.maskSliders.get(def.key)!.setValue(s.mask[def.key]);
     for (const def of STRIPE_SLIDERS) this.stripeSliders.get(def.key)!.setValue(s.stencil.stripes[def.key]);
+    this.imgThreshold.setValue(s.stencil.image.threshold);
+    this.imgInvert.checked = s.stencil.image.invert;
+    this.lockChk.checked = s.stencil.lock;
     if (type === "noise") this.drawPreview(s);
+
+    // Animate the box when the source changes (the sections have different
+    // sizes); otherwise just apply the section visibility.
+    if (this.prevType !== undefined && this.prevType !== type && this.ctxBody) {
+      morphResize(this.ctxBody, () => this.applySections(type));
+    } else {
+      this.applySections(type);
+    }
+    this.prevType = type;
   }
 
   /** Render the fractal mask into the preview canvas (grayscale). */
