@@ -56,6 +56,7 @@ export class Shell {
   private editsEl: HTMLElement;
   private settingsEl: HTMLElement;
   private gridBtn!: HTMLButtonElement;
+  private playBtn!: HTMLButtonElement;
   private sizeDD?: DropdownHandle;
   private contextEl: HTMLElement;
   private brushBarEl: HTMLElement;
@@ -227,10 +228,21 @@ export class Shell {
     );
   }
 
-  /** Grid + cell size + Clear — a separate floating box right of the toolbox. */
+  /** Play + Grid + cell size + Clear — a separate floating box right of the toolbox. */
   private buildSettings(): void {
     this.settingsEl.innerHTML = "";
-    // Grid appearance toggle (global) — first button.
+    // Play/Pause — only shown while an animation is playing outside Animate mode,
+    // so you can pause from any mode. Toggled visible in sync().
+    this.playBtn = this.btn("⏸", {
+      title: "Pause animation",
+      icon: true,
+      onClick: () => {
+        const a = this.store.get().animation;
+        this.store.set({ animation: { ...a, playing: !a.playing } });
+      },
+    });
+    this.playBtn.style.display = "none";
+    // Grid appearance toggle (global).
     this.gridBtn = this.btn("Grid", {
       title: "Grid & cell appearance",
       onClick: () => this.toggleContext("grid"),
@@ -247,7 +259,7 @@ export class Shell {
       (v) => this.store.set({ cellSize: Number(v) }),
       { prefix: "Size" },
     );
-    this.settingsEl.append(this.gridBtn, this.sizeDD.el, clear);
+    this.settingsEl.append(this.playBtn, this.gridBtn, this.sizeDD.el, clear);
   }
 
   private buildToolbox(s: SceneState): void {
@@ -450,8 +462,13 @@ export class Shell {
       setBrush();
     }
 
-    // Settings box: Grid toggle highlight + cell size.
+    // Settings box: Grid toggle highlight + cell size. The Play/Pause button
+    // shows only while an animation plays outside Animate mode (Animate already
+    // has its own Play in the toolbox).
     this.gridBtn.classList.toggle("active", s.contextPanel === "grid");
+    const showPlay = s.animation.playing && s.mode !== "animate";
+    this.playBtn.style.display = showPlay ? "" : "none";
+    this.playBtn.classList.toggle("active", s.animation.playing);
     this.sizeDD?.setValue(String(s.cellSize));
     this.zoomEl.querySelector("#sh-pan")!.classList.toggle("active", s.tool === "pan");
     const zl = this.zoomEl.querySelector("#sh-zlabel");

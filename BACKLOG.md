@@ -143,11 +143,11 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/anim/order.ts](src/anim/order.ts), [src/render/renderer.ts](src/render/renderer.ts)
   - Refinamentos futuros: editar/limpar caminho, snap, suavização, e decidir o que
     fazer com células muito longe da linha (hoje pegam a projeção mais próxima).
-- [ ] 🟡 **Manter o Play visível ao trocar de modo durante a reprodução** — quando uma
-  animação está tocando e o usuário muda de modo pelo menu superior, exibir o botão
-  **Play/Pause** (mesmo fora do modo Animate) para que dê para controlar a reprodução
-  de qualquer modo.
-  - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (`buildToolbox`/`sync`).
+- [x] 🟡 **Manter o Play visível ao trocar de modo durante a reprodução** — _feito._ Com
+  uma animação tocando, ao sair do modo Animate aparece um botão **Pause** na caixa de
+  settings (à esquerda do Grid) para parar a reprodução de qualquer modo; some quando
+  pausa ou ao voltar ao Animate (que já tem o Play no toolbox).
+  - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (`buildSettings`/`sync`).
 - [x] 🟡 **Ligar o Order sincroniza o combobox de Order** — _feito._ Clicar no botão
   **Order** arma a ferramenta de caminho **e** seta a ordem para `free` ("draw path"),
   mantendo o combobox em sincronia (o caminho desenhado também já fixava `free`).
