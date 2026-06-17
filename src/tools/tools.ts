@@ -10,7 +10,7 @@ import {
 } from "../commands/sceneCommands";
 import { buildInstance, pickAsset } from "../features/placement";
 import { dividerBlocks, blockAt } from "../features/divider";
-import { maskField, sampleMask } from "../features/noise";
+import { stencilLit } from "../features/stencil";
 import { paletteById } from "../features/palette";
 import type { AudioEngine } from "../features/audio";
 import { screenToWorld, zoomAt, panBy } from "../scene/camera";
@@ -240,13 +240,10 @@ export class InputController {
       return;
     }
 
-    // While the Noise stencil is open, the brush may only paint inside the lit
-    // (green) opening — cells outside it are masked off. The green silhouette is
-    // always shown there, so the constraint doesn't depend on "Show preview".
-    const stencil = state.contextPanel === "noise";
-    const field = stencil ? maskField(state.mask.seed) : null;
-    const litAt = (col: number, row: number): boolean =>
-      !field || sampleMask(field, col, row, state.mask) >= state.mask.threshold;
+    // While the Stencil is open, the brush may only paint inside the lit (green)
+    // opening — cells outside it are masked off.
+    const lit = state.contextPanel === "stencil" ? stencilLit(state) : null;
+    const litAt = (col: number, row: number): boolean => !lit || lit(col, row);
 
     // DRAW: an N×N footprint (Brush) of span×span blocks (Size). Each block
     // clears what it covers, so placements never overlap.

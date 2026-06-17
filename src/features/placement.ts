@@ -1,7 +1,7 @@
 import type { Instance, SceneState } from "../scene/types";
 import type { Library } from "./library";
 import { mulberry32, hash2, randInt, pick } from "../util/rng";
-import { maskField, sampleMask } from "./noise";
+import { stencilLit } from "./stencil";
 import { visibleCellRange } from "../scene/grid";
 import { cellKey } from "../scene/types";
 
@@ -146,11 +146,10 @@ export function tileFill(state: SceneState): MaskResult {
   return { places, eraseKeys };
 }
 
-/** Apply the fractal mask as a STENCIL over a cell region: the lit (white,
- *  >= threshold) cells are the stencil opening. Apply CLEARS the whole region
- *  and paints only the opening — so lit cells get a fresh SVG and everything
- *  else ends up empty (re-running with a new seed re-stencils cleanly). Pure —
- *  caller wraps the result in one undoable command. */
+/** Apply the active stencil over a cell region: the lit cells are the opening.
+ *  Apply CLEARS the whole region and paints only the opening — so lit cells get
+ *  a fresh SVG and everything else ends up empty (re-running with a new source /
+ *  seed re-stencils cleanly). Pure — caller wraps the result in one command. */
 export function applyMask(
   state: SceneState,
   library: Library,
@@ -159,15 +158,14 @@ export function applyMask(
   maxCol: number,
   maxRow: number,
 ): MaskResult {
-  const field = maskField(state.mask.seed);
+  const lit = stencilLit(state);
   const places: Instance[] = [];
   const eraseKeys: string[] = [];
   for (let row = minRow; row <= maxRow; row++) {
     for (let col = minCol; col <= maxCol; col++) {
       const key = cellKey(col, row);
       if (state.blocked[key]) continue; // never touch blocked cells
-      const lit = sampleMask(field, col, row, state.mask) >= state.mask.threshold;
-      if (lit) {
+      if (lit(col, row)) {
         places.push(buildInstance(state, library, col, row)); // opening → (re)paint
       } else if (state.instances[key]) {
         eraseKeys.push(key); // outside the opening → clear

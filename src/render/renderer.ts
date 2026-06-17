@@ -2,7 +2,7 @@ import type { SceneState, Instance } from "../scene/types";
 import { visibleCellRange } from "../scene/grid";
 import type { Library } from "../features/library";
 import { paletteById, colorAt } from "../features/palette";
-import { maskField, sampleMask } from "../features/noise";
+import { stencilLit } from "../features/stencil";
 import { mapCycleTime, sampleLifecycle } from "../anim/animations";
 import type { AnimOutput } from "../anim/animations";
 import { buildOrderField } from "../anim/order";
@@ -618,18 +618,18 @@ export class Renderer {
    *  Cells outside the opening are masked off (cleared on Apply). */
   private renderMask(state: SceneState): void {
     // The stencil opening (lit cells), traced like the Block overlay — rounded +
-    // dotted, in green. Shown only while the Noise context is open.
-    if (state.contextPanel !== "noise") {
+    // dotted, in green. Shown only while the Stencil context is open.
+    if (state.contextPanel !== "stencil") {
       this.stencilShape.style.display = "none";
       return;
     }
-    const { camera: cam, cellSize, mask } = state;
-    const field = maskField(mask.seed);
+    const { camera: cam, cellSize } = state;
+    const litFn = stencilLit(state);
     const r = visibleCellRange(cam, cellSize, 0);
     const lit: Record<string, true> = {};
     for (let row = r.minRow; row <= r.maxRow; row++) {
       for (let col = r.minCol; col <= r.maxCol; col++) {
-        if (sampleMask(field, col, row, mask) >= mask.threshold) lit[`${col},${row}`] = true;
+        if (litFn(col, row)) lit[`${col},${row}`] = true;
       }
     }
     const px = cam.w / this.hostSize.width;

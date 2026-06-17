@@ -1,7 +1,7 @@
 import type { Store } from "../store/store";
 import type { Library } from "../features/library";
 import type { History } from "../commands/command";
-import type { MaskParams, SceneState } from "../scene/types";
+import type { MaskParams, SceneState, StencilType } from "../scene/types";
 import { ApplyMaskCommand } from "../commands/sceneCommands";
 import { applyMask } from "../features/placement";
 import { maskField, sampleMask } from "../features/noise";
@@ -11,6 +11,7 @@ import type { SliderHandle } from "./widgets";
 
 // Only the numeric mask params get sliders (excludes the boolean `seamless`).
 type MaskKey = Exclude<keyof MaskParams, "seamless">;
+type StripeKey = keyof SceneState["stencil"]["stripes"];
 
 interface SliderDef<K> {
   key: K;
@@ -32,14 +33,32 @@ const MASK_SLIDERS: SliderDef<MaskKey>[] = [
   { key: "threshold", label: "Threshold", min: 0, max: 1, step: 0.01, format: pct },
 ];
 
+const STRIPE_SLIDERS: SliderDef<StripeKey>[] = [
+  { key: "angle", label: "Angle", min: 0, max: 180, step: 5, format: (v) => `${v}°` },
+  { key: "period", label: "Period", min: 2, max: 20, step: 1, format: (v) => String(v) },
+  { key: "ratio", label: "Lit", min: 0.1, max: 0.9, step: 0.05, format: pct },
+];
+
+/** Stencil sources (Image / Text are placeholders until wired up). */
+const SOURCES: { type: StencilType; label: string; soon?: boolean }[] = [
+  { type: "noise", label: "Noise" },
+  { type: "stripes", label: "Stripes" },
+  { type: "image", label: "Image", soon: true },
+  { type: "text", label: "Text", soon: true },
+];
+
 const PREVIEW_RES = 80; // sampled pixels per side
 const PREVIEW_CELLS = 36; // grid cells shown across the preview window
 
-/** Maxon-style fractal-mask controls: white fills, black erases. A live
- *  grayscale preview reflects every slider, the preview is draggable to pan
- *  the field, and an on-canvas overlay shows exactly which cells Apply touches. */
+/** Stencil panel: pick a source (Noise / Stripes / …) that defines the paintable
+ *  opening, tune it, and "Apply to view" stencils it onto the grid. */
 export class Controls {
   private maskSliders = new Map<MaskKey, SliderHandle>();
+  private stripeSliders = new Map<StripeKey, SliderHandle>();
+  private srcBtns = new Map<StencilType, HTMLButtonElement>();
+  private noiseEl!: HTMLElement;
+  private stripesEl!: HTMLElement;
+  private reseedEl!: HTMLElement;
   private canvas!: HTMLCanvasElement;
 
   constructor(
@@ -52,23 +71,49 @@ export class Controls {
     panel.className = "panel";
     panel.id = "mask-panel";
     panel.innerHTML = `
-      <h2>Noise mask</h2>
-      <div class="noise-body">
-        <div class="noise-left">
-          <canvas class="mask-preview" width="${PREVIEW_RES}" height="${PREVIEW_RES}"
-            title="Drag to move the noise"></canvas>
-        </div>
-        <div class="noise-right">
-          <div class="sliders" id="mask-sliders"></div>
-          <div class="noise-actions">
-            <button id="mask-apply">Apply to view</button>
-            <button id="mask-reseed">Reseed</button>
+      <h2>Stencil</h2>
+      <div class="seg stencil-src" id="stencil-src"></div>
+      <div id="src-noise">
+        <div class="noise-body">
+          <div class="noise-left">
+            <canvas class="mask-preview" width="${PREVIEW_RES}" height="${PREVIEW_RES}"
+              title="Drag to move the noise"></canvas>
+          </div>
+          <div class="noise-right">
+            <div class="sliders" id="mask-sliders"></div>
           </div>
         </div>
+      </div>
+      <div id="src-stripes">
+        <div class="sliders" id="stripe-sliders"></div>
+      </div>
+      <div class="noise-actions">
+        <button id="mask-apply">Apply to view</button>
+        <button id="mask-reseed">Reseed</button>
       </div>`;
     host.appendChild(panel);
 
+    // Source selector.
+    const srcHost = panel.querySelector("#stencil-src") as HTMLElement;
+    for (const src of SOURCES) {
+      const b = document.createElement("button");
+      b.className = "seg-btn";
+      b.textContent = src.label;
+      b.disabled = !!src.soon;
+      b.title = src.soon ? `${src.label} — coming soon` : src.label;
+      b.addEventListener("click", () => {
+        if (b.disabled) return;
+        this.store.set({ stencil: { ...this.store.get().stencil, type: src.type } });
+      });
+      this.srcBtns.set(src.type, b);
+      srcHost.appendChild(b);
+    }
+
+    this.noiseEl = panel.querySelector("#src-noise") as HTMLElement;
+    this.stripesEl = panel.querySelector("#src-stripes") as HTMLElement;
+    this.reseedEl = panel.querySelector("#mask-reseed") as HTMLElement;
     this.canvas = panel.querySelector(".mask-preview") as HTMLCanvasElement;
+
     const slHost = panel.querySelector("#mask-sliders")!;
     for (const def of MASK_SLIDERS) {
       const sl = createSlider({
@@ -84,24 +129,49 @@ export class Controls {
       slHost.appendChild(sl.el);
     }
 
+    const stripeHost = panel.querySelector("#stripe-sliders")!;
+    for (const def of STRIPE_SLIDERS) {
+      const sl = createSlider({
+        label: def.label,
+        min: def.min,
+        max: def.max,
+        step: def.step,
+        value: this.store.get().stencil.stripes[def.key],
+        format: def.format ?? ((v) => v.toFixed(2)),
+        onChange: (v) => this.setStripe(def.key, v),
+      });
+      this.stripeSliders.set(def.key, sl);
+      stripeHost.appendChild(sl.el);
+    }
 
+    this.reseedEl.addEventListener("click", () => this.reseed());
     panel.querySelector("#mask-apply")!.addEventListener("click", () => this.apply());
-    panel.querySelector("#mask-reseed")!.addEventListener("click", () => this.reseed());
     this.wirePreviewDrag();
 
     this.sync(this.store.get());
     this.store.subscribe((s) => this.sync(s));
   }
 
-
   private setMask(key: MaskKey, value: number): void {
     this.store.set({ mask: { ...this.store.get().mask, [key]: value } });
   }
 
-  /** Reflect store changes (reseed, drag-offset) back into the UI. */
+  private setStripe(key: StripeKey, value: number): void {
+    const st = this.store.get().stencil;
+    this.store.set({ stencil: { ...st, stripes: { ...st.stripes, [key]: value } } });
+  }
+
+  /** Reflect store changes (source, reseed, drag-offset) back into the UI. */
   private sync(s: SceneState): void {
+    const type = s.stencil.type;
+    for (const [t, b] of this.srcBtns) b.classList.toggle("active", t === type);
+    this.noiseEl.classList.toggle("hidden", type !== "noise");
+    this.stripesEl.classList.toggle("hidden", type !== "stripes");
+    this.reseedEl.classList.toggle("hidden", type !== "noise"); // seed is noise-only
+
     for (const def of MASK_SLIDERS) this.maskSliders.get(def.key)!.setValue(s.mask[def.key]);
-    this.drawPreview(s);
+    for (const def of STRIPE_SLIDERS) this.stripeSliders.get(def.key)!.setValue(s.stencil.stripes[def.key]);
+    if (type === "noise") this.drawPreview(s);
   }
 
   /** Render the fractal mask into the preview canvas (grayscale). */
@@ -149,8 +219,7 @@ export class Controls {
     this.canvas.addEventListener("pointerup", () => (dragging = false));
   }
 
-  /** Stencil the visible region: clear it, then paint the lit (white) opening.
-   *  One undo step. */
+  /** Stencil the visible region: clear it, then paint the lit opening. 1 undo. */
   private apply(): void {
     const s = this.store.get();
     const r = visibleCellRange(s.camera, s.cellSize, 0);

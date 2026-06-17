@@ -16,6 +16,15 @@ export type BrushShape = "square" | "circle";
 /** How the Block tool marks cells: a click-drag rectangle, or a paint brush. */
 export type BlockMode = "drag" | "brush";
 
+/** Stencil source — what defines the paintable "opening" (lit cells). */
+export type StencilType = "noise" | "stripes" | "image" | "text";
+
+export interface StencilParams {
+  type: StencilType;
+  /** Diagonal zebra stripes: angle (deg), period (cells), lit fraction (0..1). */
+  stripes: { angle: number; period: number; ratio: number };
+}
+
 /** Edit operation applied to the instance under the cursor (Compose → Edit). */
 export type EditOp = "rotate" | "swap" | "recolor-item" | "recolor-cell";
 
@@ -28,7 +37,7 @@ export type ContextPanel =
   | "shapes"
   | "colors"
   | "block"
-  | "noise"
+  | "stencil"
   | "seamless"
   | "divider"
   | "edit"
@@ -142,8 +151,10 @@ export interface SceneState {
   /** Selected cell-background color: a palette index, "random" to spread across
    *  the palette per cell, or null for none. */
   activeBgIndex: number | "random" | null;
-  /** Maxon-style fractal stencil mask (lit cells = the paintable opening). */
+  /** Maxon-style fractal noise params (one of the stencil sources). */
   mask: MaskParams;
+  /** Stencil source selection + per-source params (the paintable opening). */
+  stencil: StencilParams;
   /** Global animation settings (time-driven, sampled per frame). */
   animation: AnimationConfig;
   /** Hand-drawn path (world coords) defining the "free" reveal order. */

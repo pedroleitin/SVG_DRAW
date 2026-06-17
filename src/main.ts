@@ -69,6 +69,10 @@ const initial: SceneState = {
     offsetY: 0,
     seamless: false,
   },
+  stencil: {
+    type: "noise",
+    stripes: { angle: 45, period: 4, ratio: 0.5 },
+  },
   animation: {
     playing: false,
     playback: "loop",
