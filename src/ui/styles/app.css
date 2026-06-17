@@ -157,12 +157,23 @@ body {
 }
 
 #context {
-  width: 340px;
   max-width: calc(100vw - 28px);
-  max-height: min(58vh, 540px);
-  overflow-y: auto;
   padding: 16px 18px;
   border-radius: 20px;
+  /* Auto-size to its children (body + footer). The body is the morph target, so
+   *  only it animates size; the box reflows around it and the bottom-anchored
+   *  dock keeps the footer fixed. */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* The panel body is the morph target + the scroll region; the brush footer sits
+ *  below it (outside the scroll) so it's always visible and never animates. */
+#ctx-body {
+  width: 340px;
+  max-height: min(58vh, 480px);
+  overflow-y: auto;
 }
 
 /* Slot above the context, left-aligned (e.g. the Export output-size pill). */
@@ -182,18 +193,19 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Wider, more horizontal layout for Noise and Export contexts. */
-#context.wide {
+/* Wider, more horizontal layouts (width on the body; the box follows). */
+#context.wide #ctx-body {
   width: 560px;
 }
 
-#context.anim {
+#context.anim #ctx-body {
   width: 760px;
 }
 
-/* Shapes: width follows its single row of tiles (no scrollbar). */
-#context.fit {
-  width: max-content;
+/* Fit: the body stretches to the box, which sizes to its content (incl. the
+ *  footer) — so a small panel never crowds the footer's controls. */
+#context.fit #ctx-body {
+  width: auto;
 }
 
 .noise-body,
@@ -993,7 +1005,8 @@ body {
   color: var(--accent-ink);
 }
 
-.seg-btn.disabled {
+.seg-btn.disabled,
+.seg-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
@@ -1271,6 +1284,22 @@ body {
   height: 20px;
 }
 
+/* Stencil source selector (Noise / Stripes / …) + hideable source sections. */
+.stencil-src {
+  display: flex;
+  margin-bottom: 14px;
+}
+
+.stencil-src .seg-btn {
+  flex: 1;
+}
+
+#src-noise.hidden,
+#src-stripes.hidden,
+#mask-reseed.hidden {
+  display: none;
+}
+
 .noise-actions {
   display: flex;
   gap: 8px;
@@ -1387,18 +1416,12 @@ body {
   pointer-events: none;
 }
 
-/* The shared brush footer persists across context switches — don't fade it. */
-.morph.is-fading > #ctx-brush {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* Clip overflow for the whole morph (no scrollbar flash mid-resize). The
- *  #context rule beats its own `overflow-y: auto` (higher specificity). */
+/* Clip overflow during the morph (no scrollbar flash mid-resize). The #ctx-body
+ *  rule beats its own `overflow-y: auto` (higher specificity). */
 .morph {
   overflow: hidden;
 }
-#context.morph {
+#ctx-body.morph {
   overflow: hidden;
 }
 

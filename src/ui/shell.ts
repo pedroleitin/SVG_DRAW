@@ -29,7 +29,7 @@ const MODES: { id: Mode; label: string }[] = [
 ];
 
 /** Contexts whose menu carries the shared Brush / Size / Cell footer. */
-const BRUSH_CONTEXTS = new Set<ContextPanel>(["noise", "divider", "seamless", "block", "edit"]);
+const BRUSH_CONTEXTS = new Set<ContextPanel>(["stencil", "divider", "seamless", "block", "edit"]);
 
 /** Minimal line icons (inherit currentColor). */
 const SVG = (inner: string) =>
@@ -62,6 +62,7 @@ export class Shell {
   private playBtn!: HTMLButtonElement;
   private sizeDD?: DropdownHandle;
   private contextEl: HTMLElement;
+  private ctxBodyEl!: HTMLElement;
   private brushHostEl!: HTMLElement;
   private ctxAboveEl: HTMLElement;
   private statusEl: HTMLElement;
@@ -69,7 +70,8 @@ export class Shell {
   private ctxHosts = new Map<string, HTMLElement>();
   private toolboxSig = "";
   private prevToolboxMode: Mode | undefined;
-  private prevCtxSig: string | null | undefined;
+  private prevCtxShown: boolean | undefined;
+  private prevBodySig: string | null | undefined;
 
   constructor(
     private store: Store,
@@ -171,11 +173,16 @@ export class Shell {
 
   // ---- Context panels ----
   private mountContexts(library: Library): void {
+    // The panels live in a scrollable body; the brush footer sits below it (and
+    // outside the scroll) so it's always visible even when a panel is tall.
+    this.ctxBodyEl = document.createElement("div");
+    this.ctxBodyEl.id = "ctx-body";
+    this.contextEl.appendChild(this.ctxBodyEl);
     const make = (key: string) => {
       const div = document.createElement("div");
       div.className = "ctx-panel";
       div.dataset.ctx = key;
-      this.contextEl.appendChild(div);
+      this.ctxBodyEl.appendChild(div);
       this.ctxHosts.set(key, div);
       return div;
     };
@@ -186,7 +193,7 @@ export class Shell {
     new EditPanel(make("edit"), this.store);
     new ShapesPanel(make("shapes"), this.store, library);
     new ColorsPanel(make("colors"), this.store, this.renderer);
-    new Controls(make("noise"), this.store, library, this.history);
+    new Controls(make("stencil"), this.store, library, this.history);
     new AnimPanel(make("animate"), this.store);
     new ExportPanel(make("export"), this.store, library, this.ctxAboveEl);
 
@@ -310,7 +317,7 @@ export class Shell {
             title: "Block cells — no SVGs allowed",
             onClick: () => this.store.set({ tool: "block", contextPanel: "block" }),
           }),
-          this.ctxBtn("Noise", "noise", s, "Noise stencil mask"),
+          this.ctxBtn("Stencil", "stencil", s, "Stencil: paint inside a mask"),
           this.sep(),
           this.ctxBtn("Shapes", "shapes", s),
           this.ctxBtn("Colors", "colors", s),
@@ -473,24 +480,27 @@ export class Shell {
       else morphResize(this.toolboxEl, () => this.buildToolbox(s));
     }
 
-    // Context box (active panel + shared brush footer). It morphs on any change
-    // to what it shows — the panel OR the footer's visibility. The footer is the
-    // same element across brush contexts, so switching among them only swaps the
-    // body above it.
+    // The context box opens/closes as a whole (morph #context); a panel→panel
+    // switch morphs only the BODY (#ctx-body), so the shared brush footer below
+    // it stays fixed (the bottom-anchored box keeps it in place).
     const open = s.contextPanel;
-    const showCtx = open != null || this.brushVisible(s);
-    const ctxSig = showCtx ? `${open}|${this.brushVisible(s)}` : null;
-    const prev = this.prevCtxSig;
-    this.prevCtxSig = ctxSig;
+    const shown = open != null || this.brushVisible(s);
+    const bodySig = `${open}`;
+    const prevShown = this.prevCtxShown;
+    const prevBody = this.prevBodySig;
+    this.prevCtxShown = shown;
+    this.prevBodySig = shown ? bodySig : null;
     const commit = () => this.applyContext(s);
-    if (prev === undefined || prev === ctxSig) {
-      commit(); // first sync (no anim) or unchanged
-    } else if (ctxSig === null) {
-      morphClose(this.contextEl, commit);
-    } else if (prev === null) {
-      morphOpen(this.contextEl, commit);
+    if (prevShown === undefined) {
+      commit(); // first sync (no anim)
+    } else if (shown && !prevShown) {
+      morphOpen(this.contextEl, commit); // box appears
+    } else if (!shown && prevShown) {
+      morphClose(this.contextEl, commit); // box disappears
+    } else if (shown && prevBody !== bodySig) {
+      morphResize(this.ctxBodyEl, commit); // swap the body; footer stays put
     } else {
-      morphResize(this.contextEl, commit);
+      commit(); // no visual change
     }
 
     // Settings box: Grid toggle highlight + cell size. The Play/Pause button

@@ -54,7 +54,6 @@ export function morphResize(el: HTMLElement, commit: () => void, done?: () => vo
     el.style.width = "";
     el.style.height = "";
     const r1 = el.getBoundingClientRect();
-    // Animate from the old size to the new one.
     el.style.width = `${r0.width}px`;
     el.style.height = `${r0.height}px`;
     void el.offsetWidth;
@@ -63,7 +62,6 @@ export function morphResize(el: HTMLElement, commit: () => void, done?: () => vo
     el.style.height = `${r1.height}px`;
 
     after(SIZE, () => {
-      // Size reached: release the lock and fade the new content in.
       el.classList.remove("is-sizing");
       el.style.width = "";
       el.style.height = "";
