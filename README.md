@@ -1,5 +1,7 @@
 # SVG Grid Generator
 
+![SVG Grid Generator](cover.png)
+
 A browser-based generative tool for filling an infinite grid with random SVG
 shapes, recolored by palette, with draw/erase tools, zoom/pan, and (planned)
 animation + SVG/PNG/MP4 export.
