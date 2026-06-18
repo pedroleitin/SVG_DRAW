@@ -301,9 +301,14 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
     "Halftone source" no painel Export também encaixa nessa cobertura. O toggle virou estado
     (`exportHalftone`) pra os dois painéis dirigirem.
     - Arquivos: [src/features/halftone.ts](src/features/halftone.ts) (`halftoneCoverage`), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts) (`sendToExport`), [src/ui/exportPanel.ts](src/ui/exportPanel.ts) (`fitToCoverage`), [src/scene/types.ts](src/scene/types.ts).
-  - [ ] **Fase B — Play global toca o halftone.** Destravar o preview do painel e dirigir o
-    avanço de frame pelo clock global (`engine`): o **Play** (Animate) toca o halftone na tela
-    em qualquer modo (halftone animado tem prioridade sobre a revelação de cena).
+  - [x] **Fase B — Play global toca o halftone.** O **Play** (global) avança a fonte animada
+    pelo clock do `engine` a cada paint (`advanceHalftone` no renderer: vídeo amostra o próprio
+    clock, GIF mapeia tempo→frame). O preview destravou: aparece na tela quando se está no painel
+    Halftone **ou** quando há fonte animada **tocando** (qualquer modo). O Play do painel virou o
+    Play global (unificado). Halftone animado tem **prioridade**: durante o play a revelação de
+    cena fica estática (`animate = playing && !halftoneIsAnimated()`). Pausar esconde o preview
+    fora do painel.
+    - Arquivos: [src/features/halftone.ts](src/features/halftone.ts) (`advanceHalftone`), [src/render/renderer.ts](src/render/renderer.ts) (gate + advance + prioridade), [src/main.ts](src/main.ts) (play/pause do vídeo), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts) (Play global + uiTick).
   - [ ] **Fase C — Order "Halftone"** (revelar células por luminância/ordem do vídeo).
 - [ ] 🟡 **Overlay de preview da fonte** — mostrar a imagem/vídeo por baixo/por cima
   do grid (com opacidade) como referência enquanto distribui; toggle on/off. (O Halftone já

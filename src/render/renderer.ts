@@ -10,7 +10,13 @@ import { instanceGeom, cellBgRect } from "../scene/geom";
 import type { Box } from "../scene/geom";
 import { brushCells, brushBlocks } from "../scene/grid";
 import { dividerBlocks, blockAt } from "../features/divider";
-import { halftoneInstances, hasHalftoneImage, halftoneImageVersion } from "../features/halftone";
+import {
+  halftoneInstances,
+  hasHalftoneImage,
+  halftoneImageVersion,
+  halftoneIsAnimated,
+  advanceHalftone,
+} from "../features/halftone";
 import { FILL_SCALE } from "../features/placement";
 
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -385,6 +391,8 @@ export class Renderer {
   render(state: SceneState, time = 0): void {
     this.lastState = state;
     this.fillMul = state.cellFill / FILL_SCALE;
+    // Global Play drives an animated Halftone source (video/GIF) on the canvas.
+    if (state.animation.playing && halftoneIsAnimated()) advanceHalftone(time);
     const cam = state.camera;
     this.svg.setAttribute("viewBox", `${cam.x} ${cam.y} ${cam.w} ${cam.h}`);
     this.glideCellShape(state);
@@ -400,9 +408,12 @@ export class Renderer {
     this.renderFrame(state);
   }
 
-  /** Ghost preview of the halftone result while its panel is open. */
+  /** Ghost preview of the halftone result — shown in its panel, or anywhere while
+   *  an animated source is playing (driven by global Play). */
   private renderHalftonePreview(state: SceneState): void {
-    if (state.contextPanel !== "halftone" || !hasHalftoneImage()) {
+    const live =
+      state.contextPanel === "halftone" || (state.animation.playing && halftoneIsAnimated());
+    if (!live || !hasHalftoneImage()) {
       this.htPreviewLayer.style.display = "none";
       this.htPreviewSig = "";
       return;
@@ -889,8 +900,9 @@ export class Renderer {
     const r = visibleCellRange(cam, cellSize, 1);
     const seen = new Set<string>();
 
-    // Lifecycle animation only runs while playing; paused = static scene.
-    const animate = anim.playing;
+    // Lifecycle animation only runs while playing; paused = static scene. An
+    // animated Halftone source takes priority on Play, so the scene stays static.
+    const animate = anim.playing && !halftoneIsAnimated();
     const orderOf = animate ? buildOrderField(state) : null;
     const T = time * anim.speed;
     const tcyc = animate ? mapCycleTime(anim, T) : 0;

@@ -15,10 +15,6 @@ import {
   halftoneCoverage,
   halftoneIsAnimated,
   halftoneIsVideo,
-  halftoneDuration,
-  halftonePlayVideo,
-  halftonePauseVideo,
-  sampleHalftoneCurrentFrame,
   halftonePlayhead,
 } from "../features/halftone";
 
@@ -50,9 +46,7 @@ export class HalftonePanel {
   private scrub: SliderHandle;
   private scrubHost: HTMLElement;
   private playBtn: HTMLButtonElement;
-  private playing = false;
-  private raf = 0;
-  private playStart = 0;
+  private uiRaf = 0;
   private drop: HTMLElement;
   private canvas: HTMLCanvasElement;
 
@@ -195,7 +189,7 @@ export class HalftonePanel {
 
   private async loadSource(file: File | null): Promise<void> {
     if (!file) return;
-    this.stopPlay();
+    this.setPlaying(false);
     const meta = await setHalftoneSource(file);
     if (!meta) return;
     this.drop.classList.add("has-image");
@@ -208,51 +202,34 @@ export class HalftonePanel {
 
   /** Rasterize a new frame at u (0..1) and repaint the live preview. */
   private async scrubTo(u: number): Promise<void> {
-    if (this.playing) this.stopPlay(); // manual scrub takes over playback
+    this.setPlaying(false); // manual scrub takes over playback
     await setHalftoneFrame(u);
     this.drawPreview();
     this.bump();
   }
 
+  /** Play is the GLOBAL animation clock (so the halftone also plays on the canvas
+   *  in any mode); this just toggles it. */
   private togglePlay(): void {
-    if (this.playing) this.stopPlay();
-    else this.startPlay();
+    this.setPlaying(!this.store.get().animation.playing);
   }
 
-  private startPlay(): void {
-    if (this.playing || !halftoneIsAnimated()) return;
-    this.playing = true;
-    this.playStart = performance.now();
-    this.playBtn.textContent = "⏸";
-    document.body.classList.add("ht-playing"); // drop panel blur while it animates
-    halftonePlayVideo();
-    this.raf = requestAnimationFrame(this.tickPlay);
+  private setPlaying(on: boolean): void {
+    const a = this.store.get().animation;
+    if (a.playing !== on) this.store.set({ animation: { ...a, playing: on } });
   }
 
-  private stopPlay(): void {
-    if (!this.playing) return;
-    this.playing = false;
-    cancelAnimationFrame(this.raf);
-    halftonePauseVideo();
-    document.body.classList.remove("ht-playing");
-    this.playBtn.textContent = "▶";
-  }
-
-  /** Advance the source and repaint the preview each frame while playing. */
-  private tickPlay = async (): Promise<void> => {
-    if (!this.playing) return;
-    if (halftoneIsVideo()) {
-      sampleHalftoneCurrentFrame(); // draw the playing video's current frame
-      this.scrub.setValue(halftonePlayhead());
-    } else {
-      const dur = halftoneDuration() || 1;
-      const u = ((performance.now() - this.playStart) / 1000 / dur) % 1;
-      this.scrub.setValue(u);
-      await setHalftoneFrame(u);
+  /** While playing in this panel, keep the scrubber playhead + mini preview live
+   *  (the renderer advances the actual frames off the global clock). */
+  private uiTick = (): void => {
+    const s = this.store.get();
+    if (!(s.animation.playing && halftoneIsAnimated() && s.contextPanel === "halftone")) {
+      this.uiRaf = 0;
+      return;
     }
+    if (halftoneIsVideo()) this.scrub.setValue(halftonePlayhead());
     this.drawPreview();
-    this.bump();
-    if (this.playing) this.raf = requestAnimationFrame(this.tickPlay);
+    this.uiRaf = requestAnimationFrame(this.uiTick);
   };
 
   /** Bump the store so the live preview repaints (pixels live outside state). */
@@ -289,7 +266,7 @@ export class HalftonePanel {
    *  every glyph, Free Form). */
   private async sendToExport(): Promise<void> {
     if (!hasHalftoneImage()) return;
-    this.stopPlay();
+    this.setPlaying(false);
     this.apply(); // bake what's on screen so it shows in Export (preview is panel-only)
     const cov = await halftoneCoverage(this.store.get(), this.library);
     const s = this.store.get();
@@ -307,8 +284,12 @@ export class HalftonePanel {
   }
 
   private sync(s: SceneState): void {
-    // Stop the source playback when the panel is no longer the active context.
-    if (s.contextPanel !== "halftone" && this.playing) this.stopPlay();
+    // Play is global; reflect it on the button and keep the UI tick alive while
+    // playing in this panel (the canvas keeps playing in any mode regardless).
+    this.playBtn.textContent = s.animation.playing ? "⏸" : "▶";
+    if (s.animation.playing && halftoneIsAnimated() && s.contextPanel === "halftone" && !this.uiRaf) {
+      this.uiRaf = requestAnimationFrame(this.uiTick);
+    }
     for (const [m, b] of this.modeBtns) b.classList.toggle("active", m === s.halftone.mode);
     for (const [t, b] of this.targetBtns) b.classList.toggle("active", t === s.halftone.target);
     this.invertChk.checked = s.halftone.invert;

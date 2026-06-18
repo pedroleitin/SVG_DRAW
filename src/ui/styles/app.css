@@ -77,9 +77,7 @@ body {
 /* While animating, backdrop-filter would recomposite the moving scene behind
  *  every panel each frame — drop it for an opaque fallback (toggled in main.ts). */
 body.perf-noblur .float,
-body.perf-noblur .dd-menu,
-body.ht-playing .float,
-body.ht-playing .dd-menu {
+body.perf-noblur .dd-menu {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   background: var(--glass-solid);

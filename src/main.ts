@@ -14,6 +14,7 @@ import { STARTER_PALETTES } from "./features/palette";
 import { fitFrame, snapToCell } from "./export/frame";
 import { makeCamera, resizeCamera } from "./scene/camera";
 import { FILL_SCALE } from "./features/placement";
+import { halftonePlayVideo, halftonePauseVideo } from "./features/halftone";
 import type { SceneState, ToolId } from "./scene/types";
 
 // Apply the saved theme before first paint (avoids a flash).
@@ -170,9 +171,12 @@ store.subscribe((state) => {
   if (state.animation.playing !== prevPlaying) {
     prevPlaying = state.animation.playing;
     document.body.classList.toggle("perf-noblur", state.animation.playing);
-    if (state.animation.playing) engine.play();
-    else {
+    if (state.animation.playing) {
+      engine.play();
+      halftonePlayVideo(); // global Play also plays an animated Halftone source
+    } else {
       engine.pause();
+      halftonePauseVideo();
       paint(engine.now());
     }
   }

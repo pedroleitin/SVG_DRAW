@@ -90,6 +90,7 @@ function disposeSource(): void {
     source.dec.close();
   }
   source = { kind: "still" };
+  lastGifIndex = -1;
 }
 
 /** Seek a <video> to a time and resolve once the frame is ready. */
@@ -240,17 +241,30 @@ export function halftonePauseVideo(): void {
   if (source.kind === "video") source.el.pause();
 }
 
-/** Rasterize the video's current frame (no seek) — for the live playback loop. */
-export function sampleHalftoneCurrentFrame(): void {
-  if (source.kind === "video") drawFrameToImg(source.el, source.w, source.h);
-}
-
 /** Current playhead position 0..1 (video time / duration), else 0. */
 export function halftonePlayhead(): number {
   if (source.kind === "video" && source.duration > 0) {
     return (source.el.currentTime % source.duration) / source.duration;
   }
   return 0;
+}
+
+let lastGifIndex = -1;
+
+/** Advance an animated source to the global animation time (called per render
+ *  frame while playing). Video samples its own clock; GIF maps time → frame
+ *  index and decodes only when it changes. Cheap / no store mutation. */
+export function advanceHalftone(timeSec: number): void {
+  if (source.kind === "video") {
+    drawFrameToImg(source.el, source.w, source.h);
+  } else if (source.kind === "gif") {
+    const u = source.duration > 0 ? (timeSec / source.duration) % 1 : 0;
+    const i = Math.min(source.count - 1, Math.max(0, Math.floor(u * source.count)));
+    if (i !== lastGifIndex) {
+      lastGifIndex = i;
+      void setHalftoneFrame(u);
+    }
+  }
 }
 
 /** Luminance (0..1) at normalized image coords (nearest sample). */
