@@ -7,7 +7,8 @@ import { createSlider } from "./widgets";
 import type { SliderHandle } from "./widgets";
 import { ShapesPanel } from "./shapesPanel";
 import {
-  setHalftoneImage,
+  setHalftoneSource,
+  setHalftoneFrame,
   hasHalftoneImage,
   sampleHalftoneLum,
   halftoneInstances,
@@ -38,6 +39,8 @@ export class HalftonePanel {
   private shapeLumChk: HTMLInputElement;
   private contrast: SliderHandle;
   private sizeSlider: SliderHandle;
+  private scrub: SliderHandle;
+  private scrubHost: HTMLElement;
   private drop: HTMLElement;
   private canvas: HTMLCanvasElement;
 
@@ -54,11 +57,12 @@ export class HalftonePanel {
           <div class="seg stencil-src" id="ht-mode"></div>
           <div class="noise-body">
             <div class="noise-left">
-              <label class="img-drop" id="ht-drop" title="Drop an image or click to upload">
-                <input type="file" accept="image/*" hidden />
+              <label class="img-drop" id="ht-drop" title="Drop an image, GIF or video to upload">
+                <input type="file" accept="image/*,video/*" hidden />
                 <canvas class="mask-preview img-preview" width="${PREVIEW_RES}" height="${PREVIEW_RES}"></canvas>
-                <span class="img-hint">⬆ Drop image<br>or click</span>
+                <span class="img-hint">⬆ Drop image / GIF / video<br>or click</span>
               </label>
+              <div id="ht-scrub" hidden></div>
             </div>
             <div class="noise-right">
               <div class="seg" id="ht-target"></div>
@@ -123,13 +127,26 @@ export class HalftonePanel {
     this.shapeLumChk = host.querySelector("#ht-shapelum") as HTMLInputElement;
     this.shapeLumChk.addEventListener("change", () => this.setHt({ shapeByLum: this.shapeLumChk.checked }));
 
+    // Frame scrubber — only shown for animated sources (video / GIF).
+    this.scrubHost = host.querySelector("#ht-scrub") as HTMLElement;
+    this.scrub = createSlider({
+      label: "Frame",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      value: 0,
+      format: (v) => `${Math.round(v * 100)}%`,
+      onChange: (v) => this.scrubTo(v),
+    });
+    this.scrubHost.appendChild(this.scrub.el);
+
     // Inline Shapes picker (same selection the brush uses).
     new ShapesPanel(host.querySelector("#ht-shapes") as HTMLElement, store, library);
 
     this.drop = host.querySelector("#ht-drop") as HTMLElement;
     this.canvas = host.querySelector(".img-preview") as HTMLCanvasElement;
     const input = this.drop.querySelector("input") as HTMLInputElement;
-    input.addEventListener("change", () => this.loadImage(input.files?.[0] ?? null));
+    input.addEventListener("change", () => this.loadSource(input.files?.[0] ?? null));
     ["dragover", "dragenter"].forEach((ev) =>
       this.drop.addEventListener(ev, (e) => {
         e.preventDefault();
@@ -143,7 +160,7 @@ export class HalftonePanel {
       }),
     );
     this.drop.addEventListener("drop", (e) =>
-      this.loadImage((e as DragEvent).dataTransfer?.files?.[0] ?? null),
+      this.loadSource((e as DragEvent).dataTransfer?.files?.[0] ?? null),
     );
 
     host.querySelector("#ht-apply")!.addEventListener("click", () => this.apply());
@@ -156,13 +173,27 @@ export class HalftonePanel {
     this.store.set({ halftone: { ...this.store.get().halftone, ...patch } });
   }
 
-  private async loadImage(file: File | null): Promise<void> {
+  private async loadSource(file: File | null): Promise<void> {
     if (!file) return;
-    const ok = await setHalftoneImage(file);
-    if (!ok) return;
+    const meta = await setHalftoneSource(file);
+    if (!meta) return;
     this.drop.classList.add("has-image");
+    // Show the frame scrubber for animated sources (video / GIF).
+    this.scrubHost.hidden = !meta.animated;
+    this.scrub.setValue(0);
     this.drawPreview();
-    // Bump the store so the live preview repaints with the new image.
+    this.bump();
+  }
+
+  /** Rasterize a new frame at u (0..1) and repaint the live preview. */
+  private async scrubTo(u: number): Promise<void> {
+    await setHalftoneFrame(u);
+    this.drawPreview();
+    this.bump();
+  }
+
+  /** Bump the store so the live preview repaints (pixels live outside state). */
+  private bump(): void {
     this.store.set({ halftone: { ...this.store.get().halftone } });
   }
 

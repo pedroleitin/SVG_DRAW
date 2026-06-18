@@ -268,6 +268,11 @@ body.perf-noblur .dd-menu {
   flex-wrap: wrap;
 }
 
+/* Frame scrubber sits just under the source preview (animated sources only). */
+#ht-scrub {
+  margin-top: 8px;
+}
+
 /* Even vertical spacing between the target segment, sliders and the checks. */
 .ht-main .noise-right {
   display: flex;

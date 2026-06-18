@@ -44,6 +44,7 @@ export function instanceGeom(
   cellSize: number,
   anim: AnimOutput,
   fillMul = 1,
+  out?: Box,
 ): Box {
   const cw = inst.cw ?? 1;
   const ch = inst.ch ?? 1;
@@ -53,13 +54,14 @@ export function instanceGeom(
   const size = cellSize * Math.min(cw, ch) * inst.scale * fillMul * (anim.scaleMul ?? 1);
   const cx = (inst.col + cw / 2 + inst.dx + (anim.dx ?? 0)) * cellSize;
   const cy = (inst.row + ch / 2 + inst.dy + (anim.dy ?? 0)) * cellSize;
-  return {
-    x: cx - size / 2,
-    y: cy - size / 2,
-    size,
-    cx,
-    cy,
-    rot: inst.rotation + (anim.rotate ?? 0),
-    opacity: anim.opacity ?? 1,
-  };
+  // Reuse the caller's box when given (avoids one alloc per cell per frame).
+  const b = out ?? ({} as Box);
+  b.x = cx - size / 2;
+  b.y = cy - size / 2;
+  b.size = size;
+  b.cx = cx;
+  b.cy = cy;
+  b.rot = inst.rotation + (anim.rotate ?? 0);
+  b.opacity = anim.opacity ?? 1;
+  return b;
 }

@@ -7,6 +7,7 @@ import { mapCycleTime, sampleLifecycle } from "../anim/animations";
 import type { AnimOutput } from "../anim/animations";
 import { buildOrderField } from "../anim/order";
 import { instanceGeom, cellBgRect } from "../scene/geom";
+import type { Box } from "../scene/geom";
 import { brushCells, brushBlocks } from "../scene/grid";
 import { dividerBlocks, blockAt } from "../features/divider";
 import { halftoneInstances, hasHalftoneImage, halftoneImageVersion } from "../features/halftone";
@@ -190,6 +191,9 @@ export class Renderer {
   /** Signature of the inputs the halftone preview depends on — skip the (heavy)
    *  recompute when nothing relevant changed since the last frame. */
   private htPreviewSig = "";
+  /** Reused box for instanceGeom in the hot render loops (avoids per-cell alloc).
+   *  Safe to share: each call fully consumes it before the next. */
+  private scratchBox: Box = { x: 0, y: 0, size: 0, cx: 0, cy: 0, rot: 0, opacity: 1 };
   private pathLayer: SVGGElement;
   private pathLine: SVGPolylineElement;
   private pathStart: SVGTextElement;
@@ -456,7 +460,7 @@ export class Renderer {
           this.htPreviewFg.appendChild(node);
           this.htPreviewNodes[i] = node;
         }
-        const g = instanceGeom(inst, cs, EMPTY_ANIM, this.fillMul);
+        const g = instanceGeom(inst, cs, EMPTY_ANIM, this.fillMul, this.scratchBox);
         node.setAttribute("href", `#sym-${inst.assetId}`);
         node.setAttribute("x", String(g.x));
         node.setAttribute("y", String(g.y));
@@ -1005,7 +1009,7 @@ export class Renderer {
     color: string,
     anim: AnimOutput,
   ): void {
-    const g = instanceGeom(inst, cellSize, anim, this.fillMul);
+    const g = instanceGeom(inst, cellSize, anim, this.fillMul, this.scratchBox);
     // Dirty-check: skip all DOM writes when nothing this node shows changed
     // (e.g. a pan only moves the viewBox; static instances during animation).
     const sig = `${inst.assetId}|${g.x}|${g.y}|${g.size}|${g.rot}|${g.cx}|${g.cy}|${g.opacity}|${color}|${inst.id}`;

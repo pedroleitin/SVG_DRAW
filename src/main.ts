@@ -146,15 +146,28 @@ const engine = new AnimationEngine(paint);
 //     While playing, the engine paints continuously. ---
 let rafQueued = false;
 let prevPlaying = initial.animation.playing;
+// Drop the panels' backdrop-blur while the scene moves behind them (playing, or
+// during pan/zoom) — blur would recomposite every frame. Pan/zoom uses a short
+// idle debounce so it restores once you stop.
+let prevCam = initial.camera;
+let blurIdleTimer = 0;
 store.subscribe((state) => {
   if (state.activePaletteId !== prevPaletteId) {
     prevPaletteId = state.activePaletteId;
     renderer.invalidate();
   }
+  if (state.camera !== prevCam) {
+    prevCam = state.camera;
+    if (!state.animation.playing) {
+      document.body.classList.add("perf-noblur");
+      clearTimeout(blurIdleTimer);
+      blurIdleTimer = window.setTimeout(() => {
+        if (!engine.isPlaying) document.body.classList.remove("perf-noblur");
+      }, 200);
+    }
+  }
   if (state.animation.playing !== prevPlaying) {
     prevPlaying = state.animation.playing;
-    // Drop the panels' backdrop-blur while playing (it recomposites the moving
-    // scene behind every panel each frame).
     document.body.classList.toggle("perf-noblur", state.animation.playing);
     if (state.animation.playing) engine.play();
     else {

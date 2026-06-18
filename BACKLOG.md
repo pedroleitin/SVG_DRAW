@@ -267,8 +267,17 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   Ajusta à view, então **cell size = resolução**; pan/zoom re-resolvem. Instâncias ganharam
   `color` literal pra esconder o glyph no target Cell (transparente).
   - Arquivos: [src/features/halftone.ts](src/features/halftone.ts), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts), [src/render/renderer.ts](src/render/renderer.ts) (`renderHalftonePreview`), [src/scene/types.ts](src/scene/types.ts), [src/features/placement.ts](src/features/placement.ts) (`FILL_SCALE`), [src/export/svgExport.ts](src/export/svgExport.ts).
-  - Futuro: **vídeo** como fonte (reamostrar por frame → halftone animado, liga com `t`/export);
-    cor da imagem por célula; ângulo de trama / CMYK; threshold ajustável.
+  - Futuro: cor da imagem por célula; ângulo de trama / CMYK; threshold ajustável.
+- [~] 🔴 **Vídeo / GIF como fonte (animado + export)** — em incrementos:
+  - [x] **Inc. 1 — fonte de frames.** O dropzone aceita **vídeo** (`<video>` + canvas, seek por
+    frame) e **GIF animado** (`ImageDecoder`/WebCodecs; fallback p/ 1º frame). Um **scrubber
+    "Frame"** (só aparece em fontes animadas) varre os frames e re-amostra ao vivo. Pixels do
+    frame atual vão pro buffer de luminância reaproveitado; `imgVersion` invalida o cache do
+    preview. Já entrega "escolher um frame".
+    - Arquivos: [src/features/halftone.ts](src/features/halftone.ts) (`setHalftoneSource`/`setHalftoneFrame`), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts).
+  - [ ] **Inc. 2 — preview animado ao vivo** (o halftone acompanha o vídeo tocando; playhead +
+    preview em `<canvas>` por perf).
+  - [ ] **Inc. 3 — export animado** (amostra por frame → MP4/PNG-seq via motor de export).
 - [x] 🟡 **Acesso aos Shapes a partir do Halftone** — _feito._ O painel do Halftone embute
   um **picker de Shapes inline** (reusa o `ShapesPanel`, mesma seleção do brush), então dá
   pra trocar os shapes sem sair do modo.
@@ -284,4 +293,24 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 - [ ] Salvar/carregar projetos (estado serializável → JSON / IndexedDB).
 - [ ] Presets compartilháveis via URL (seed + parâmetros).
 - [ ] Atalhos de teclado adicionais e painel de ajuda.
-- [ ] Performance: virtualização e benchmark com muitos SVGs.
+
+## Performance
+
+> _Feito (rápidos + médios):_ blur dos painéis desligado durante play/pan/zoom
+> (`--glass-solid` + `body.perf-noblur`); **cache** do preview do halftone (pula o
+> recompute quando nada muda); **dirty-check** em `applyInstance`/`applyCellBg` (pula
+> `setAttribute` quando o nó não mudou); **reuso do `Box`** em `instanceGeom`.
+
+- [ ] 🔴 **Desenho “falhado” com muitos SVGs** — ao pintar com o mouse, a linha sai com
+  buracos quando há muitos shapes. Causa: cada `pointermove` **clona o mapa inteiro de
+  instâncias** (`{ ...state.instances }` em [tools.ts](src/tools/tools.ts), `paint`) — O(N) por
+  ponto — e o render varre todas as instâncias — O(N) por frame; o navegador então descarta
+  posições intermediárias. Fix: **clonar o mapa uma vez no `pointerdown`** e mutar a mesma
+  referência nos moves (undo já vem dos buffers do `commitStroke`); depois, **render
+  incremental** (aplicar só as células do traço) ligado à virtualização.
+  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (`paint`/`onDown`/`commitStroke`), [src/render/renderer.ts](src/render/renderer.ts) (`renderInstances`).
+- [ ] 🟡 **Preview do Halftone em `<canvas>`** — desacoplar o preview ao vivo do DOM SVG
+  (amostrar → desenhar no canvas; baking pra SVG só no Apply/export). Pré-requisito do
+  halftone de **vídeo/GIF** (frames contínuos sem criar milhares de nós).
+- [ ] 🟡 **Virtualização/benchmark com muitos SVGs** — índice espacial pra `renderInstances`
+  iterar só o range visível em vez de todas as instâncias; medir com cenas densas.

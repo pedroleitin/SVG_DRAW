@@ -17,15 +17,38 @@ interface Sampled {
   w: number;
   h: number;
 }
-let img: Sampled | null = null;
+let img: Sampled | null = null; // current frame's pixels (downscaled)
 let imgVersion = 0;
+
+const SAMPLE_MAX = 320; // longest side of the luminance buffer
+
+/** A still image, a <video>, or an animated GIF (decoded via WebCodecs). The
+ *  current frame is rasterized into `img` for luminance sampling. */
+type Source =
+  | { kind: "still" }
+  | { kind: "video"; el: HTMLVideoElement; url: string; duration: number; w: number; h: number }
+  | { kind: "gif"; dec: ImageDecoder; count: number; duration: number; w: number; h: number };
+let source: Source = { kind: "still" };
+
+/** Reused sampling canvas (1 per session) to avoid per-frame allocations. */
+let sampleCanvas: HTMLCanvasElement | null = null;
+let sampleCtx: CanvasRenderingContext2D | null = null;
+
+export interface SourceMeta {
+  w: number;
+  h: number;
+  animated: boolean;
+  /** Frame count for GIFs; 0 for video (time-based scrubbing). */
+  frameCount: number;
+  duration: number; // seconds
+}
 
 export function hasHalftoneImage(): boolean {
   return !!img;
 }
 
-/** Bumped whenever a new image is loaded — lets the live preview cache know the
- *  pixels changed even though they don't live in the serializable state. */
+/** Bumped whenever a new frame is rasterized — lets the live preview cache know
+ *  the pixels changed even though they don't live in the serializable state. */
 export function halftoneImageVersion(): number {
   return imgVersion;
 }
@@ -34,32 +57,137 @@ export function halftoneAspect(): number | null {
   return img ? img.w / img.h : null;
 }
 
-/** Decode + downscale a file (max 320px side) for luminance sampling. */
-export async function setHalftoneImage(file: File): Promise<{ w: number; h: number } | null> {
+export function halftoneIsAnimated(): boolean {
+  return source.kind !== "still";
+}
+
+/** Rasterize a frame into the luminance buffer (downscaled to SAMPLE_MAX). */
+function drawFrameToImg(frame: CanvasImageSource, srcW: number, srcH: number): void {
+  const scale = Math.min(1, SAMPLE_MAX / Math.max(srcW, srcH));
+  const w = Math.max(1, Math.round(srcW * scale));
+  const h = Math.max(1, Math.round(srcH * scale));
+  if (!sampleCanvas) {
+    sampleCanvas = document.createElement("canvas");
+    sampleCtx = sampleCanvas.getContext("2d");
+  }
+  if (sampleCanvas.width !== w || sampleCanvas.height !== h) {
+    sampleCanvas.width = w;
+    sampleCanvas.height = h;
+  }
+  if (!sampleCtx) return;
+  sampleCtx.drawImage(frame, 0, 0, w, h);
+  img = { data: sampleCtx.getImageData(0, 0, w, h).data, w, h };
+  imgVersion++;
+}
+
+/** Release the previous source's resources (video URL / GIF decoder). */
+function disposeSource(): void {
+  if (source.kind === "video") {
+    source.el.src = "";
+    URL.revokeObjectURL(source.url);
+  } else if (source.kind === "gif") {
+    source.dec.close();
+  }
+  source = { kind: "still" };
+}
+
+/** Seek a <video> to a time and resolve once the frame is ready. */
+function seekVideo(el: HTMLVideoElement, t: number): Promise<void> {
+  const target = Math.max(0, Math.min(el.duration || 0, t));
+  if (Math.abs(el.currentTime - target) < 1e-3) return Promise.resolve();
+  return new Promise((res) => {
+    const done = () => {
+      el.removeEventListener("seeked", done);
+      res();
+    };
+    el.addEventListener("seeked", done);
+    el.currentTime = target;
+  });
+}
+
+/** Load a still image, video, or animated GIF and rasterize its first frame.
+ *  Returns metadata (or null on failure). */
+export async function setHalftoneSource(file: File): Promise<SourceMeta | null> {
+  disposeSource();
+
+  // Video — a hidden <video> we seek per frame.
+  if (file.type.startsWith("video/")) {
+    const url = URL.createObjectURL(file);
+    const el = document.createElement("video");
+    el.muted = true;
+    el.playsInline = true;
+    el.preload = "auto";
+    el.src = url;
+    try {
+      await new Promise<void>((res, rej) => {
+        el.onloadeddata = () => res();
+        el.onerror = () => rej(new Error("video decode failed"));
+      });
+    } catch {
+      URL.revokeObjectURL(url);
+      return null;
+    }
+    const w = el.videoWidth || 1;
+    const h = el.videoHeight || 1;
+    const duration = isFinite(el.duration) ? el.duration : 0;
+    await seekVideo(el, 0);
+    drawFrameToImg(el, w, h);
+    source = { kind: "video", el, url, duration, w, h };
+    return { w, h, animated: true, frameCount: 0, duration };
+  }
+
+  // Animated GIF — decode frames via WebCodecs (graceful fallback below).
+  if (file.type === "image/gif" && typeof (window as { ImageDecoder?: unknown }).ImageDecoder !== "undefined") {
+    try {
+      const data = await file.arrayBuffer();
+      const dec = new ImageDecoder({ data, type: "image/gif" });
+      await dec.tracks.ready;
+      const track = dec.tracks.selectedTrack;
+      const count = track?.frameCount ?? 1;
+      const { image } = await dec.decode({ frameIndex: 0 });
+      const w = image.displayWidth;
+      const h = image.displayHeight;
+      const frameDur = (image.duration ?? 100000) / 1e6; // µs → s
+      drawFrameToImg(image, w, h);
+      image.close();
+      source = { kind: "gif", dec, count, duration: frameDur * count, w, h };
+      return { w, h, animated: count > 1, frameCount: count, duration: frameDur * count };
+    } catch {
+      // fall through to still decode
+    }
+  }
+
+  // Still image (also the GIF fallback: just its first frame).
   let bmp: ImageBitmap;
   try {
     bmp = await createImageBitmap(file);
   } catch {
     return null;
   }
-  const max = 320;
-  const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
-  const w = Math.max(1, Math.round(bmp.width * scale));
-  const h = Math.max(1, Math.round(bmp.height * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    bmp.close?.();
-    return null;
-  }
-  ctx.drawImage(bmp, 0, 0, w, h);
-  img = { data: ctx.getImageData(0, 0, w, h).data, w, h };
-  imgVersion++;
+  drawFrameToImg(bmp, bmp.width, bmp.height);
   const dims = { w: bmp.width, h: bmp.height };
   bmp.close?.();
-  return dims;
+  source = { kind: "still" };
+  return { ...dims, animated: false, frameCount: 0, duration: 0 };
+}
+
+/** Rasterize the frame at normalized time u (0..1) of an animated source. */
+export async function setHalftoneFrame(u: number): Promise<void> {
+  const t = Math.max(0, Math.min(1, u));
+  if (source.kind === "video") {
+    await seekVideo(source.el, t * source.duration);
+    drawFrameToImg(source.el, source.w, source.h);
+  } else if (source.kind === "gif") {
+    const i = Math.min(source.count - 1, Math.max(0, Math.floor(t * source.count)));
+    const { image } = await source.dec.decode({ frameIndex: i });
+    drawFrameToImg(image, source.w, source.h);
+    image.close();
+  }
+}
+
+/** Back-compat alias (still images). */
+export async function setHalftoneImage(file: File): Promise<SourceMeta | null> {
+  return setHalftoneSource(file);
 }
 
 /** Luminance (0..1) at normalized image coords (nearest sample). */
