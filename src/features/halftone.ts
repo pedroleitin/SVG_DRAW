@@ -23,12 +23,14 @@ let imgVersion = 0;
 
 const SAMPLE_MAX = 320; // longest side of the luminance buffer
 
-/** A still image, a <video>, or an animated GIF (decoded via WebCodecs). The
+/** A still image, a <video>, an animated GIF (decoded via WebCodecs), or a GIF
+ *  played in a hidden <img> (the Safari fallback — plays but can't seek). The
  *  current frame is rasterized into `img` for luminance sampling. */
 type Source =
   | { kind: "still" }
   | { kind: "video"; el: HTMLVideoElement; url: string; duration: number; w: number; h: number }
-  | { kind: "gif"; dec: ImageDecoder; count: number; duration: number; w: number; h: number };
+  | { kind: "gif"; dec: ImageDecoder; count: number; duration: number; w: number; h: number }
+  | { kind: "gifimg"; el: HTMLImageElement; url: string; w: number; h: number };
 let source: Source = { kind: "still" };
 
 /** Reused sampling canvas (1 per session) to avoid per-frame allocations. */
@@ -42,6 +44,9 @@ export interface SourceMeta {
   /** Frame count for GIFs; 0 for video (time-based scrubbing). */
   frameCount: number;
   duration: number; // seconds
+  /** Whether individual frames can be addressed (scrubber). The <img> GIF
+   *  fallback plays but can't seek, so it shows Play but no scrubber. */
+  seekable: boolean;
 }
 
 export function hasHalftoneImage(): boolean {
@@ -88,6 +93,9 @@ function disposeSource(): void {
     URL.revokeObjectURL(source.url);
   } else if (source.kind === "gif") {
     source.dec.close();
+  } else if (source.kind === "gifimg") {
+    source.el.remove();
+    URL.revokeObjectURL(source.url);
   }
   source = { kind: "still" };
   lastGifIndex = -1;
@@ -135,10 +143,10 @@ export async function setHalftoneSource(file: File): Promise<SourceMeta | null> 
     await seekVideo(el, 0);
     drawFrameToImg(el, w, h);
     source = { kind: "video", el, url, duration, w, h };
-    return { w, h, animated: true, frameCount: 0, duration };
+    return { w, h, animated: true, frameCount: 0, duration, seekable: true };
   }
 
-  // Animated GIF — decode frames via WebCodecs (graceful fallback below).
+  // Animated GIF — decode frames via WebCodecs (frame-accurate, scrubbable).
   if (file.type === "image/gif" && typeof (window as { ImageDecoder?: unknown }).ImageDecoder !== "undefined") {
     try {
       const data = await file.arrayBuffer();
@@ -153,13 +161,35 @@ export async function setHalftoneSource(file: File): Promise<SourceMeta | null> 
       drawFrameToImg(image, w, h);
       image.close();
       source = { kind: "gif", dec, count, duration: frameDur * count, w, h };
-      return { w, h, animated: count > 1, frameCount: count, duration: frameDur * count };
+      return { w, h, animated: count > 1, frameCount: count, duration: frameDur * count, seekable: count > 1 };
     } catch {
-      // fall through to still decode
+      // fall through to the <img> fallback
     }
   }
 
-  // Still image (also the GIF fallback: just its first frame).
+  // GIF without WebCodecs (Safari): play it in a hidden <img> and sample the
+  // current frame — animated (Play works) but not seekable (no scrubber).
+  if (file.type === "image/gif") {
+    const url = URL.createObjectURL(file);
+    const el = new Image();
+    el.src = url;
+    // Render it off-screen so the browser keeps the GIF animating.
+    el.style.cssText = "position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;z-index:-1";
+    try {
+      await el.decode();
+    } catch {
+      URL.revokeObjectURL(url);
+      // fall through to still
+    }
+    if (el.naturalWidth) {
+      document.body.appendChild(el);
+      drawFrameToImg(el, el.naturalWidth, el.naturalHeight);
+      source = { kind: "gifimg", el, url, w: el.naturalWidth, h: el.naturalHeight };
+      return { w: el.naturalWidth, h: el.naturalHeight, animated: true, frameCount: 0, duration: 0, seekable: false };
+    }
+  }
+
+  // Still image (also the final GIF fallback: just its first frame).
   let bmp: ImageBitmap;
   try {
     bmp = await createImageBitmap(file);
@@ -170,7 +200,7 @@ export async function setHalftoneSource(file: File): Promise<SourceMeta | null> 
   const dims = { w: bmp.width, h: bmp.height };
   bmp.close?.();
   source = { kind: "still" };
-  return { ...dims, animated: false, frameCount: 0, duration: 0 };
+  return { ...dims, animated: false, frameCount: 0, duration: 0, seekable: false };
 }
 
 /** Bounding cell box of every cell that lights up across the whole source (all
@@ -188,7 +218,8 @@ export async function halftoneCoverage(
   let minR = Infinity;
   let maxC = -Infinity;
   let maxR = -Infinity;
-  const n = source.kind === "still" ? 1 : Math.max(2, samples);
+  // gifimg can't seek, so coverage uses only the current frame.
+  const n = source.kind === "still" || source.kind === "gifimg" ? 1 : Math.max(2, samples);
   for (let i = 0; i < n; i++) {
     if (n > 1) await setHalftoneFrame(i / (n - 1));
     for (const p of halftoneInstances(state, library, box).places) {
@@ -227,7 +258,7 @@ export function halftoneIsVideo(): boolean {
 }
 
 export function halftoneDuration(): number {
-  return source.kind === "still" ? 0 : source.duration;
+  return source.kind === "video" || source.kind === "gif" ? source.duration : 0;
 }
 
 /** Start/stop the underlying <video> for live playback (no-op for GIF/still). */
@@ -255,7 +286,8 @@ let lastGifIndex = -1;
  *  frame while playing). Video samples its own clock; GIF maps time → frame
  *  index and decodes only when it changes. Cheap / no store mutation. */
 export function advanceHalftone(timeSec: number): void {
-  if (source.kind === "video") {
+  if (source.kind === "video" || source.kind === "gifimg") {
+    // Sample the element's currently-displayed frame (it plays on its own).
     drawFrameToImg(source.el, source.w, source.h);
   } else if (source.kind === "gif") {
     const u = source.duration > 0 ? (timeSec / source.duration) % 1 : 0;

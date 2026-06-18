@@ -281,10 +281,11 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Futuro: cor da imagem por célula; ângulo de trama / CMYK; threshold ajustável.
 - [x] 🔴 **Vídeo / GIF como fonte (animado + export)** — _feito (3 incrementos)._
   - [x] **Inc. 1 — fonte de frames.** O dropzone aceita **vídeo** (`<video>` + canvas, seek por
-    frame) e **GIF animado** (`ImageDecoder`/WebCodecs; fallback p/ 1º frame). Um **scrubber
-    "Frame"** (só aparece em fontes animadas) varre os frames e re-amostra ao vivo. Pixels do
-    frame atual vão pro buffer de luminância reaproveitado; `imgVersion` invalida o cache do
-    preview. Já entrega "escolher um frame".
+    frame) e **GIF animado** (`ImageDecoder`/WebCodecs, frame-accurate + scrubber). **Safari não
+    tem `ImageDecoder`** → fallback: o GIF toca num `<img>` oculto e a gente amostra o frame
+    atual a cada rAF (**Play funciona**, mas **sem scrubber** — não dá seek). Um **scrubber
+    "Frame"** aparece só em fontes **seekable**; pixels do frame atual vão pro buffer de
+    luminância reaproveitado; `imgVersion` invalida o cache do preview.
     - Arquivos: [src/features/halftone.ts](src/features/halftone.ts) (`setHalftoneSource`/`setHalftoneFrame`), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts).
   - [x] **Inc. 2 — preview animado ao vivo.** Botão **play/pause** no scrubber: o halftone
     acompanha a fonte tocando. Vídeo **toca o `<video>`** e desenha o frame atual por rAF (sem

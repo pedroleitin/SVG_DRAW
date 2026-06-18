@@ -193,8 +193,10 @@ export class HalftonePanel {
     const meta = await setHalftoneSource(file);
     if (!meta) return;
     this.drop.classList.add("has-image");
-    // Show the frame scrubber + play for animated sources (video / GIF).
+    // Animated sources get the Play button; the frame scrubber only shows when the
+    // source is seekable (the Safari <img> GIF plays but can't seek).
     this.scrubHost.hidden = !meta.animated;
+    this.scrub.el.style.display = meta.seekable ? "" : "none";
     this.scrub.setValue(0);
     this.drawPreview();
     this.bump();
