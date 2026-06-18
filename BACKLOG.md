@@ -255,8 +255,8 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 ## 9. Imagem / vídeo como fonte (halftone & dithering)
 
-- [~] 🔴 **Dithering / halftone com os SVGs (Compose → Halftone)** — _imagem feito; vídeo
-  pendente._ Botão **Halftone** no Compose: upload de imagem (drag-drop + preview), lida em
+- [x] 🔴 **Dithering / halftone com os SVGs (Compose → Halftone)** — _feito (imagem + vídeo/GIF)._
+  Botão **Halftone** no Compose: upload de imagem (drag-drop + preview), lida em
   luminância por célula, preenchida com os **shapes selecionados** + paleta. Modos:
   **Halftone** (área do shape ∝ tinta), **Bayer** (ordenado on/off) e difusão de erro
   **Floyd–Steinberg**, **Atkinson** e **Jarvis**. **Target** do preenchimento: **Gliph**
@@ -268,7 +268,7 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   `color` literal pra esconder o glyph no target Cell (transparente).
   - Arquivos: [src/features/halftone.ts](src/features/halftone.ts), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts), [src/render/renderer.ts](src/render/renderer.ts) (`renderHalftonePreview`), [src/scene/types.ts](src/scene/types.ts), [src/features/placement.ts](src/features/placement.ts) (`FILL_SCALE`), [src/export/svgExport.ts](src/export/svgExport.ts).
   - Futuro: cor da imagem por célula; ângulo de trama / CMYK; threshold ajustável.
-- [~] 🔴 **Vídeo / GIF como fonte (animado + export)** — em incrementos:
+- [x] 🔴 **Vídeo / GIF como fonte (animado + export)** — _feito (3 incrementos)._
   - [x] **Inc. 1 — fonte de frames.** O dropzone aceita **vídeo** (`<video>` + canvas, seek por
     frame) e **GIF animado** (`ImageDecoder`/WebCodecs; fallback p/ 1º frame). Um **scrubber
     "Frame"** (só aparece em fontes animadas) varre os frames e re-amostra ao vivo. Pixels do
@@ -281,7 +281,12 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
     playback (`body.ht-playing`). Ainda usa o preview SVG — o preview em `<canvas>` segue como
     item de perf.
     - Arquivos: [src/features/halftone.ts](src/features/halftone.ts) (`halftonePlayVideo`/`sampleHalftoneCurrentFrame`/`halftonePlayhead`), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts) (`tickPlay`).
-  - [ ] **Inc. 3 — export animado** (amostra por frame → MP4/PNG-seq via motor de export).
+  - [x] **Inc. 3 — export animado.** Toggle **"Halftone source"** no painel Export (só com
+    fonte animada): os exports **PNG-seq** e **MP4** recebem um `renderFrame` opcional que, por
+    frame, seta a fonte no tempo `t`, roda `halftoneInstances` e emite o SVG do frame. Marcar
+    o toggle ajusta a duração pra 1 passe da fonte. (Dica: o halftone encaixa na **view**, então
+    use **Fit to view** pro frame de export bater com o que se vê.)
+    - Arquivos: [src/export/sequence.ts](src/export/sequence.ts), [src/export/video.ts](src/export/video.ts) (`renderFrame`), [src/ui/exportPanel.ts](src/ui/exportPanel.ts) (`halftoneFrameRenderer`).
 - [x] 🟡 **Acesso aos Shapes a partir do Halftone** — _feito._ O painel do Halftone embute
   um **picker de Shapes inline** (reusa o `ShapesPanel`, mesma seleção do brush), então dá
   pra trocar os shapes sem sair do modo.

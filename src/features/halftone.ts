@@ -3,6 +3,7 @@ import type { Library } from "./library";
 import type { MaskResult } from "./placement";
 import { buildInstance, FILL_SCALE } from "./placement";
 import { fitBox } from "./stencil";
+import type { CellRange } from "./stencil";
 import { cellKey } from "../scene/types";
 
 /** Renders an uploaded image as a grid of the selected SVG shapes — halftone
@@ -254,13 +255,18 @@ const DIFFUSION: Record<"floyd" | "atkinson" | "jarvis", { div: number; k: [numb
   },
 };
 
-/** Build the instances that render the image as shapes, aspect-fit live into the
- *  current view (so cell size / pan / zoom re-resolve it). Clears that region
- *  first (replace), so re-applying re-renders cleanly. Pure. */
-export function halftoneInstances(state: SceneState, library: Library): MaskResult {
+/** Build the instances that render the image as shapes, aspect-fit into a cell
+ *  range (the visible view by default — so cell size / pan / zoom re-resolve it —
+ *  or an explicit `range`, e.g. the export frame). Clears that region first
+ *  (replace), so re-applying re-renders cleanly. Pure. */
+export function halftoneInstances(
+  state: SceneState,
+  library: Library,
+  range?: CellRange,
+): MaskResult {
   const aspect = halftoneAspect();
   if (aspect == null) return { places: [], eraseKeys: [] };
-  const box = fitBox(state, aspect);
+  const box = fitBox(state, aspect, range);
   const { mode, target, invert, contrast, shapeByLum } = state.halftone;
   const { cols, rows } = box;
 

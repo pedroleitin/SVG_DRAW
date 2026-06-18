@@ -10,6 +10,9 @@ export interface SeqOptions {
   duration: number; // seconds
   background?: string | null;
   onProgress?: (done: number, total: number) => void;
+  /** Custom per-frame SVG (e.g. an animated Halftone source). Receives the frame
+   *  time in seconds; defaults to sampling the scene animation. */
+  renderFrame?: (timeSec: number) => string | Promise<string>;
 }
 
 /** Render the animation frame-by-frame (sampling the pure timeline) and bundle
@@ -19,7 +22,7 @@ export async function exportPngSequence(
   library: Library,
   opts: SeqOptions,
 ): Promise<void> {
-  const { fps, duration, background, onProgress } = opts;
+  const { fps, duration, background, onProgress, renderFrame } = opts;
   const { outW, outH } = outSize(state.frame);
   const total = Math.max(1, Math.round(duration * fps));
 
@@ -30,7 +33,9 @@ export async function exportPngSequence(
   const pad = String(total).length;
 
   for (let i = 0; i < total; i++) {
-    const svg = buildSceneSVG(state, library, i / fps, background);
+    const svg = renderFrame
+      ? await renderFrame(i / fps)
+      : buildSceneSVG(state, library, i / fps, background);
     await rasterizeSvg(svg, canvas);
     const blob = await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png"),

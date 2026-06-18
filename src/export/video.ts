@@ -10,6 +10,9 @@ export interface VideoOptions {
   duration: number; // seconds
   background?: string | null;
   onProgress?: (done: number, total: number) => void;
+  /** Custom per-frame SVG (e.g. an animated Halftone source). Receives the frame
+   *  time in seconds; defaults to sampling the scene animation. */
+  renderFrame?: (timeSec: number) => string | Promise<string>;
 }
 
 /** WebCodecs is required for in-browser H.264 encoding. */
@@ -37,7 +40,7 @@ export async function exportMp4(
   library: Library,
   opts: VideoOptions,
 ): Promise<void> {
-  const { fps, duration, background, onProgress } = opts;
+  const { fps, duration, background, onProgress, renderFrame } = opts;
   let { outW, outH } = outSize(state.frame);
   outW -= outW % 2; // H.264 needs even dimensions
   outH -= outH % 2;
@@ -65,7 +68,7 @@ export async function exportMp4(
   const bgFill = background ?? "#ffffff";
   for (let i = 0; i < total; i++) {
     if (encodeError) throw encodeError;
-    const svg = buildSceneSVG(state, library, i / fps, bgFill);
+    const svg = renderFrame ? await renderFrame(i / fps) : buildSceneSVG(state, library, i / fps, bgFill);
     await rasterizeSvg(svg, canvas);
     const frame = new VideoFrame(canvas, {
       timestamp: Math.round((i * 1e6) / fps),

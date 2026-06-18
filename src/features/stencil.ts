@@ -16,11 +16,20 @@ export interface CellBox {
   rows: number;
 }
 
-/** Aspect-fit (contain) a box of the given aspect into the visible cell range,
- *  centered. Used to place an image source — once at upload, or live when the
- *  stencil is locked to the view. */
-export function fitBox(state: SceneState, aspect: number): CellBox {
-  const r = visibleCellRange(state.camera, state.cellSize, 0);
+/** A cell range to fit into (defaults to the visible viewport). */
+export interface CellRange {
+  minCol: number;
+  maxCol: number;
+  minRow: number;
+  maxRow: number;
+}
+
+/** Aspect-fit (contain) a box of the given aspect into a cell range (the visible
+ *  viewport by default, or an explicit `range` — e.g. the export frame),
+ *  centered. Used to place an image source — once at upload, live when the
+ *  stencil is locked to the view, or per-frame for the Halftone export. */
+export function fitBox(state: SceneState, aspect: number, range?: CellRange): CellBox {
+  const r = range ?? visibleCellRange(state.camera, state.cellSize, 0);
   const cols = r.maxCol - r.minCol + 1;
   const rows = r.maxRow - r.minRow + 1;
   let bc = cols;

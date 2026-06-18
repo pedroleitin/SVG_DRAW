@@ -1,6 +1,7 @@
 import type { Store } from "../store/store";
 import type { Library } from "../features/library";
-import type { SceneState } from "../scene/types";
+import type { Instance, SceneState } from "../scene/types";
+import { cellKey } from "../scene/types";
 import { ASPECT_IDS, fitFrame, outSize, snapFrame } from "../export/frame";
 import type { AspectId } from "../export/frame";
 import { buildSceneSVG } from "../export/svgExport";
@@ -8,6 +9,12 @@ import { svgBlob, downloadBlob, svgToPngBlob } from "../export/raster";
 import { exportPngSequence } from "../export/sequence";
 import { exportMp4, isVideoExportSupported } from "../export/video";
 import { loopDuration } from "../anim/animations";
+import {
+  halftoneIsAnimated,
+  halftoneDuration,
+  setHalftoneFrame,
+  halftoneInstances,
+} from "../features/halftone";
 import { createDropdown } from "./widgets";
 import type { DropdownHandle } from "./widgets";
 
@@ -24,6 +31,7 @@ export class ExportPanel {
   private fitRow!: HTMLElement;
   private dims!: HTMLElement;
   private durInput!: HTMLInputElement;
+  private htChk!: HTMLInputElement;
   private progress!: HTMLElement;
   private fps = 30;
   private duration = 2;
@@ -66,6 +74,11 @@ export class ExportPanel {
             <input id="exp-dur" type="number" min="0.2" max="30" step="0.1" title="Duration (seconds)" />
           </div>
         </div>
+        <div class="exp-toggles">
+          <label class="chk" id="exp-ht-row" title="Export the animated Halftone source instead of the scene animation">
+            <input type="checkbox" id="exp-ht" /> Halftone source
+          </label>
+        </div>
         <div class="exp-progress" id="exp-progress"></div>
         <div class="noise-actions exp-save">
           <button id="exp-seq">⬇ PNG Seq</button>
@@ -80,6 +93,7 @@ export class ExportPanel {
     this.fitRow = panel.querySelector("#exp-fit-row") as HTMLElement;
     this.dims = aboveHost.querySelector("#exp-dims") as HTMLElement;
     this.durInput = panel.querySelector("#exp-dur") as HTMLInputElement;
+    this.htChk = panel.querySelector("#exp-ht") as HTMLInputElement;
     this.progress = panel.querySelector("#exp-progress") as HTMLElement;
 
     const f = this.store.get().frame;
@@ -111,6 +125,13 @@ export class ExportPanel {
     this.snapChk.addEventListener("change", () => this.toggleSnap(this.snapChk.checked));
     this.transpChk.addEventListener("change", () => this.store.set({ exportTransparent: this.transpChk.checked }));
     this.durInput.addEventListener("change", () => (this.duration = clampDur(Number(this.durInput.value))));
+    this.htChk.addEventListener("change", () => {
+      // Default the duration to one pass of the source when turning it on.
+      if (this.htChk.checked && halftoneDuration() > 0) {
+        this.duration = clampDur(halftoneDuration());
+        this.durInput.value = this.duration.toFixed(1);
+      }
+    });
     panel.querySelector("#exp-fit")!.addEventListener("click", () => this.fit());
     panel.querySelector("#exp-svg")!.addEventListener("click", () => this.exportSVG());
     panel.querySelector("#exp-png")!.addEventListener("click", () => this.exportPNG());
@@ -184,7 +205,11 @@ export class ExportPanel {
     };
     try {
       const state = this.store.get();
-      const opts = { fps: this.fps, duration: this.duration, background: this.bg(), onProgress };
+      const renderFrame =
+        this.htChk.checked && halftoneIsAnimated()
+          ? this.halftoneFrameRenderer(state, kind)
+          : undefined;
+      const opts = { fps: this.fps, duration: this.duration, background: this.bg(), onProgress, renderFrame };
       if (kind === "seq") await exportPngSequence(state, this.library, opts);
       else await exportMp4(state, this.library, opts);
       this.progress.textContent = "Done ✓";
@@ -210,8 +235,42 @@ export class ExportPanel {
     this.transpChk.checked = s.exportTransparent;
     // "Fit to view" is only relevant for the manually-positioned Free Form frame.
     this.fitRow.style.display = s.frame.aspect === "free" ? "" : "none";
+    // The Halftone-source toggle is only usable with an animated source loaded.
+    const htAnim = halftoneIsAnimated();
+    this.htChk.disabled = !htAnim;
+    if (!htAnim) this.htChk.checked = false;
+    const htRow = this.htChk.closest(".chk") as HTMLElement;
+    if (htRow) htRow.style.opacity = htAnim ? "" : "0.45";
     const { outW, outH } = outSize(s.frame);
     this.dims.textContent = `Output: ${outW} × ${outH} px`;
+  }
+
+  /** Per-frame SVG builder for an animated Halftone source export: seek the
+   *  source by time, halftone it, and emit a static frame SVG. */
+  private halftoneFrameRenderer(
+    state: SceneState,
+    kind: "seq" | "mp4",
+  ): (timeSec: number) => Promise<string> {
+    const dur = halftoneDuration() || this.duration;
+    const bg = kind === "mp4" ? this.bg() ?? "#ffffff" : this.bg();
+    // Fit the halftone to the EXPORT FRAME (not the view), so the rendered cells
+    // line up with the crop — otherwise the frame captures an offset sub-region.
+    const cs = state.cellSize;
+    const f = state.frame;
+    const range = {
+      minCol: Math.round(f.x / cs),
+      minRow: Math.round(f.y / cs),
+      maxCol: Math.round((f.x + f.w) / cs) - 1,
+      maxRow: Math.round((f.y + f.h) / cs) - 1,
+    };
+    return async (timeSec: number): Promise<string> => {
+      const u = dur > 0 ? (timeSec / dur) % 1 : 0;
+      await setHalftoneFrame(u);
+      const { places } = halftoneInstances(state, this.library, range);
+      const instances: Record<string, Instance> = {};
+      for (const p of places) instances[cellKey(p.col, p.row)] = p;
+      return buildSceneSVG({ ...state, instances }, this.library, undefined, bg);
+    };
   }
 }
 
