@@ -25,7 +25,7 @@ export function dividerRegion(s: SceneState) {
  *  brush, so they always agree). */
 export function dividerBlocks(s: SceneState): Block[] {
   const { minCol, minRow, cols, rows } = dividerRegion(s);
-  return subdivide(minCol, minRow, cols, rows, s.divider.density, s.divider.seed);
+  return subdivide(minCol, minRow, cols, rows, s.divider.density, s.divider.seed, s.blocked);
 }
 
 /** The block covering cell (col,row), or null. */
@@ -47,12 +47,22 @@ export function subdivide(
   rows: number,
   density: number,
   seed: number,
+  blocked?: Record<string, true>,
 ): Block[] {
   const field = new Simplex(seed || 1);
   const maxSize = Math.max(1, Math.round(10 - density)); // density 2→8 … 8→2
   const freq = 1 / 7; // size-region scale
   const covered = new Uint8Array(cols * rows);
   const idx = (c: number, r: number) => (r - minRow) * cols + (c - minCol);
+  // Treat blocked cells as already covered so the packing flows around them
+  // (no block ever includes a blocked cell). The Divider then leaves Blocks free.
+  if (blocked) {
+    for (let r = minRow; r < minRow + rows; r++) {
+      for (let c = minCol; c < minCol + cols; c++) {
+        if (blocked[`${c},${r}`]) covered[idx(c, r)] = 1;
+      }
+    }
+  }
   const blocks: Block[] = [];
 
   for (let r = minRow; r < minRow + rows; r++) {
