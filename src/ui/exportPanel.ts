@@ -29,7 +29,6 @@ export class ExportPanel {
   private resDD!: DropdownHandle;
   private snapChk!: HTMLInputElement;
   private transpChk!: HTMLInputElement;
-  private fitRow!: HTMLElement;
   private dims!: HTMLElement;
   private durInput!: HTMLInputElement;
   private htChk!: HTMLInputElement;
@@ -91,7 +90,6 @@ export class ExportPanel {
 
     this.snapChk = panel.querySelector("#exp-snap") as HTMLInputElement;
     this.transpChk = panel.querySelector("#exp-transp") as HTMLInputElement;
-    this.fitRow = panel.querySelector("#exp-fit-row") as HTMLElement;
     this.dims = aboveHost.querySelector("#exp-dims") as HTMLElement;
     this.durInput = panel.querySelector("#exp-dur") as HTMLInputElement;
     this.htChk = panel.querySelector("#exp-ht") as HTMLInputElement;
@@ -235,7 +233,7 @@ export class ExportPanel {
     this.snapChk.checked = s.frame.snap;
     this.transpChk.checked = s.exportTransparent;
     // "Fit to view" is only relevant for the manually-positioned Free Form frame.
-    this.fitRow.style.display = s.frame.aspect === "free" ? "" : "none";
+    // "Fit to view" works for every aspect (fitFrame keeps the ratio); always shown.
     // The Halftone-source toggle is only usable with an animated source loaded.
     const htAnim = halftoneIsAnimated();
     this.htChk.disabled = !htAnim;
