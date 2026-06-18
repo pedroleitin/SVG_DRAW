@@ -108,12 +108,14 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   Falta: densidade do traço, modo "só preencher vazias" vs "sobrescrever", apagar por
   filtro (por asset / por cor).
   - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/scene/grid.ts](src/scene/grid.ts) (`brushCells`/`brushBlocks`), [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/render/renderer.ts](src/render/renderer.ts)
-- [ ] 🟡 **Modo Path (desenhar linhas a preencher)** — uma ferramenta de **caminho** no Draw:
-  desenha **linhas/curvas** (vetor) e as células ao longo do traçado são preenchidas com o que
-  estiver setado em **Brush** (shapes selecionados) e **Cell** (fundo da célula) — em vez de
-  pintar célula a célula. Pensar em: linha contínua vs segmentos, espessura (quantas células),
-  fechar/preencher área, e reuso da interpolação que já existe no brush.
-  - Arquivos prováveis: [src/tools/tools.ts](src/tools/tools.ts) (nova ferramenta de path), [src/scene/grid.ts](src/scene/grid.ts) (rasterizar a linha em células), [src/ui/](src/ui/) (botão/toolbox), [src/render/renderer.ts](src/render/renderer.ts).
+- [~] 🟡 **Modo Path / Line (desenhar linhas a preencher)** — _v1 feito (mão livre + espessura)._
+  Ferramenta **Line** no Draw: arrasta à mão livre e as células ao longo do traçado são
+  preenchidas com os **shapes** (Brush) + **cell background** (Cell) atuais. Footprint
+  **circular** (faixa limpa), **espessura = Brush**, 1 SVG por célula, reusa a interpolação do
+  brush (sem buracos em movimento rápido) e os buffers de traço (um passo de undo).
+  Futuro: traçado por **pontos** (polilinha reta), **fechar/preencher área**, espessura própria
+  (hoje compartilha o Brush) e preview do traço (vetor) antes de baixar.
+  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (`paint`/`paintAt` ramo line), [src/scene/types.ts](src/scene/types.ts) (`ToolId` `"line"`), [src/ui/shell.ts](src/ui/shell.ts) (botão + footer), [src/render/renderer.ts](src/render/renderer.ts) (hover).
 - [~] 🟡 **Brush/Size como rodapé compartilhado do context** — _parcial._ A barra
   **Brush / Size / Cell background** virou um **rodapé dentro da caixa do context**,
   aparecendo nos geradores (Noise/Divider/Seamless/Block/Edit) e no Draw/Erase, e some em

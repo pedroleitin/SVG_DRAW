@@ -311,6 +311,7 @@ export class Shell {
           });
         add(
           paintBtn("Draw", "draw"),
+          paintBtn("Line", "line"),
           paintBtn("Erase", "erase"),
           this.btn("Block", {
             // Stays the active tool while its own panel (or none) is open, but
@@ -436,7 +437,7 @@ export class Shell {
     return (
       s.contextPanel === null &&
       (s.mode === "draw" || s.mode === "compose") &&
-      (s.tool === "draw" || s.tool === "erase")
+      (s.tool === "draw" || s.tool === "erase" || s.tool === "line")
     );
   }
 

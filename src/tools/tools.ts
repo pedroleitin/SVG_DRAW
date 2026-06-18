@@ -223,7 +223,8 @@ export class InputController {
     }
     const cs = state.cellSize;
     const w = this.worldAt(e);
-    const span = Math.max(1, Math.round(state.brushSpan ?? 1));
+    // Line tool: a circular footprint (Brush = thickness), 1 SVG per cell.
+    const span = state.tool === "line" ? 1 : Math.max(1, Math.round(state.brushSpan ?? 1));
     const instances = this.strokeInstances; // mutated in place; cloned at stroke start
     // While the Stencil is open, the brush may only paint inside the lit (green)
     // opening — built once, then reused across the interpolated points.
@@ -287,8 +288,10 @@ export class InputController {
     const litAt = (col: number, row: number): boolean => !lit || lit(col, row);
 
     // DRAW: an N×N footprint (Brush) of span×span blocks (Size). Each block
-    // clears what it covers, so placements never overlap.
-    const blocks = brushBlocks(wx / cs, wy / cs, state.brushSize, state.brushShape, span);
+    // clears what it covers, so placements never overlap. The Line tool forces a
+    // circular footprint (a clean ribbon) of single cells.
+    const shape = state.tool === "line" ? "circle" : state.brushShape;
+    const blocks = brushBlocks(wx / cs, wy / cs, state.brushSize, shape, span);
     for (const blk of blocks) {
       // Skip if any covered cell is already painted this stroke, is blocked, or
       // (with the stencil on) falls outside the lit opening.

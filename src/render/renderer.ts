@@ -524,7 +524,9 @@ export class Renderer {
     const isBlockBrush = !!state && state.tool === "block" && state.blockMode === "brush";
     const isEdit = !!state && state.contextPanel === "edit";
     const isDivider = !!state && state.contextPanel === "divider";
-    const placing = state && (state.tool === "draw" || state.tool === "erase" || isBlockBrush || isEdit);
+    const isLine = !!state && state.tool === "line";
+    const placing =
+      state && (state.tool === "draw" || state.tool === "erase" || isBlockBrush || isEdit || isLine);
     if (!state || !pt || !placing) {
       // Fade out in place (kept in the DOM at its last spot; opacity → 0).
       this.hoverLayer.classList.remove("visible");
@@ -543,7 +545,7 @@ export class Renderer {
     // (Brush × Size); Edit wraps the full item under the cursor (so a 2×2+ glyph
     // highlights at its real size); erase/block show the plain footprint cells.
     const span = Math.max(1, Math.round(state.brushSpan ?? 1));
-    const drawing = !erase && !isBlockBrush && !isEdit && !isDivider;
+    const drawing = !erase && !isBlockBrush && !isEdit && !isDivider && !isLine;
     const off = Math.floor((span - 1) / 2);
     const bcol = anchor.col - off;
     const brow = anchor.row - off;
@@ -560,6 +562,14 @@ export class Renderer {
         state.instances,
         brushCells(pt.cx, pt.cy, state.brushSize, state.brushShape),
       );
+    } else if (isLine) {
+      // The Line tool's circular ribbon footprint (single cells).
+      slots = brushBlocks(pt.cx, pt.cy, state.brushSize, "circle", 1).map((b) => ({
+        col: b.col,
+        row: b.row,
+        cw: 1,
+        ch: 1,
+      }));
     } else if (drawing) {
       slots = brushBlocks(pt.cx, pt.cy, state.brushSize, state.brushShape, span).map((b) => ({
         col: b.col,

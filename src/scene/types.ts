@@ -8,7 +8,7 @@ export type { MaskParams };
 export type { AnimationConfig };
 export type { ExportFrame };
 
-export type ToolId = "draw" | "erase" | "pan" | "path" | "block";
+export type ToolId = "draw" | "erase" | "pan" | "path" | "block" | "line";
 
 /** Footprint shape painted by the draw/erase brush. */
 export type BrushShape = "square" | "circle";
