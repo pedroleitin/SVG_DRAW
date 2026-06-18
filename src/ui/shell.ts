@@ -311,8 +311,8 @@ export class Shell {
           });
         add(
           paintBtn("Draw", "draw"),
-          paintBtn("Line", "line"),
           paintBtn("Erase", "erase"),
+          paintBtn("Line", "line"),
           this.btn("Block", {
             // Stays the active tool while its own panel (or none) is open, but
             // dims when another context takes over — like Draw/Erase do.
