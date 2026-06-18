@@ -572,12 +572,12 @@ export class Renderer {
         brushCells(pt.cx, pt.cy, state.brushSize, state.brushShape),
       );
     } else if (isLine) {
-      // The Line tool's circular ribbon footprint (single cells).
-      slots = brushBlocks(pt.cx, pt.cy, state.brushSize, "circle", 1).map((b) => ({
+      // The Line tool's circular ribbon footprint, span-aware (Size).
+      slots = brushBlocks(pt.cx, pt.cy, state.brushSize, "circle", span).map((b) => ({
         col: b.col,
         row: b.row,
-        cw: 1,
-        ch: 1,
+        cw: span,
+        ch: span,
       }));
     } else if (drawing) {
       slots = brushBlocks(pt.cx, pt.cy, state.brushSize, state.brushShape, span).map((b) => ({

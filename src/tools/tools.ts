@@ -509,21 +509,33 @@ export class InputController {
     }
   }
 
-  /** Rasterize the drawn line into glyph cells (Brush = thickness, circular) and
-   *  place them as one undoable step. */
+  /** Rasterize the drawn line into glyphs (Brush = thickness; Size = each glyph's
+   *  span, tiled along the path) and place them as one undoable step. */
   private commitLine() {
     const state = this.store.get();
     const cs = state.cellSize;
     const pts = this.linePoints;
     if (!pts.length) return;
-    const seen = new Set<string>();
+    const span = Math.max(1, Math.round(state.brushSpan ?? 1));
+    const reserved = new Set<string>(); // cells already taken by a placed glyph
     const places: Instance[] = [];
     const stamp = (xCell: number, yCell: number) => {
-      for (const c of brushCells(xCell, yCell, state.brushSize, "circle")) {
-        const key = cellKey(c.col, c.row);
-        if (seen.has(key) || state.blocked[key]) continue;
-        seen.add(key);
-        places.push(buildInstance(state, this.library, c.col, c.row));
+      for (const blk of brushBlocks(xCell, yCell, state.brushSize, "circle", span)) {
+        // Skip if any of the span×span cells is already reserved or blocked.
+        let skip = false;
+        for (let y = blk.row; y < blk.row + span && !skip; y++) {
+          for (let x = blk.col; x < blk.col + span; x++) {
+            if (reserved.has(cellKey(x, y)) || state.blocked[cellKey(x, y)]) {
+              skip = true;
+              break;
+            }
+          }
+        }
+        if (skip) continue;
+        for (let y = blk.row; y < blk.row + span; y++) {
+          for (let x = blk.col; x < blk.col + span; x++) reserved.add(cellKey(x, y));
+        }
+        places.push(buildInstance(state, this.library, blk.col, blk.row, span, span));
       }
     };
     if (pts.length === 1) {

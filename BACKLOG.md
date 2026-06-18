@@ -111,9 +111,9 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 - [~] 🟡 **Modo Path / Line (desenhar linhas a preencher)** — _v1 feito (mão livre, draw-then-fill)._
   Ferramenta **Line** no Draw, no estilo do **draw path do Animate**: arrasta à mão livre e vê
   o **traço** (polilinha tracejada, preview); **ao soltar** o caminho vira **glyphs** nas células
-  que ele cruza, com os **shapes** + **cell background** atuais. Espessura = **Brush** (footprint
-  circular ao longo do caminho), rasterização interpolada (segue a curva sem buracos), **um
-  passo de undo** (`PlaceInstances`).
+  que ele cruza, com os **shapes** + **cell background** atuais. **Brush** = espessura (footprint
+  circular ao longo do caminho) e **Size** = span de cada glyph (N×N, tiles ao longo da linha);
+  rasterização interpolada (segue a curva sem buracos), **um passo de undo** (`PlaceInstances`).
   Futuro: traçado por **pontos** (polilinha reta), **fechar/preencher área**, espessura própria
   (hoje compartilha o Brush), e editar/suavizar o caminho antes de baixar.
   - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (`liningPath`/`commitLine`), [src/scene/types.ts](src/scene/types.ts) (`ToolId` `"line"`), [src/ui/shell.ts](src/ui/shell.ts) (botão + footer), [src/render/renderer.ts](src/render/renderer.ts) (`setLinePreview` + hover), [src/ui/styles/app.css](src/ui/styles/app.css) (`.line-preview`).
