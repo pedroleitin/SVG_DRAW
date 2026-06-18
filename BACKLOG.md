@@ -275,8 +275,12 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
     frame atual vão pro buffer de luminância reaproveitado; `imgVersion` invalida o cache do
     preview. Já entrega "escolher um frame".
     - Arquivos: [src/features/halftone.ts](src/features/halftone.ts) (`setHalftoneSource`/`setHalftoneFrame`), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts).
-  - [ ] **Inc. 2 — preview animado ao vivo** (o halftone acompanha o vídeo tocando; playhead +
-    preview em `<canvas>` por perf).
+  - [x] **Inc. 2 — preview animado ao vivo.** Botão **play/pause** no scrubber: o halftone
+    acompanha a fonte tocando. Vídeo **toca o `<video>`** e desenha o frame atual por rAF (sem
+    seek); GIF avança por tempo. O scrubber vira playhead. Blur dos painéis cai durante o
+    playback (`body.ht-playing`). Ainda usa o preview SVG — o preview em `<canvas>` segue como
+    item de perf.
+    - Arquivos: [src/features/halftone.ts](src/features/halftone.ts) (`halftonePlayVideo`/`sampleHalftoneCurrentFrame`/`halftonePlayhead`), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts) (`tickPlay`).
   - [ ] **Inc. 3 — export animado** (amostra por frame → MP4/PNG-seq via motor de export).
 - [x] 🟡 **Acesso aos Shapes a partir do Halftone** — _feito._ O painel do Halftone embute
   um **picker de Shapes inline** (reusa o `ShapesPanel`, mesma seleção do brush), então dá

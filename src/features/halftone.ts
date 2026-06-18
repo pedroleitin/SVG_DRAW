@@ -190,6 +190,38 @@ export async function setHalftoneImage(file: File): Promise<SourceMeta | null> {
   return setHalftoneSource(file);
 }
 
+export function halftoneIsVideo(): boolean {
+  return source.kind === "video";
+}
+
+export function halftoneDuration(): number {
+  return source.kind === "still" ? 0 : source.duration;
+}
+
+/** Start/stop the underlying <video> for live playback (no-op for GIF/still). */
+export function halftonePlayVideo(): void {
+  if (source.kind === "video") {
+    source.el.loop = true;
+    source.el.play().catch(() => {});
+  }
+}
+export function halftonePauseVideo(): void {
+  if (source.kind === "video") source.el.pause();
+}
+
+/** Rasterize the video's current frame (no seek) — for the live playback loop. */
+export function sampleHalftoneCurrentFrame(): void {
+  if (source.kind === "video") drawFrameToImg(source.el, source.w, source.h);
+}
+
+/** Current playhead position 0..1 (video time / duration), else 0. */
+export function halftonePlayhead(): number {
+  if (source.kind === "video" && source.duration > 0) {
+    return (source.el.currentTime % source.duration) / source.duration;
+  }
+  return 0;
+}
+
 /** Luminance (0..1) at normalized image coords (nearest sample). */
 export function sampleHalftoneLum(u: number, v: number): number {
   if (!img) return 0;

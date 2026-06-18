@@ -77,7 +77,9 @@ body {
 /* While animating, backdrop-filter would recomposite the moving scene behind
  *  every panel each frame — drop it for an opaque fallback (toggled in main.ts). */
 body.perf-noblur .float,
-body.perf-noblur .dd-menu {
+body.perf-noblur .dd-menu,
+body.ht-playing .float,
+body.ht-playing .dd-menu {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   background: var(--glass-solid);
@@ -268,9 +270,22 @@ body.perf-noblur .dd-menu {
   flex-wrap: wrap;
 }
 
-/* Frame scrubber sits just under the source preview (animated sources only). */
+/* Frame scrubber + play sit under the source preview (animated sources only). */
 #ht-scrub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 8px;
+}
+
+/* Keep the hidden attribute working despite the display:flex above. */
+#ht-scrub[hidden] {
+  display: none;
+}
+
+#ht-scrub .rng {
+  flex: 1;
+  margin-bottom: 0;
 }
 
 /* Even vertical spacing between the target segment, sliders and the checks. */

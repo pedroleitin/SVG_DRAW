@@ -12,6 +12,13 @@ import {
   hasHalftoneImage,
   sampleHalftoneLum,
   halftoneInstances,
+  halftoneIsAnimated,
+  halftoneIsVideo,
+  halftoneDuration,
+  halftonePlayVideo,
+  halftonePauseVideo,
+  sampleHalftoneCurrentFrame,
+  halftonePlayhead,
 } from "../features/halftone";
 
 const MODES: { mode: HalftoneMode; label: string }[] = [
@@ -41,6 +48,10 @@ export class HalftonePanel {
   private sizeSlider: SliderHandle;
   private scrub: SliderHandle;
   private scrubHost: HTMLElement;
+  private playBtn: HTMLButtonElement;
+  private playing = false;
+  private raf = 0;
+  private playStart = 0;
   private drop: HTMLElement;
   private canvas: HTMLCanvasElement;
 
@@ -127,8 +138,14 @@ export class HalftonePanel {
     this.shapeLumChk = host.querySelector("#ht-shapelum") as HTMLInputElement;
     this.shapeLumChk.addEventListener("change", () => this.setHt({ shapeByLum: this.shapeLumChk.checked }));
 
-    // Frame scrubber — only shown for animated sources (video / GIF).
+    // Frame scrubber + play — only shown for animated sources (video / GIF).
     this.scrubHost = host.querySelector("#ht-scrub") as HTMLElement;
+    this.playBtn = document.createElement("button");
+    this.playBtn.className = "tool-btn icon-btn ht-play";
+    this.playBtn.textContent = "▶";
+    this.playBtn.title = "Play / pause the source";
+    this.playBtn.addEventListener("click", () => this.togglePlay());
+    this.scrubHost.appendChild(this.playBtn);
     this.scrub = createSlider({
       label: "Frame",
       min: 0,
@@ -175,10 +192,11 @@ export class HalftonePanel {
 
   private async loadSource(file: File | null): Promise<void> {
     if (!file) return;
+    this.stopPlay();
     const meta = await setHalftoneSource(file);
     if (!meta) return;
     this.drop.classList.add("has-image");
-    // Show the frame scrubber for animated sources (video / GIF).
+    // Show the frame scrubber + play for animated sources (video / GIF).
     this.scrubHost.hidden = !meta.animated;
     this.scrub.setValue(0);
     this.drawPreview();
@@ -187,10 +205,52 @@ export class HalftonePanel {
 
   /** Rasterize a new frame at u (0..1) and repaint the live preview. */
   private async scrubTo(u: number): Promise<void> {
+    if (this.playing) this.stopPlay(); // manual scrub takes over playback
     await setHalftoneFrame(u);
     this.drawPreview();
     this.bump();
   }
+
+  private togglePlay(): void {
+    if (this.playing) this.stopPlay();
+    else this.startPlay();
+  }
+
+  private startPlay(): void {
+    if (this.playing || !halftoneIsAnimated()) return;
+    this.playing = true;
+    this.playStart = performance.now();
+    this.playBtn.textContent = "⏸";
+    document.body.classList.add("ht-playing"); // drop panel blur while it animates
+    halftonePlayVideo();
+    this.raf = requestAnimationFrame(this.tickPlay);
+  }
+
+  private stopPlay(): void {
+    if (!this.playing) return;
+    this.playing = false;
+    cancelAnimationFrame(this.raf);
+    halftonePauseVideo();
+    document.body.classList.remove("ht-playing");
+    this.playBtn.textContent = "▶";
+  }
+
+  /** Advance the source and repaint the preview each frame while playing. */
+  private tickPlay = async (): Promise<void> => {
+    if (!this.playing) return;
+    if (halftoneIsVideo()) {
+      sampleHalftoneCurrentFrame(); // draw the playing video's current frame
+      this.scrub.setValue(halftonePlayhead());
+    } else {
+      const dur = halftoneDuration() || 1;
+      const u = ((performance.now() - this.playStart) / 1000 / dur) % 1;
+      this.scrub.setValue(u);
+      await setHalftoneFrame(u);
+    }
+    this.drawPreview();
+    this.bump();
+    if (this.playing) this.raf = requestAnimationFrame(this.tickPlay);
+  };
 
   /** Bump the store so the live preview repaints (pixels live outside state). */
   private bump(): void {
@@ -222,6 +282,8 @@ export class HalftonePanel {
   }
 
   private sync(s: SceneState): void {
+    // Stop the source playback when the panel is no longer the active context.
+    if (s.contextPanel !== "halftone" && this.playing) this.stopPlay();
     for (const [m, b] of this.modeBtns) b.classList.toggle("active", m === s.halftone.mode);
     for (const [t, b] of this.targetBtns) b.classList.toggle("active", t === s.halftone.target);
     this.invertChk.checked = s.halftone.invert;
