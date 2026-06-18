@@ -15,6 +15,7 @@ import {
   setHalftoneFrame,
   halftoneInstances,
   halftoneLastBox,
+  halftoneCoverage,
 } from "../features/halftone";
 import { createDropdown } from "./widgets";
 import type { DropdownHandle } from "./widgets";
@@ -125,10 +126,15 @@ export class ExportPanel {
     this.transpChk.addEventListener("change", () => this.store.set({ exportTransparent: this.transpChk.checked }));
     this.durInput.addEventListener("change", () => (this.duration = clampDur(Number(this.durInput.value))));
     this.htChk.addEventListener("change", () => {
-      // Default the duration to one pass of the source when turning it on.
-      if (this.htChk.checked && halftoneDuration() > 0) {
-        this.duration = clampDur(halftoneDuration());
-        this.durInput.value = this.duration.toFixed(1);
+      this.store.set({ exportHalftone: this.htChk.checked });
+      if (this.htChk.checked) {
+        // Default the duration to one pass of the source.
+        if (halftoneDuration() > 0) {
+          this.duration = clampDur(halftoneDuration());
+          this.durInput.value = this.duration.toFixed(1);
+        }
+        // Frame the union of all frames so nothing is cut by an unseen frame.
+        void this.fitToCoverage();
       }
     });
     panel.querySelector("#exp-fit")!.addEventListener("click", () => this.fit());
@@ -205,7 +211,7 @@ export class ExportPanel {
     try {
       const state = this.store.get();
       const renderFrame =
-        this.htChk.checked && halftoneIsAnimated()
+        state.exportHalftone && halftoneIsAnimated()
           ? this.halftoneFrameRenderer(state, kind)
           : undefined;
       const opts = { fps: this.fps, duration: this.duration, background: this.bg(), onProgress, renderFrame };
@@ -237,11 +243,29 @@ export class ExportPanel {
     // The Halftone-source toggle is only usable with an animated source loaded.
     const htAnim = halftoneIsAnimated();
     this.htChk.disabled = !htAnim;
-    if (!htAnim) this.htChk.checked = false;
+    this.htChk.checked = htAnim && s.exportHalftone;
     const htRow = this.htChk.closest(".chk") as HTMLElement;
     if (htRow) htRow.style.opacity = htAnim ? "" : "0.45";
     const { outW, outH } = outSize(s.frame);
     this.dims.textContent = `Output: ${outW} × ${outH} px`;
+  }
+
+  /** Frame the union of every source frame's glyphs (Free Form), so the crop
+   *  covers all of them even ones you didn't scrub to. */
+  private async fitToCoverage(): Promise<void> {
+    this.progress.textContent = "Mapping frames…";
+    const cov = await halftoneCoverage(this.store.get(), this.library);
+    this.progress.textContent = "";
+    if (!cov) return;
+    const cs = this.store.get().cellSize;
+    this.setFrame({
+      aspect: "free",
+      x: cov.col * cs,
+      y: cov.row * cs,
+      w: cov.cols * cs,
+      h: cov.rows * cs,
+      show: true,
+    });
   }
 
   /** Per-frame SVG builder for an animated Halftone source export: seek the

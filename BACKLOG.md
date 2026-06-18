@@ -293,9 +293,18 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
     _Obs.: num vídeo, frames diferentes acendem células diferentes — comparar dois instantes
     distintos mostra padrões diferentes (não é bug)._
     - Arquivos: [src/export/sequence.ts](src/export/sequence.ts), [src/export/video.ts](src/export/video.ts) (`renderFrame`), [src/ui/exportPanel.ts](src/ui/exportPanel.ts) (`halftoneFrameRenderer`).
-- [x] 🟡 **Acesso aos Shapes a partir do Halftone** — _feito._ O painel do Halftone embute
-  um **picker de Shapes inline** (reusa o `ShapesPanel`, mesma seleção do brush), então dá
-  pra trocar os shapes sem sair do modo.
+- [~] 🟡 **Integração Halftone ↔ Export ↔ Animate** — em fases:
+  - [x] **Fase A — Send to Export + área de união.** Botão **"Send to Export →"** no painel
+    Halftone: pula pro modo Export já com **Halftone source** ligado e o frame (Free Form)
+    cropado na **união de todas as células que acendem em qualquer frame** (`halftoneCoverage`
+    amostra ~20 frames), pra nenhum glyph ser cortado por um frame não visto. Marcar o toggle
+    "Halftone source" no painel Export também encaixa nessa cobertura. O toggle virou estado
+    (`exportHalftone`) pra os dois painéis dirigirem.
+    - Arquivos: [src/features/halftone.ts](src/features/halftone.ts) (`halftoneCoverage`), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts) (`sendToExport`), [src/ui/exportPanel.ts](src/ui/exportPanel.ts) (`fitToCoverage`), [src/scene/types.ts](src/scene/types.ts).
+  - [ ] **Fase B — Play global toca o halftone.** Destravar o preview do painel e dirigir o
+    avanço de frame pelo clock global (`engine`): o **Play** (Animate) toca o halftone na tela
+    em qualquer modo (halftone animado tem prioridade sobre a revelação de cena).
+  - [ ] **Fase C — Order "Halftone"** (revelar células por luminância/ordem do vídeo).
 - [ ] 🟡 **Overlay de preview da fonte** — mostrar a imagem/vídeo por baixo/por cima
   do grid (com opacidade) como referência enquanto distribui; toggle on/off. (O Halftone já
   tem o preview do **resultado**; isto seria o preview da **fonte** crua.)

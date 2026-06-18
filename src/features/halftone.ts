@@ -172,6 +172,36 @@ export async function setHalftoneSource(file: File): Promise<SourceMeta | null> 
   return { ...dims, animated: false, frameCount: 0, duration: 0 };
 }
 
+/** Bounding cell box of every cell that lights up across the whole source (all
+ *  frames, sampled). Lets the export frame cover all glyphs so no frame is cut.
+ *  Restores the source to frame 0 when done. Null if nothing lights up. */
+export async function halftoneCoverage(
+  state: SceneState,
+  library: Library,
+  samples = 20,
+): Promise<CellBox | null> {
+  const aspect = halftoneAspect();
+  if (aspect == null) return null;
+  const box = lastBox ?? fitBox(state, aspect);
+  let minC = Infinity;
+  let minR = Infinity;
+  let maxC = -Infinity;
+  let maxR = -Infinity;
+  const n = source.kind === "still" ? 1 : Math.max(2, samples);
+  for (let i = 0; i < n; i++) {
+    if (n > 1) await setHalftoneFrame(i / (n - 1));
+    for (const p of halftoneInstances(state, library, box).places) {
+      if (p.col < minC) minC = p.col;
+      if (p.row < minR) minR = p.row;
+      if (p.col > maxC) maxC = p.col;
+      if (p.row > maxR) maxR = p.row;
+    }
+  }
+  if (n > 1) await setHalftoneFrame(0); // restore
+  if (maxC < minC) return null;
+  return { col: minC, row: minR, cols: maxC - minC + 1, rows: maxR - minR + 1 };
+}
+
 /** Rasterize the frame at normalized time u (0..1) of an animated source. */
 export async function setHalftoneFrame(u: number): Promise<void> {
   const t = Math.max(0, Math.min(1, u));

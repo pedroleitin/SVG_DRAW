@@ -12,6 +12,7 @@ import {
   hasHalftoneImage,
   sampleHalftoneLum,
   halftoneInstances,
+  halftoneCoverage,
   halftoneIsAnimated,
   halftoneIsVideo,
   halftoneDuration,
@@ -84,6 +85,7 @@ export class HalftonePanel {
           </div>
           <div class="noise-actions">
             <button id="ht-apply">Apply to view</button>
+            <button id="ht-export">Send to Export →</button>
           </div>
         </div>
         <div class="ht-shapes" id="ht-shapes"></div>
@@ -181,6 +183,7 @@ export class HalftonePanel {
     );
 
     host.querySelector("#ht-apply")!.addEventListener("click", () => this.apply());
+    host.querySelector("#ht-export")!.addEventListener("click", () => this.sendToExport());
 
     this.sync(store.get());
     store.subscribe((s) => this.sync(s));
@@ -279,6 +282,26 @@ export class HalftonePanel {
     if (places.length || eraseKeys.length) {
       this.history.dispatch(new ApplyMaskCommand(places, eraseKeys));
     }
+  }
+
+  /** Jump to Export pre-set for this halftone: Halftone-source on, and the frame
+   *  cropped to the union of all frames (covers every glyph, Free Form). */
+  private async sendToExport(): Promise<void> {
+    if (!hasHalftoneImage()) return;
+    this.stopPlay();
+    const cov = await halftoneCoverage(this.store.get(), this.library);
+    const s = this.store.get();
+    const cs = s.cellSize;
+    const framePatch = cov
+      ? { aspect: "free" as const, x: cov.col * cs, y: cov.row * cs, w: cov.cols * cs, h: cov.rows * cs }
+      : {};
+    this.store.set({
+      mode: "export",
+      contextPanel: "export",
+      tool: "draw",
+      exportHalftone: true,
+      frame: { ...s.frame, ...framePatch, show: true },
+    });
   }
 
   private sync(s: SceneState): void {

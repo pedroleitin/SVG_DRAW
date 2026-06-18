@@ -219,6 +219,9 @@ export interface SceneState {
   bgColor: string;
   /** When true, exports omit the background (transparent). */
   exportTransparent: boolean;
+  /** When true, the animated export renders the Halftone source per frame
+   *  instead of the scene animation (Export panel toggle / Halftone → Send to Export). */
+  exportHalftone: boolean;
   camera: Camera;
 }
 
