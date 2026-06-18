@@ -43,6 +43,15 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   cursor de caminho no Order, move/resize no frame, brush quando houver brush size).
   - Hoje o `#stage` é sempre `crosshair`. Aplicar via classe no stage conforme `tool`/`mode`.
   - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (classe no stage), [src/ui/styles/app.css](src/ui/styles/app.css).
+- [ ] 🟡 **Ícone de Help no topo** — botão de ajuda ao lado do **mute** (canto sup. direito)
+  que abre um painel/overlay explicando as **features** do projeto e listando os **atalhos**
+  de teclado. Liga com o item de atalhos abaixo.
+  - Arquivos prováveis: [src/ui/shell.ts](src/ui/shell.ts) (barra de topo), [src/ui/styles/app.css](src/ui/styles/app.css).
+- [ ] 🟡 **Atalhos de teclado + como mostrá-los na interface** — consolidar os atalhos
+  existentes (B/E/P, ⌘Z/⌘⇧Z, Space = pan, …) num só lugar e **expô-los na UI**: no painel de
+  Help e/ou como dica (tooltip/legenda) nos próprios botões. Definir novos atalhos úteis
+  (trocar de modo, toggles do Grid, Apply, etc.).
+  - Arquivos prováveis: [src/tools/tools.ts](src/tools/tools.ts) (handlers de teclado), [src/ui/shell.ts](src/ui/shell.ts), [src/ui/](src/ui/).
 
 ## 2. Grid
 
@@ -248,19 +257,21 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 
 - [~] 🔴 **Dithering / halftone com os SVGs (Compose → Halftone)** — _imagem feito; vídeo
   pendente._ Botão **Halftone** no Compose: upload de imagem (drag-drop + preview), lida em
-  luminância por célula, preenchida com os **shapes selecionados no Shapes** + paleta. Modos:
-  **Halftone** (área do shape ∝ tinta), **Bayer** (dither ordenado on/off), **Floyd–Steinberg**
-  (difusão de erro). Sliders **Contrast** e **Size**, toggle **Invert**. **Preview ao vivo** na
-  tela (shapes fantasma, sem commitar) e **Apply to view** (limpa a região + renderiza).
-  Ajusta à view ao vivo, então **cell size = resolução** (32 fino ↔ 128 grosso); pan/zoom
-  re-resolvem.
-  - Arquivos: [src/features/halftone.ts](src/features/halftone.ts), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts), [src/render/renderer.ts](src/render/renderer.ts) (`renderHalftonePreview`), [src/features/placement.ts](src/features/placement.ts) (`FILL_SCALE`).
+  luminância por célula, preenchida com os **shapes selecionados** + paleta. Modos:
+  **Halftone** (área do shape ∝ tinta), **Bayer** (ordenado on/off) e difusão de erro
+  **Floyd–Steinberg**, **Atkinson** e **Jarvis**. **Target** do preenchimento: **Gliph**
+  (só o ícone), **Cell** (só o fundo da célula) ou **Both**. Toggles **Invert** e **Shape by
+  luminance** (escolhe o shape do conjunto pelo brilho: claro→primeiro, escuro→último).
+  Sliders **Contrast** / **Size**. **Picker de Shapes embutido** no próprio painel (mesma
+  seleção do brush). **Preview ao vivo** (glyphs + cell-bg fantasma) e **Apply to view**.
+  Ajusta à view, então **cell size = resolução**; pan/zoom re-resolvem. Instâncias ganharam
+  `color` literal pra esconder o glyph no target Cell (transparente).
+  - Arquivos: [src/features/halftone.ts](src/features/halftone.ts), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts), [src/render/renderer.ts](src/render/renderer.ts) (`renderHalftonePreview`), [src/scene/types.ts](src/scene/types.ts), [src/features/placement.ts](src/features/placement.ts) (`FILL_SCALE`), [src/export/svgExport.ts](src/export/svgExport.ts).
   - Futuro: **vídeo** como fonte (reamostrar por frame → halftone animado, liga com `t`/export);
-    cor da imagem por célula (hoje usa a paleta); ângulo de trama / CMYK; shape por luminância.
-- [ ] 🟡 **Acesso aos Shapes a partir do Halftone** — o Halftone usa os shapes selecionados
-  no **Shapes** (que hoje vive só no Draw). Pra trocar shapes do halftone hoje é preciso pular
-  de modo. Resolver: Shapes/Colors disponíveis no Compose (ou globais), ou um picker inline no
-  painel do Halftone. (Liga com "repensar os modos".)
+    cor da imagem por célula; ângulo de trama / CMYK; threshold ajustável.
+- [x] 🟡 **Acesso aos Shapes a partir do Halftone** — _feito._ O painel do Halftone embute
+  um **picker de Shapes inline** (reusa o `ShapesPanel`, mesma seleção do brush), então dá
+  pra trocar os shapes sem sair do modo.
 - [ ] 🟡 **Overlay de preview da fonte** — mostrar a imagem/vídeo por baixo/por cima
   do grid (com opacidade) como referência enquanto distribui; toggle on/off. (O Halftone já
   tem o preview do **resultado**; isto seria o preview da **fonte** crua.)

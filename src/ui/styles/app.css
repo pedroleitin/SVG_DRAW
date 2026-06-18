@@ -13,6 +13,8 @@
   --grid-dot: #a39b88;
   /* Translucent panel for the frosted-glass floating boxes. */
   --glass: rgba(243, 240, 233, 0.66);
+  /* Opaque fallback used when the (expensive) blur is dropped while animating. */
+  --glass-solid: rgba(245, 242, 236, 0.94);
   --glass-border: rgba(255, 255, 255, 0.5);
   --shadow: rgba(60, 50, 30, 0.14);
 }
@@ -30,6 +32,7 @@
   --hover: #2f2c28;
   --grid-dot: #3c3a34;
   --glass: rgba(26, 25, 23, 0.62);
+  --glass-solid: rgba(22, 21, 19, 0.95);
   --glass-border: rgba(255, 255, 255, 0.07);
   --shadow: rgba(0, 0, 0, 0.45);
 }
@@ -69,6 +72,15 @@ body {
   border: 1px solid var(--glass-border);
   border-radius: 20px;
   box-shadow: 0 8px 28px var(--shadow);
+}
+
+/* While animating, backdrop-filter would recomposite the moving scene behind
+ *  every panel each frame — drop it for an opaque fallback (toggled in main.ts). */
+body.perf-noblur .float,
+body.perf-noblur .dd-menu {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--glass-solid);
 }
 
 /* Corner/edge boxes are absolutely positioned; dock children stay in flow. */
@@ -212,6 +224,61 @@ body {
  *  remaining width, so its swatches fit on one row now and wrap as colors grow. */
 .edit-cols > .edit-side:first-child {
   flex: 0 1 auto;
+}
+
+/* Halftone: 2-column panel (controls + inline Shapes), wider so it breathes. */
+#context.ht #ctx-body {
+  width: 720px;
+}
+
+.ht-cols {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+}
+
+.ht-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.ht-shapes {
+  flex: 0 0 250px;
+  border-left: 1px solid var(--line);
+  padding-left: 18px;
+  overflow-y: auto;
+  max-height: 56vh;
+}
+
+/* Inline Shapes picker: wrap onto rows instead of a horizontal scrollbar. */
+.ht-shapes .asset-row {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
+.ht-shapes .asset-list {
+  flex-wrap: wrap;
+}
+
+/* The mode segment wraps to 2 rows (5 modes). */
+#ht-mode {
+  flex-wrap: wrap;
+}
+
+/* Even vertical spacing between the target segment, sliders and the checks. */
+.ht-main .noise-right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Checks like the Grid panel: label left, toggle pushed to the right. */
+.ht-main .chk {
+  width: 100%;
+  justify-content: space-between;
 }
 
 /* Fit: the body stretches to the box, which sizes to its content (incl. the

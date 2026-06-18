@@ -45,10 +45,9 @@ export function buildSceneSVG(
     if (anim.hidden || (anim.opacity ?? 1) <= 0) continue;
 
     const g = instanceGeom(inst, cs, anim, fillMul);
-    const color = colorAt(palette, inst.colorIndex);
+    const color = inst.color ?? colorAt(palette, inst.colorIndex);
     const transform = g.rot ? ` transform="rotate(${r(g.rot)} ${r(g.cx)} ${r(g.cy)})"` : "";
     const op = g.opacity < 1 ? ` opacity="${g.opacity.toFixed(3)}"` : "";
-    used.add(inst.assetId);
     // Cell-background square (fixed to the cell, shares the fade), behind the use.
     if (inst.bgIndex != null) {
       const bgOp = g.opacity < 1 ? ` opacity="${g.opacity.toFixed(3)}"` : "";
@@ -58,9 +57,13 @@ export function buildSceneSVG(
         `<rect x="${r(b.x)}" y="${r(b.y)}" width="${r(b.w)}" height="${r(b.h)}"${rx} fill="${colorAt(palette, inst.bgIndex)}"${bgOp}/>`,
       );
     }
-    uses.push(
-      `<use href="#sym-${inst.assetId}" x="${r(g.x)}" y="${r(g.y)}" width="${r(g.size)}" height="${r(g.size)}" style="color:${color}"${transform}${op}/>`,
-    );
+    // Skip hidden glyphs (e.g. Halftone's cell-only target).
+    if (color !== "transparent") {
+      used.add(inst.assetId);
+      uses.push(
+        `<use href="#sym-${inst.assetId}" x="${r(g.x)}" y="${r(g.y)}" width="${r(g.size)}" height="${r(g.size)}" style="color:${color}"${transform}${op}/>`,
+      );
+    }
   }
 
   const defs = [...used]

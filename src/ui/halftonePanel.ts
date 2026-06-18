@@ -1,10 +1,11 @@
 import type { Store } from "../store/store";
 import type { Library } from "../features/library";
 import type { History } from "../commands/command";
-import type { HalftoneMode, SceneState } from "../scene/types";
+import type { HalftoneMode, HalftoneTarget, SceneState } from "../scene/types";
 import { ApplyMaskCommand } from "../commands/sceneCommands";
 import { createSlider } from "./widgets";
 import type { SliderHandle } from "./widgets";
+import { ShapesPanel } from "./shapesPanel";
 import {
   setHalftoneImage,
   hasHalftoneImage,
@@ -16,6 +17,14 @@ const MODES: { mode: HalftoneMode; label: string }[] = [
   { mode: "halftone", label: "Halftone" },
   { mode: "bayer", label: "Bayer" },
   { mode: "floyd", label: "Floyd" },
+  { mode: "atkinson", label: "Atkinson" },
+  { mode: "jarvis", label: "Jarvis" },
+];
+
+const TARGETS: { target: HalftoneTarget; label: string }[] = [
+  { target: "glyph", label: "Gliph" },
+  { target: "cell", label: "Cell" },
+  { target: "both", label: "Both" },
 ];
 
 const PREVIEW_RES = 80;
@@ -24,7 +33,9 @@ const PREVIEW_RES = 80;
  *  shapes (dot size by darkness, or ordered / error-diffusion dithering). */
 export class HalftonePanel {
   private modeBtns = new Map<HalftoneMode, HTMLButtonElement>();
+  private targetBtns = new Map<HalftoneTarget, HTMLButtonElement>();
   private invertChk: HTMLInputElement;
+  private shapeLumChk: HTMLInputElement;
   private contrast: SliderHandle;
   private sizeSlider: SliderHandle;
   private drop: HTMLElement;
@@ -37,24 +48,30 @@ export class HalftonePanel {
     private history: History,
   ) {
     host.innerHTML = `
-      <h2>Halftone</h2>
-      <div class="seg stencil-src" id="ht-mode"></div>
-      <div class="noise-body">
-        <div class="noise-left">
-          <label class="img-drop" id="ht-drop" title="Drop an image or click to upload">
-            <input type="file" accept="image/*" hidden />
-            <canvas class="mask-preview img-preview" width="${PREVIEW_RES}" height="${PREVIEW_RES}"></canvas>
-            <span class="img-hint">⬆ Drop image<br>or click</span>
-          </label>
+      <div class="ht-cols">
+        <div class="ht-main">
+          <h2>Halftone</h2>
+          <div class="seg stencil-src" id="ht-mode"></div>
+          <div class="noise-body">
+            <div class="noise-left">
+              <label class="img-drop" id="ht-drop" title="Drop an image or click to upload">
+                <input type="file" accept="image/*" hidden />
+                <canvas class="mask-preview img-preview" width="${PREVIEW_RES}" height="${PREVIEW_RES}"></canvas>
+                <span class="img-hint">⬆ Drop image<br>or click</span>
+              </label>
+            </div>
+            <div class="noise-right">
+              <div class="seg" id="ht-target"></div>
+              <div class="sliders" id="ht-sliders"></div>
+              <label class="chk"><span>Invert</span><input type="checkbox" id="ht-invert" /></label>
+              <label class="chk"><span>Shape by luminance</span><input type="checkbox" id="ht-shapelum" /></label>
+            </div>
+          </div>
+          <div class="noise-actions">
+            <button id="ht-apply">Apply to view</button>
+          </div>
         </div>
-        <div class="noise-right">
-          <div class="sliders" id="ht-sliders"></div>
-          <label class="chk"><span>Invert</span><input type="checkbox" id="ht-invert" /></label>
-        </div>
-      </div>
-      <p class="ctx-hint">Fills with the shapes selected in <b>Shapes</b>, recolored by the palette.</p>
-      <div class="noise-actions">
-        <button id="ht-apply">Apply to view</button>
+        <div class="ht-shapes" id="ht-shapes"></div>
       </div>`;
 
     const modeHost = host.querySelector("#ht-mode") as HTMLElement;
@@ -66,6 +83,17 @@ export class HalftonePanel {
       b.addEventListener("click", () => this.setHt({ mode: m.mode }));
       this.modeBtns.set(m.mode, b);
       modeHost.appendChild(b);
+    }
+
+    const tgtHost = host.querySelector("#ht-target") as HTMLElement;
+    for (const t of TARGETS) {
+      const b = document.createElement("button");
+      b.className = "seg-btn";
+      b.textContent = t.label;
+      b.title = `Fill the ${t.label.toLowerCase()}`;
+      b.addEventListener("click", () => this.setHt({ target: t.target }));
+      this.targetBtns.set(t.target, b);
+      tgtHost.appendChild(b);
     }
 
     const slHost = host.querySelector("#ht-sliders") as HTMLElement;
@@ -92,6 +120,11 @@ export class HalftonePanel {
 
     this.invertChk = host.querySelector("#ht-invert") as HTMLInputElement;
     this.invertChk.addEventListener("change", () => this.setHt({ invert: this.invertChk.checked }));
+    this.shapeLumChk = host.querySelector("#ht-shapelum") as HTMLInputElement;
+    this.shapeLumChk.addEventListener("change", () => this.setHt({ shapeByLum: this.shapeLumChk.checked }));
+
+    // Inline Shapes picker (same selection the brush uses).
+    new ShapesPanel(host.querySelector("#ht-shapes") as HTMLElement, store, library);
 
     this.drop = host.querySelector("#ht-drop") as HTMLElement;
     this.canvas = host.querySelector(".img-preview") as HTMLCanvasElement;
@@ -159,7 +192,9 @@ export class HalftonePanel {
 
   private sync(s: SceneState): void {
     for (const [m, b] of this.modeBtns) b.classList.toggle("active", m === s.halftone.mode);
+    for (const [t, b] of this.targetBtns) b.classList.toggle("active", t === s.halftone.target);
     this.invertChk.checked = s.halftone.invert;
+    this.shapeLumChk.checked = s.halftone.shapeByLum;
     this.contrast.setValue(s.halftone.contrast);
     this.sizeSlider.setValue(s.halftone.scale);
   }

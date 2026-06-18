@@ -80,7 +80,14 @@ const initial: SceneState = {
     image: { box: null, threshold: 0.5, invert: false },
     text: { text: "HELLO", size: 6, bold: true, box: null },
   },
-  halftone: { mode: "halftone", invert: false, contrast: 1, scale: 1 },
+  halftone: {
+    mode: "halftone",
+    target: "glyph",
+    invert: false,
+    shapeByLum: false,
+    contrast: 1,
+    scale: 1,
+  },
   animation: {
     playing: false,
     playback: "loop",
@@ -146,6 +153,9 @@ store.subscribe((state) => {
   }
   if (state.animation.playing !== prevPlaying) {
     prevPlaying = state.animation.playing;
+    // Drop the panels' backdrop-blur while playing (it recomposites the moving
+    // scene behind every panel each frame).
+    document.body.classList.toggle("perf-noblur", state.animation.playing);
     if (state.animation.playing) engine.play();
     else {
       engine.pause();

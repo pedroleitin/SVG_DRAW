@@ -20,7 +20,10 @@ export type BlockMode = "drag" | "brush";
 export type StencilType = "noise" | "stripes" | "image" | "text";
 
 /** How an uploaded image is rendered with the selected shapes. */
-export type HalftoneMode = "halftone" | "bayer" | "floyd";
+export type HalftoneMode = "halftone" | "bayer" | "floyd" | "atkinson" | "jarvis";
+
+/** What the Halftone fills per cell: the glyph, the cell background, or both. */
+export type HalftoneTarget = "glyph" | "cell" | "both";
 
 export interface StencilParams {
   type: StencilType;
@@ -95,6 +98,9 @@ export interface Instance {
   row: number;
   /** Index into the active palette's color array. */
   colorIndex: number;
+  /** Literal glyph color (overrides colorIndex when set). "transparent" hides
+   *  the glyph — used by Halftone's cell-only target. */
+  color?: string;
   /** Optional cell-background color (palette index). Undefined = no fill. */
   bgIndex?: number;
   /** Cell span (width × height in cells) for multi-cell blocks. Default 1×1. */
@@ -189,7 +195,12 @@ export interface SceneState {
    *  aspect-fits live into the current view (pixels live in a module cache). */
   halftone: {
     mode: HalftoneMode;
+    /** What each cell fills: the glyph, the cell background, or both. */
+    target: HalftoneTarget;
     invert: boolean;
+    /** Pick the shape from the selected set by luminance (light→first, dark→last)
+     *  instead of randomly. */
+    shapeByLum: boolean;
     /** Ink contrast around mid-gray (1 = none); shape scale (× cell). */
     contrast: number;
     scale: number;

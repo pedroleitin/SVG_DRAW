@@ -9,7 +9,7 @@ import { buildOrderField } from "../anim/order";
 import { instanceGeom, cellBgRect } from "../scene/geom";
 import { brushCells, brushBlocks } from "../scene/grid";
 import { dividerBlocks, blockAt } from "../features/divider";
-import { halftoneInstances, hasHalftoneImage } from "../features/halftone";
+import { halftoneInstances, hasHalftoneImage, halftoneImageVersion } from "../features/halftone";
 import { FILL_SCALE } from "../features/placement";
 
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -183,7 +183,13 @@ export class Renderer {
   private lastState?: SceneState;
   private stencilShape!: SVGPathElement;
   private htPreviewLayer!: SVGGElement;
+  private htPreviewBg!: SVGGElement;
+  private htPreviewFg!: SVGGElement;
   private htPreviewNodes: SVGUseElement[] = [];
+  private htPreviewBgNodes: SVGRectElement[] = [];
+  /** Signature of the inputs the halftone preview depends on — skip the (heavy)
+   *  recompute when nothing relevant changed since the last frame. */
+  private htPreviewSig = "";
   private pathLayer: SVGGElement;
   private pathLine: SVGPolylineElement;
   private pathStart: SVGTextElement;
@@ -295,6 +301,10 @@ export class Renderer {
     this.htPreviewLayer.setAttribute("class", "halftone-preview");
     this.htPreviewLayer.style.pointerEvents = "none";
     this.htPreviewLayer.style.display = "none";
+    // Cell backgrounds behind the glyphs (document order = paint order).
+    this.htPreviewBg = document.createElementNS(SVGNS, "g");
+    this.htPreviewFg = document.createElementNS(SVGNS, "g");
+    this.htPreviewLayer.append(this.htPreviewBg, this.htPreviewFg);
 
     // Green stencil silhouette (rounded + dotted, like the Block overlay).
     this.stencilShape = document.createElementNS(SVGNS, "path");
@@ -390,31 +400,74 @@ export class Renderer {
   private renderHalftonePreview(state: SceneState): void {
     if (state.contextPanel !== "halftone" || !hasHalftoneImage()) {
       this.htPreviewLayer.style.display = "none";
+      this.htPreviewSig = "";
       return;
     }
     this.htPreviewLayer.style.display = "";
     const cs = state.cellSize;
     const palette = paletteById(state.palettes, state.activePaletteId);
+    // The preview recompute (luminance sampling + diffusion + per-cell instances)
+    // is heavy; skip it when none of its inputs changed since the last frame.
+    const cam = state.camera;
+    const sig = [
+      halftoneImageVersion(),
+      JSON.stringify(state.halftone),
+      cs,
+      this.fillMul,
+      `${cam.x},${cam.y},${cam.w},${cam.h}`,
+      state.brushAssets.join(","),
+      state.mask.seed,
+      state.activePaletteId,
+      palette.colors.join(","),
+      Object.keys(state.blocked).length,
+    ].join("|");
+    if (sig === this.htPreviewSig) return;
+    this.htPreviewSig = sig;
+
     const places = halftoneInstances(state, this.library).places;
-    let i = 0;
+    let i = 0; // glyph node cursor
+    let b = 0; // bg node cursor
     for (const inst of places) {
-      this.ensureSymbol(inst.assetId);
-      let node = this.htPreviewNodes[i];
-      if (!node) {
-        node = document.createElementNS(SVGNS, "use");
-        this.htPreviewLayer.appendChild(node);
-        this.htPreviewNodes[i] = node;
+      // Cell background (palette color), behind the glyph.
+      if (inst.bgIndex != null) {
+        let rect = this.htPreviewBgNodes[b];
+        if (!rect) {
+          rect = document.createElementNS(SVGNS, "rect");
+          this.htPreviewBg.appendChild(rect);
+          this.htPreviewBgNodes[b] = rect;
+        }
+        const box = cellBgRect(inst.col, inst.row, cs, state.cellRounded, state.cellGutter, inst.cw ?? 1, inst.ch ?? 1);
+        rect.setAttribute("x", String(box.x));
+        rect.setAttribute("y", String(box.y));
+        rect.setAttribute("width", String(box.w));
+        rect.setAttribute("height", String(box.h));
+        rect.setAttribute("rx", String(box.rx || 0));
+        rect.setAttribute("fill", colorAt(palette, inst.bgIndex));
+        rect.style.display = "";
+        b++;
       }
-      const g = instanceGeom(inst, cs, EMPTY_ANIM, this.fillMul);
-      node.setAttribute("href", `#sym-${inst.assetId}`);
-      node.setAttribute("x", String(g.x));
-      node.setAttribute("y", String(g.y));
-      node.setAttribute("width", String(g.size));
-      node.setAttribute("height", String(g.size));
-      node.style.color = colorAt(palette, inst.colorIndex);
-      node.style.display = "";
-      i++;
+      // Glyph (skip when hidden — e.g. the cell-only target).
+      const color = inst.color ?? colorAt(palette, inst.colorIndex);
+      if (color !== "transparent") {
+        this.ensureSymbol(inst.assetId);
+        let node = this.htPreviewNodes[i];
+        if (!node) {
+          node = document.createElementNS(SVGNS, "use");
+          this.htPreviewFg.appendChild(node);
+          this.htPreviewNodes[i] = node;
+        }
+        const g = instanceGeom(inst, cs, EMPTY_ANIM, this.fillMul);
+        node.setAttribute("href", `#sym-${inst.assetId}`);
+        node.setAttribute("x", String(g.x));
+        node.setAttribute("y", String(g.y));
+        node.setAttribute("width", String(g.size));
+        node.setAttribute("height", String(g.size));
+        node.style.color = color;
+        node.style.display = "";
+        i++;
+      }
     }
+    for (; b < this.htPreviewBgNodes.length; b++) this.htPreviewBgNodes[b].style.display = "none";
     for (; i < this.htPreviewNodes.length; i++) this.htPreviewNodes[i].style.display = "none";
   }
 
@@ -867,7 +920,7 @@ export class Renderer {
         out = sampleLifecycle(anim, orderOf(inst), tcyc, T);
       }
       this.applyCellBg(key, inst, cellSize, palette, out, state.cellRounded, state.cellGutter);
-      this.applyInstance(node, inst, cellSize, colorAt(palette, inst.colorIndex), out);
+      this.applyInstance(node, inst, cellSize, inst.color ?? colorAt(palette, inst.colorIndex), out);
     }
 
     // Recycle nodes that scrolled out of view or were erased.
@@ -927,14 +980,20 @@ export class Renderer {
       this.cellBgNodes.set(key, rect);
     }
     const box = cellBgRect(inst.col, inst.row, cellSize, rounded, gutter, inst.cw ?? 1, inst.ch ?? 1);
+    const fill = colorAt(palette, inst.bgIndex);
+    const op = anim.opacity ?? 1;
+    // Dirty-check: skip writes when this cell background is unchanged.
+    const sig = `${box.x}|${box.y}|${box.w}|${box.h}|${box.rx}|${fill}|${op}`;
+    const dirty = rect as unknown as { __sig?: string };
+    if (dirty.__sig === sig) return;
+    dirty.__sig = sig;
     rect.setAttribute("x", String(box.x));
     rect.setAttribute("y", String(box.y));
     rect.setAttribute("width", String(box.w));
     rect.setAttribute("height", String(box.h));
     // Always numeric (0 when square) so rx can interpolate — `auto`↔number won't.
     rect.setAttribute("rx", String(box.rx || 0));
-    rect.setAttribute("fill", colorAt(palette, inst.bgIndex));
-    const op = anim.opacity ?? 1;
+    rect.setAttribute("fill", fill);
     if (op < 1) rect.setAttribute("opacity", op.toFixed(3));
     else rect.removeAttribute("opacity");
   }
@@ -946,8 +1005,14 @@ export class Renderer {
     color: string,
     anim: AnimOutput,
   ): void {
-    node.setAttribute("href", `#sym-${inst.assetId}`);
     const g = instanceGeom(inst, cellSize, anim, this.fillMul);
+    // Dirty-check: skip all DOM writes when nothing this node shows changed
+    // (e.g. a pan only moves the viewBox; static instances during animation).
+    const sig = `${inst.assetId}|${g.x}|${g.y}|${g.size}|${g.rot}|${g.cx}|${g.cy}|${g.opacity}|${color}|${inst.id}`;
+    const dirty = node as unknown as { __sig?: string };
+    if (dirty.__sig === sig) return;
+    dirty.__sig = sig;
+    node.setAttribute("href", `#sym-${inst.assetId}`);
     node.setAttribute("x", String(g.x));
     node.setAttribute("y", String(g.y));
     node.setAttribute("width", String(g.size));

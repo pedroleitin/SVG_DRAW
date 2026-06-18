@@ -455,11 +455,14 @@ export class Shell {
     // Edit gets a fixed wider width so the Recolor swatches have room to wrap as
     // more colors are added (instead of fitting tight to the current count).
     this.contextEl.classList.toggle("edit", open === "edit");
+    // Halftone is a 2-column panel (controls + inline Shapes), so it gets its
+    // own wider fixed width.
+    this.contextEl.classList.toggle("ht", open === "halftone");
     // Any non-wide box that carries the brush footer fits its content, so a
     // small panel doesn't crowd the footer's controls on narrow windows.
     this.contextEl.classList.toggle(
       "fit",
-      !wide && open !== "edit" && (brush || open === "shapes" || open === "halftone"),
+      !wide && open !== "edit" && open !== "halftone" && (brush || open === "shapes"),
     );
     // Drop the footer's divider when there's no panel above it.
     this.contextEl.classList.toggle("brush-only", open === null && brush);

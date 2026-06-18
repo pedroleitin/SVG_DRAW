@@ -1,4 +1,4 @@
-import type { Instance, SceneState } from "../scene/types";
+import type { Instance, SceneState, HalftoneMode } from "../scene/types";
 import type { Library } from "./library";
 import type { MaskResult } from "./placement";
 import { buildInstance, FILL_SCALE } from "./placement";
@@ -10,7 +10,7 @@ import { cellKey } from "../scene/types";
  *  Pixels live here (not in serializable state); the placement box is in
  *  `state.halftone`. */
 
-export type HalftoneMode = "halftone" | "bayer" | "floyd";
+export type { HalftoneMode };
 
 interface Sampled {
   data: Uint8ClampedArray;
@@ -18,9 +18,16 @@ interface Sampled {
   h: number;
 }
 let img: Sampled | null = null;
+let imgVersion = 0;
 
 export function hasHalftoneImage(): boolean {
   return !!img;
+}
+
+/** Bumped whenever a new image is loaded — lets the live preview cache know the
+ *  pixels changed even though they don't live in the serializable state. */
+export function halftoneImageVersion(): number {
+  return imgVersion;
 }
 
 export function halftoneAspect(): number | null {
@@ -49,6 +56,7 @@ export async function setHalftoneImage(file: File): Promise<{ w: number; h: numb
   }
   ctx.drawImage(bmp, 0, 0, w, h);
   img = { data: ctx.getImageData(0, 0, w, h).data, w, h };
+  imgVersion++;
   const dims = { w: bmp.width, h: bmp.height };
   bmp.close?.();
   return dims;
@@ -71,6 +79,21 @@ const BAYER = [
   [15, 7, 13, 5],
 ];
 
+/** Error-diffusion kernels: [dx, dy, weight], shared divisor. Atkinson spreads
+ *  only 6/8 of the error (its weights sum < divisor), which lightens flats. */
+const DIFFUSION: Record<"floyd" | "atkinson" | "jarvis", { div: number; k: [number, number, number][] }> = {
+  floyd: { div: 16, k: [[1, 0, 7], [-1, 1, 3], [0, 1, 5], [1, 1, 1]] },
+  atkinson: { div: 8, k: [[1, 0, 1], [2, 0, 1], [-1, 1, 1], [0, 1, 1], [1, 1, 1], [0, 2, 1]] },
+  jarvis: {
+    div: 48,
+    k: [
+      [1, 0, 7], [2, 0, 5],
+      [-2, 1, 3], [-1, 1, 5], [0, 1, 7], [1, 1, 5], [2, 1, 3],
+      [-2, 2, 1], [-1, 2, 3], [0, 2, 5], [1, 2, 3], [2, 2, 1],
+    ],
+  },
+};
+
 /** Build the instances that render the image as shapes, aspect-fit live into the
  *  current view (so cell size / pan / zoom re-resolve it). Clears that region
  *  first (replace), so re-applying re-renders cleanly. Pure. */
@@ -78,7 +101,7 @@ export function halftoneInstances(state: SceneState, library: Library): MaskResu
   const aspect = halftoneAspect();
   if (aspect == null) return { places: [], eraseKeys: [] };
   const box = fitBox(state, aspect);
-  const { mode, invert, contrast } = state.halftone;
+  const { mode, target, invert, contrast, shapeByLum } = state.halftone;
   const { cols, rows } = box;
 
   // Ink per cell (0 = empty, 1 = full): darkness (unless inverted), pushed
@@ -92,27 +115,34 @@ export function halftoneInstances(state: SceneState, library: Library): MaskResu
     }
   }
 
-  // Floyd–Steinberg diffuses error across the ink grid before thresholding.
-  if (mode === "floyd") {
+  // Error-diffusion dithers diffuse the residual before thresholding.
+  const diff = DIFFUSION[mode as "floyd" | "atkinson" | "jarvis"];
+  if (diff) {
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const i = r * cols + c;
         const old = ink[i];
         const next = old >= 0.5 ? 1 : 0;
         ink[i] = next;
-        const err = old - next;
-        if (c + 1 < cols) ink[i + 1] += (err * 7) / 16;
-        if (r + 1 < rows) {
-          if (c > 0) ink[i + cols - 1] += (err * 3) / 16;
-          ink[i + cols] += (err * 5) / 16;
-          if (c + 1 < cols) ink[i + cols + 1] += err / 16;
+        const err = (old - next) / diff.div;
+        for (const [dx, dy, w] of diff.k) {
+          const nc = c + dx;
+          const nr = r + dy;
+          if (nc >= 0 && nc < cols && nr < rows) ink[nr * cols + nc] += err * w;
         }
       }
     }
   }
 
+  // Ordered shape pool (for "shape by luminance"): the selected shapes, in order.
+  const pool = state.brushAssets.filter((id) => id !== "random" && library.get(id));
+  const order = pool.length ? pool : library.ids();
+
   const places: Instance[] = [];
   const placeKeys = new Set<string>();
+  const glyphOn = target === "glyph" || target === "both";
+  const cellOn = target === "cell" || target === "both";
+
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const col = box.col + c;
@@ -130,12 +160,25 @@ export function halftoneInstances(state: SceneState, library: Library): MaskResu
       } else if (mode === "bayer") {
         on = v > (BAYER[r & 3][c & 3] + 0.5) / 16;
       } else {
-        on = v >= 0.5; // floyd already thresholded to 0/1
+        on = v >= 0.5; // diffusion already thresholded to 0/1
       }
       if (!on) continue;
 
       const inst = buildInstance(state, library, col, row);
-      inst.scale = scale;
+      const pickedIdx = inst.colorIndex;
+
+      // Shape chosen by luminance: light → first, dark → last of the selection.
+      if (shapeByLum && order.length) {
+        const idx = Math.min(order.length - 1, Math.max(0, Math.floor(v * order.length)));
+        inst.assetId = order[idx];
+      }
+
+      // Glyph: scale it (halftone), or hide it (cell-only target).
+      if (glyphOn) inst.scale = scale;
+      else inst.color = "transparent";
+      // Cell background uses the cell's palette color.
+      if (cellOn) inst.bgIndex = pickedIdx;
+
       places.push(inst);
       placeKeys.add(cellKey(col, row));
     }
