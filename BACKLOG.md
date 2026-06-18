@@ -335,14 +335,14 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 > recompute quando nada muda); **dirty-check** em `applyInstance`/`applyCellBg` (pula
 > `setAttribute` quando o nó não mudou); **reuso do `Box`** em `instanceGeom`.
 
-- [ ] 🔴 **Desenho “falhado” com muitos SVGs** — ao pintar com o mouse, a linha sai com
-  buracos quando há muitos shapes. Causa: cada `pointermove` **clona o mapa inteiro de
-  instâncias** (`{ ...state.instances }` em [tools.ts](src/tools/tools.ts), `paint`) — O(N) por
-  ponto — e o render varre todas as instâncias — O(N) por frame; o navegador então descarta
-  posições intermediárias. Fix: **clonar o mapa uma vez no `pointerdown`** e mutar a mesma
-  referência nos moves (undo já vem dos buffers do `commitStroke`); depois, **render
-  incremental** (aplicar só as células do traço) ligado à virtualização.
-  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (`paint`/`onDown`/`commitStroke`), [src/render/renderer.ts](src/render/renderer.ts) (`renderInstances`).
+- [~] 🔴 **Desenho “falhado” com muitos SVGs** — _clone-once feito; render incremental pendente._
+  A linha saía com buracos com muitos shapes porque cada `pointermove` **clonava o mapa inteiro
+  de instâncias** (O(N) por ponto). Agora o mapa é **clonado uma vez no `pointerdown`**
+  (`strokeInstances`) e **mutado em lugar** nos moves (draw/erase/divider/edit); o `commitStroke`
+  segue reconstruindo o pré-traço com clone fresco, então undo/redo intactos.
+  Falta: o render ainda varre **todas** as instâncias por frame — **render incremental** (só as
+  células do traço) ligado à virtualização.
+  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (`strokeInstances` em `paint`/`paintDivider`/`paintEdit`/`onDown`), [src/render/renderer.ts](src/render/renderer.ts) (`renderInstances`, pendente).
 - [ ] 🟡 **Preview do Halftone em `<canvas>`** — desacoplar o preview ao vivo do DOM SVG
   (amostrar → desenhar no canvas; baking pra SVG só no Apply/export). Pré-requisito do
   halftone de **vídeo/GIF** (frames contínuos sem criar milhares de nós).

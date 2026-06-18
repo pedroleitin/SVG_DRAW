@@ -28,6 +28,9 @@ export class InputController {
   private strokeCells = new Set<string>();
   private strokePlaced: Instance[] = [];
   private strokeErased: Instance[] = [];
+  /** Working instances map for the active stroke — cloned ONCE on pointerdown and
+   *  mutated per move (avoids an O(N) clone of every SVG on each pointer event). */
+  private strokeInstances: Record<string, Instance> = {};
   private drawingPath = false;
   private pathPoints: { x: number; y: number }[] = [];
   // Block tool state.
@@ -113,6 +116,7 @@ export class InputController {
       this.strokeCells.clear();
       this.strokePlaced = [];
       this.editOriginals.clear();
+      this.strokeInstances = { ...this.store.get().instances }; // clone once per stroke
       this.paintEdit(e);
       return;
     }
@@ -120,6 +124,7 @@ export class InputController {
     this.strokeCells.clear();
     this.strokePlaced = [];
     this.strokeErased = [];
+    this.strokeInstances = { ...this.store.get().instances }; // clone once per stroke
     this.paint(e);
   };
 
@@ -215,7 +220,7 @@ export class InputController {
     const cs = state.cellSize;
     const w = this.worldAt(e);
     const span = Math.max(1, Math.round(state.brushSpan ?? 1));
-    const instances = { ...state.instances };
+    const instances = this.strokeInstances; // mutated in place; cloned at stroke start
     let changed = false;
 
     if (state.tool === "erase") {
@@ -303,7 +308,7 @@ export class InputController {
         if (state.blocked[cellKey(x, y)]) return;
       }
     }
-    const instances = { ...state.instances };
+    const instances = this.strokeInstances; // mutated in place; cloned at stroke start
     // Clear whatever the block covers, then place the spanning SVG.
     for (const k of instancesInRect(instances, b.col, b.row, b.cw, b.ch)) {
       const inst = instances[k];
@@ -389,7 +394,7 @@ export class InputController {
     const cs = state.cellSize;
     const w = this.worldAt(e);
     const cells = brushCells(w.x / cs, w.y / cs, state.brushSize, state.brushShape);
-    const instances = { ...state.instances };
+    const instances = this.strokeInstances; // mutated in place; cloned at stroke start
     let changed = false;
     for (const c of cells) {
       for (const k of coveringKeys(instances, c.col, c.row)) {
