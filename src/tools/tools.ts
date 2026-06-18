@@ -519,6 +519,7 @@ export class InputController {
     const span = Math.max(1, Math.round(state.brushSpan ?? 1));
     const reserved = new Set<string>(); // cells already taken by a placed glyph
     const places: Instance[] = [];
+    const eraseSet = new Set<string>(); // existing instances the line clears
     const stamp = (xCell: number, yCell: number) => {
       for (const blk of brushBlocks(xCell, yCell, state.brushSize, "circle", span)) {
         // Skip if any of the span×span cells is already reserved or blocked.
@@ -532,6 +533,10 @@ export class InputController {
           }
         }
         if (skip) continue;
+        // Clear whatever this block covers so it doesn't stack on existing SVGs.
+        for (const k of instancesInRect(state.instances, blk.col, blk.row, span, span)) {
+          eraseSet.add(k);
+        }
         for (let y = blk.row; y < blk.row + span; y++) {
           for (let x = blk.col; x < blk.col + span; x++) reserved.add(cellKey(x, y));
         }
@@ -553,8 +558,10 @@ export class InputController {
         }
       }
     }
-    if (places.length) {
-      this.history.dispatch(new PlaceInstances(places));
+    if (places.length || eraseSet.size) {
+      const placedKeys = new Set(places.map((i) => cellKey(i.col, i.row)));
+      const eraseKeys = [...eraseSet].filter((k) => !placedKeys.has(k));
+      this.history.dispatch(new ApplyMaskCommand(places, eraseKeys));
       this.audio.note(places.length);
     }
   }
