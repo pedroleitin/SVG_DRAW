@@ -6,9 +6,12 @@ evolves. (Mirrors `CLAUDE.md` — same project, any assistant.)
 ## What this is
 
 A browser-based generative tool that fills an infinite, zoomable grid with SVG shapes:
-draw/erase brushes, palette recoloring, per-cell backgrounds, a multi-source **Stencil**
-(noise / stripes / image / text masks you paint inside), seamless tiling, a square-packing
-divider, multi-cell scaling, time-driven animation, and SVG / PNG / MP4 export.
+draw / erase / **line** brushes (line draws a freehand path then fills it with glyphs),
+palette recoloring, per-cell backgrounds, a **Block** tool that locks cells (preserves +
+protects their content), a multi-source **Stencil** (noise / stripes / image / text masks you
+paint inside), a **Halftone** that renders an image / GIF / video as shapes (live animated
+preview via global Play + animated MP4/PNG-seq export), seamless tiling, a square-packing
+divider (block-aware), multi-cell scaling, time-driven animation, and SVG / PNG / MP4 export.
 Vite + TypeScript, native SVG DOM as the source of truth.
 
 ## Commands
@@ -30,10 +33,10 @@ Unidirectional **Store → Render → Input → Commands** loop:
 - `src/store/` — observable single source of truth (serializable `SceneState`).
 - `src/scene/` — domain model + pure math (`grid`, `camera`, `types`, `geom`).
 - `src/render/` — diffs scene → SVG; virtualizes to the visible cell range (`renderer.ts`).
-- `src/tools/` — pointer/wheel input → draw / erase / pan / zoom / block / path (`tools.ts`).
+- `src/tools/` — pointer/wheel input → draw / erase / line / pan / zoom / block / path (`tools.ts`).
 - `src/commands/` — Command pattern → undo/redo; a stroke coalesces into one step.
-- `src/features/` — `library`, `palette`, `placement`, `noise`, `divider`, `svgImport`,
-  `audio`, `halftone` (image → shapes), and the stencil sources (`stencil` → `litFn` per cell, `stencilImage`, `stencilText`).
+- `src/features/` — `library`, `palette`, `placement`, `noise`, `divider` (block-aware), `svgImport`,
+  `audio`, `halftone` (image / GIF / video → shapes, animated), and the stencil sources (`stencil` → `litFn` per cell, `stencilImage`, `stencilText`).
 - `src/anim/` — time-driven engine + reveal order (drives export too).
 - `src/export/` — frame, SVG/PNG raster, animated PNG-zip / MP4 muxers.
 - `src/ui/` — floating shell: modes bar, per-mode toolbox, context panels, menu morph.

@@ -3,9 +3,11 @@
 ![SVG Grid Drawing Tool](cover.png)
 
 A browser-based generative tool for filling an infinite grid with SVG shapes:
-draw/erase brushes, palette recoloring, per-cell backgrounds, a fractal noise
-mask, seamless tiling, square-packing divider, multi-cell scaling, time-driven
-animation, and SVG / PNG / MP4 export — all on an infinite, zoomable canvas.
+draw / erase / line brushes, palette recoloring, per-cell backgrounds, a Block
+tool that locks cells, a multi-source Stencil, a Halftone that renders an
+image / GIF / video as shapes (animated), seamless tiling, a block-aware
+square-packing divider, multi-cell scaling, time-driven animation, and
+SVG / PNG / MP4 export — all on an infinite, zoomable canvas.
 
 ## Stack
 
@@ -32,9 +34,9 @@ Unidirectional **Store → Render → Input → Commands** loop:
 - `src/store/` — observable single source of truth (serializable `SceneState`).
 - `src/scene/` — domain model + pure math (`grid`, `camera`, `types`).
 - `src/render/` — diffs scene → SVG; virtualizes to the visible cell range.
-- `src/tools/` — pointer/wheel input → draw / erase / pan / zoom / block / path.
+- `src/tools/` — pointer/wheel input → draw / erase / line / pan / zoom / block / path.
 - `src/commands/` — Command pattern → undo/redo; strokes coalesce to one step.
-- `src/features/` — `library`, `palette`, `placement`, `noise`, `divider`.
+- `src/features/` — `library`, `palette`, `placement`, `noise`, `divider`, `stencil`, `halftone`, `audio`.
 - `src/anim/` — time-driven animation engine + reveal order.
 - `src/export/` — frame, SVG/PNG raster, and animated PNG-zip / MP4 muxers.
 - `src/ui/` — the floating shell: modes bar, per-mode toolbox, context panels,
@@ -59,9 +61,13 @@ brush-relevant panels.
 - Undo / redo / clear; strokes coalesce to one undo step; shortcuts (B, E, P, ⌘Z, ⌘⇧Z)
 
 **Draw mode**
-- Draw + Erase brushes — size 1–4, square/circle/cross footprint, multi-cell **Size** (one SVG over N×N)
+- Draw + Erase brushes — size 1–4, square/circle/cross footprint, multi-cell **Size** (one SVG over N×N).
+  Strokes interpolate along the path, so a fast flick fills a contiguous line (no gaps)
+- **Line** tool — drag a freehand path (preview stroke), released into glyphs along it (Brush = thickness,
+  Size = each glyph's span), filled with the current shapes + cell background
 - Optional random 90° rotation per placed SVG
-- **Block** tool — mark no-go cells (drag rectangle or paint); draw + stencil skip them
+- **Block** tool — lock cells (drag rectangle or paint): it **preserves + protects** what's there (the SVG
+  stays, but Draw / Erase / Edit skip blocked cells); Clean mode un-blocks. Stencil + Divider skip them too
 - **Stencil** — paint inside a mask "opening" (a green rounded/dotted silhouette). Pluggable
   sources: **Noise** (fBm), **Stripes** (diagonal zebra), **Image** (upload read as B/W,
   threshold/invert), **Text** (rasterized glyphs). The brush only paints inside the opening;
@@ -74,21 +80,23 @@ brush-relevant panels.
 **Compose mode**
 - **Seamless** — tileable noise + a live tile frame (drag/resize, snap to cell) with neighbor ghosts and
   seam highlighting; "Apply to view" / "Apply + Crop" bake the pattern
-- **Divider** — packs the view into varied square blocks (noise-driven); "Apply" fills each block with a
-  scaled SVG, or **brush** individual blocks (the highlight snaps to the block under the cursor)
+- **Divider** — packs the view into varied square blocks (noise-driven, **block-aware** — flows around
+  locked cells); "Apply" fills each block with a scaled SVG, or **brush** individual blocks
 - **Halftone** — render an image, **GIF or video** with the selected shapes: **halftone** (dot size by
   darkness), **Bayer / Floyd–Steinberg / Atkinson / Jarvis** dithering; fill the glyph, cell, or both;
   Contrast / Size + an inline Shapes picker, with a live ghost preview. Animated sources get a frame
-  scrubber + **play** (live animated preview) and an **animated export** (PNG-seq / MP4). Fits the view,
-  so the cell size is the resolution
-- **Edit** — rotate / swap / recolor existing items like a brush (glyph or cell background), multi-cell aware
-- **Grid** — rounded cells, gutter, show/hide grid, show/hide blockers (lives in the settings box)
+  scrubber + **play** that runs on the canvas via the global **Play** (any mode), an **animated export**
+  (PNG-seq / MP4), and a **Send to Export** that frames the union of all frames. Fits the view, so the
+  cell size is the resolution
+- **Edit** — rotate / swap / recolor existing items like a brush (glyph / cell / both, or **None**), multi-cell aware
+- **Grid** — rounded cells, gutter, show/hide grid, show/hide blockers, and a **Cell fill** slider
+  (how much of each cell the SVG fills) (lives in the settings box)
 
 **Animation**
 - Time-driven engine (rAF clock + pure sampling — also drives export)
 - Lifecycle per SVG: **Intro → Hold → Outro** (fade / scale / pop / rotate), adjustable durations
-- Reveal **order**: linear (+ direction), radial, sequential, random, and **draw path** — the 🧭 Order tool (P)
-  draws a START→FINISH path the reveal follows; `spread` staggers the sweep
+- Reveal **order**: linear (+ direction), radial, sequential, random, **halftone** (by source luminance),
+  and **draw path** — the 🧭 Order tool (P) draws a START→FINISH path the reveal follows; `spread` staggers it
 - Playback: loop / ping-pong / once · optional idle motion (spin / pulse / bob / sway / orbit)
 
 **Export**
@@ -106,5 +114,6 @@ brush-relevant panels.
 > `tsconfig` uses `noEmit`, so `tsc` only typechecks — Vite owns bundling. Verification through the project
 > has been done with headless Chrome (playwright-core).
 
-Remaining ideas and refinements live in [BACKLOG.md](BACKLOG.md) — notably image/video as a distribution
-source (halftone / dithering), independent SVG-vs-background color modes, and save/load projects.
+Remaining ideas and refinements live in [BACKLOG.md](BACKLOG.md) — notably a point-based (polyline) Line
+mode, independent SVG-vs-background color modes, a Help panel + keyboard-shortcut surface, and save/load
+projects.
