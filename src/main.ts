@@ -33,6 +33,18 @@ document.documentElement.setAttribute("data-theme", savedTheme);
 const stage = document.getElementById("stage") as HTMLElement;
 const library = new Library();
 
+// Safari-only notice: some features (animated GIF, MP4 export) and performance are
+// still WIP on WebKit. Desktop Safari reports the Apple vendor; iOS Chrome/FF/Edge
+// share it, so exclude those.
+const isSafari =
+  navigator.vendor === "Apple Computer, Inc." && !/CriOS|FxiOS|EdgiOS|Edg\//.test(navigator.userAgent);
+if (isSafari) {
+  const note = document.createElement("div");
+  note.className = "safari-wip";
+  note.textContent = "⚠ Safari: some features & performance are still WIP";
+  document.body.appendChild(note);
+}
+
 const host = { width: stage.clientWidth, height: stage.clientHeight };
 const camera0 = makeCamera(host, 1);
 

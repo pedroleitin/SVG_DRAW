@@ -49,6 +49,9 @@ body {
   background: var(--bg);
   color: var(--text);
   overflow: hidden;
+  /* Stop Safari from latching the wheel onto page scroll / swipe-nav mid-gesture
+   *  (the zoom "started then stopped"). */
+  overscroll-behavior: none;
 }
 
 #app {
@@ -1529,6 +1532,26 @@ body.perf-noblur .dd-menu {
   overflow: hidden;
   background: var(--bg);
   cursor: crosshair;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+/* Safari-only notice (top-left): some features / perf are still WIP there. */
+.safari-wip {
+  position: fixed;
+  top: 10px;
+  left: 12px;
+  z-index: 9999;
+  pointer-events: none;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  background: var(--glass-solid);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 4px 9px;
+  box-shadow: 0 4px 14px var(--shadow);
 }
 
 /* Pan tool: open hand when active, closed hand while dragging. */
