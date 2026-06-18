@@ -560,11 +560,15 @@ export class InputController {
   private onWheel = (e: WheelEvent) => {
     e.preventDefault();
     const rect = this.renderer.svg.getBoundingClientRect();
-    // Normalize the wheel delta across browsers: Chrome reports pixels, but
-    // Safari/Firefox often report line- or page-mode deltas (tiny values) — which
-    // made the zoom imperceptible. Convert to ~pixels, then clamp big momentum jumps.
+    // Normalize the wheel delta across browsers: Chrome reports large pixel deltas,
+    // but Safari/Firefox report line/page mode OR tiny pixel deltas — which made the
+    // zoom imperceptible. Convert to ~pixels, FLOOR to a usable step so every notch
+    // zooms, then CAP big momentum jumps.
     const unit = e.deltaMode === 1 ? 24 : e.deltaMode === 2 ? this.host().height : 1;
-    const dy = Math.max(-240, Math.min(240, e.deltaY * unit));
+    const raw = e.deltaY * unit;
+    const mag = Math.abs(raw);
+    if (mag < 0.5) return; // ignore noise / horizontal-only scrolls
+    const dy = Math.sign(raw) * Math.min(Math.max(mag, 30), 240);
     const factor = Math.exp(-dy * 0.0015);
     const cam = zoomAt(
       this.store.get().camera,
