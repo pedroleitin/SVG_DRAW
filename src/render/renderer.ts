@@ -547,7 +547,9 @@ export class Renderer {
     const off = Math.floor((span - 1) / 2);
     const bcol = anchor.col - off;
     const brow = anchor.row - off;
-    const inset = 3 * px;
+    // ~3px gap, but never more than 40% of a cell — otherwise (very zoomed out,
+    // where 1px is many world units) the rect width cs - inset*2 goes negative.
+    const inset = Math.min(3 * px, cs * 0.4);
     let slots: { col: number; row: number; cw: number; ch: number }[];
     if (isDivider) {
       // Snap the highlight to the subdivision block under the cursor.
