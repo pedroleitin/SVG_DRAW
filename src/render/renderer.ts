@@ -20,6 +20,7 @@ import {
   advanceHalftone,
 } from "../features/halftone";
 import { FILL_SCALE } from "../features/placement";
+import { hash2, mulberry32, randInt } from "../util/rng";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 const EMPTY_ANIM: AnimOutput = {};
@@ -210,6 +211,10 @@ export class Renderer {
   private lastState?: SceneState;
   private stencilShape!: SVGPathElement;
   private linePreview!: SVGPolylineElement;
+  /** Ambient (small-screen) layer: a procedurally-filled field of pulsing glyphs. */
+  private ambientLayer!: SVGGElement;
+  private ambientNodes: SVGUseElement[] = [];
+  private ambientCache = new Map<string, { assetId: string; colorIdx: number; phase: number; period: number }>();
   private htPreviewLayer!: SVGGElement;
   private htPreviewBg!: SVGGElement;
   private htPreviewFg!: SVGGElement;
@@ -350,6 +355,12 @@ export class Renderer {
     this.linePreview.style.pointerEvents = "none";
     this.linePreview.style.display = "none";
 
+    // Ambient field (small-screen screensaver).
+    this.ambientLayer = document.createElementNS(SVGNS, "g");
+    this.ambientLayer.setAttribute("class", "ambient-field");
+    this.ambientLayer.style.pointerEvents = "none";
+    this.ambientLayer.style.display = "none";
+
     // Order-path overlay: the drawn reveal line with START / FINISH labels.
     this.pathLayer = document.createElementNS(SVGNS, "g");
     this.pathLayer.setAttribute("class", "order-path");
@@ -393,6 +404,7 @@ export class Renderer {
       this.htPreviewLayer,
       this.stencilShape,
       this.linePreview,
+      this.ambientLayer,
       this.pathLayer,
       this.frameLayer,
     );
@@ -424,6 +436,19 @@ export class Renderer {
     if (state.animation.playing && halftoneIsAnimated()) advanceHalftone(time);
     const cam = state.camera;
     this.svg.setAttribute("viewBox", `${cam.x} ${cam.y} ${cam.w} ${cam.h}`);
+
+    // Ambient mode replaces the scene with a self-contained field of pulsing
+    // glyphs — hide the normal scene layers and render only that.
+    const ambient = state.ambient;
+    this.gridDotsGroup.style.display = ambient ? "none" : "";
+    this.cellBgLayer.style.display = ambient ? "none" : "";
+    this.content.style.display = ambient ? "none" : "";
+    if (ambient) {
+      this.renderAmbient(state, time);
+      return;
+    }
+    this.ambientLayer.style.display = "none";
+
     this.glideCellShape(state);
     this.renderGrid(state);
     this.renderTilePreview(state);
@@ -435,6 +460,78 @@ export class Renderer {
     this.renderHalftonePreview(state);
     this.renderOrderPath(state);
     this.renderFrame(state);
+  }
+
+  /** Smooth fade in → hold → fade out → hidden over one normalized cycle. */
+  private static ambientPulse(t: number): number {
+    const ease = (x: number) => x * x * (3 - 2 * x);
+    if (t < 0.15) return ease(t / 0.15);
+    if (t < 0.55) return 1;
+    if (t < 0.7) return ease((0.7 - t) / 0.15);
+    return 0;
+  }
+
+  /** Procedural field for ambient mode: each visible cell may hold a random glyph
+   *  (seeded, so it's stable) that fades in/out on its own random cycle. */
+  private renderAmbient(state: SceneState, time: number): void {
+    this.ambientLayer.style.display = "";
+    const cs = state.cellSize;
+    const cam = state.camera;
+    const r = visibleCellRange(cam, cs, 1);
+    const palette = paletteById(state.palettes, state.activePaletteId);
+    const ids = this.library.ids();
+    if (!ids.length || !palette.colors.length) return;
+    // Clear gap around the centered message — no glyphs behind the text.
+    const ccx = cam.x + cam.w / 2;
+    const ccy = cam.y + cam.h / 2;
+    const clearHalfW = cam.w * 0.46;
+    const clearHalfH = Math.max(cs * 1.5, cam.h * 0.12);
+    let i = 0;
+    for (let row = r.minRow; row <= r.maxRow; row++) {
+      for (let col = r.minCol; col <= r.maxCol; col++) {
+        const cellCx = (col + 0.5) * cs;
+        const cellCy = (row + 0.5) * cs;
+        if (Math.abs(cellCx - ccx) < clearHalfW && Math.abs(cellCy - ccy) < clearHalfH) continue;
+        const key = `${col},${row}`;
+        let c = this.ambientCache.get(key);
+        if (!c) {
+          const rng = mulberry32(hash2(col, row, 1337));
+          if (rng() < 0.4) {
+            this.ambientCache.set(key, (c = { assetId: "", colorIdx: 0, phase: 0, period: 0 })); // empty cell
+          } else {
+            c = {
+              assetId: ids[randInt(rng, 0, ids.length - 1)],
+              colorIdx: randInt(rng, 0, palette.colors.length - 1),
+              phase: rng(),
+              period: 2.5 + rng() * 4.5,
+            };
+            this.ambientCache.set(key, c);
+          }
+        }
+        if (!c.assetId) continue; // empty cell
+        const op = Renderer.ambientPulse((time / c.period + c.phase) % 1);
+        if (op <= 0.01) continue;
+        this.ensureSymbol(c.assetId);
+        let node = this.ambientNodes[i];
+        if (!node) {
+          node = document.createElementNS(SVGNS, "use");
+          this.ambientLayer.appendChild(node);
+          this.ambientNodes[i] = node;
+        }
+        const size = cs * FILL_SCALE;
+        const off = (cs - size) / 2;
+        node.setAttribute("href", `#sym-${c.assetId}`);
+        node.setAttribute("x", String(col * cs + off));
+        node.setAttribute("y", String(row * cs + off));
+        node.setAttribute("width", String(size));
+        node.setAttribute("height", String(size));
+        node.style.color = colorAt(palette, c.colorIdx);
+        node.setAttribute("opacity", op.toFixed(3));
+        node.style.display = "";
+        i++;
+      }
+    }
+    for (; i < this.ambientNodes.length; i++) this.ambientNodes[i].style.display = "none";
   }
 
   /** Ghost preview of the halftone result — shown in its panel, or anywhere while

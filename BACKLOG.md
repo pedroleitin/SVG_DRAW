@@ -43,6 +43,13 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   cursor de caminho no Order, move/resize no frame, brush quando houver brush size).
   - Hoje o `#stage` é sempre `crosshair`. Aplicar via classe no stage conforme `tool`/`mode`.
   - Arquivos: [src/ui/shell.ts](src/ui/shell.ts) (classe no stage), [src/ui/styles/app.css](src/ui/styles/app.css).
+- [x] 🟡 **Modo ambient (telas pequenas/mobile)** — _feito._ Em telas estreitas (≤640px) a UI
+  some e o canvas vira um **campo de glyphs aleatórios** que fazem **fade-in/out** independentes
+  (cada célula tem asset/cor/fase/período seedados; pulso fade→hold→fade→oculto). É procedural no
+  renderer (não mexe no store), dirigido pelo clock do engine. Uma mensagem **"Only on big
+  screens"** fica centralizada, com um **vão sem glyphs** atrás dela. Liga/desliga por resize.
+  - Arquivos: [src/main.ts](src/main.ts) (`syncAmbient` + msg), [src/render/renderer.ts](src/render/renderer.ts) (`renderAmbient`), [src/scene/types.ts](src/scene/types.ts) (`ambient`), [src/ui/styles/app.css](src/ui/styles/app.css).
+  - Futuro: variar densidade/cellSize, tap pra alternar, e talvez reusar como screensaver no desktop.
 - [ ] 🟡 **Ícone de Help no topo** — botão de ajuda ao lado do **mute** (canto sup. direito)
   que abre um painel/overlay explicando as **features** do projeto e listando os **atalhos**
   de teclado. Liga com o item de atalhos abaixo.

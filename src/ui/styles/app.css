@@ -1536,6 +1536,32 @@ body.perf-noblur .dd-menu {
   overscroll-behavior: none;
 }
 
+/* Ambient mode (small screens): hide the whole floating UI — just the glyph field. */
+body.ambient #ui {
+  display: none;
+}
+
+/* Centered message over the ambient field (the field leaves a clear gap here). */
+.ambient-msg {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 24px;
+  font-size: clamp(20px, 7vw, 34px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+body.ambient .ambient-msg {
+  display: flex;
+}
+
 /* Safari-only notice (top-left): some features / perf are still WIP there. */
 .safari-wip {
   position: fixed;

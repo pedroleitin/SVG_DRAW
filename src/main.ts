@@ -45,6 +45,12 @@ if (isSafari) {
   document.body.appendChild(note);
 }
 
+// Ambient (small-screen) center message — shown only while `body.ambient` is set.
+const ambientMsg = document.createElement("div");
+ambientMsg.className = "ambient-msg";
+ambientMsg.textContent = "Only on big screens";
+document.body.appendChild(ambientMsg);
+
 const host = { width: stage.clientWidth, height: stage.clientHeight };
 const camera0 = makeCamera(host, 1);
 
@@ -53,6 +59,7 @@ const initial: SceneState = {
   contextPanel: null,
   tool: "draw",
   cellSize: 64,
+  ambient: false,
   showGrid: true,
   showBlockers: true,
   brushAssets: ["random"],
@@ -254,7 +261,25 @@ new ResizeObserver(() => {
   const nextHost = renderer.hostSize;
   store.set({ camera: resizeCamera(store.get().camera, lastHost, nextHost) });
   lastHost = nextHost;
+  syncAmbient();
 }).observe(stage);
+
+// --- Ambient (small-screen screensaver) ---
+// On small screens, hide the UI and run a self-contained field of random glyphs
+// that fade in/out. The renderer paints it off the global clock, so keep the
+// engine playing while it's on.
+function syncAmbient(): void {
+  const want = window.innerWidth <= 640;
+  if (want !== store.get().ambient) store.set({ ambient: want });
+  document.body.classList.toggle("ambient", want);
+  if (want) {
+    engine.play();
+  } else {
+    if (!store.get().animation.playing) engine.pause();
+    paint(engine.now()); // render the non-ambient frame now (engine may be paused)
+  }
+}
+syncAmbient();
 
 // --- First paint ---
 paint(0);

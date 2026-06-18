@@ -146,6 +146,9 @@ export interface SceneState {
   contextPanel: ContextPanel;
   tool: ToolId;
   cellSize: number;
+  /** Ambient screensaver mode (auto on small screens): UI hidden, the screen
+   *  fills with random glyphs that fade in/out independently. */
+  ambient: boolean;
   /** Show the dot grid on the canvas. */
   showGrid: boolean;
   /** Show the blocked-cells overlay (the Block tool's red zones). */
