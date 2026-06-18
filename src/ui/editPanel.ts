@@ -12,9 +12,16 @@ const DICE_ICON = `<svg viewBox="0 0 24 24" fill="none">
   <circle cx="16" cy="16" r="1.5" fill="currentColor"/>
 </svg>`;
 
+/** "No color" swatch: a white tile with a red diagonal bar. */
+const NONE_ICON = `<svg viewBox="0 0 24 24" fill="none">
+  <rect x="3" y="3" width="18" height="18" rx="4.5" fill="#fff" stroke="currentColor" stroke-width="2"/>
+  <line x1="5" y1="19" x2="19" y2="5" stroke="#e03131" stroke-width="2.5" stroke-linecap="round"/>
+</svg>`;
+
 const TARGETS: { op: EditOp; label: string; hint: string }[] = [
   { op: "recolor-item", label: "Gliph", hint: "Recolor the icon with the selected color" },
   { op: "recolor-cell", label: "Cell", hint: "Recolor the cell background with the selected color" },
+  { op: "recolor-both", label: "Both", hint: "Recolor the icon and the cell background together" },
 ];
 
 /** Compose → Edit: Edit ops + Brush/Size (left) and Recolor (right), split by a
@@ -76,25 +83,42 @@ export class EditPanel {
     if (sig !== this.swatchSig) {
       this.swatchSig = sig;
       this.swatchHost.innerHTML = "";
+      const none = document.createElement("button");
+      none.className = "edit-swatch none";
+      none.innerHTML = NONE_ICON;
+      none.title = "Recolor to none (clear the cell / hide the icon)";
+      none.addEventListener("click", () =>
+        this.store.set({ editRecolorNone: true, editRecolorRandom: false }),
+      );
+      this.swatchHost.appendChild(none);
       const dice = document.createElement("button");
       dice.className = "edit-swatch dice";
       dice.innerHTML = DICE_ICON;
       dice.title = "Recolor with a random palette color";
-      dice.addEventListener("click", () => this.store.set({ editRecolorRandom: true }));
+      dice.addEventListener("click", () =>
+        this.store.set({ editRecolorRandom: true, editRecolorNone: false }),
+      );
       this.swatchHost.appendChild(dice);
       active.colors.forEach((color, i) => {
         const sw = document.createElement("button");
         sw.className = "edit-swatch color";
         sw.style.background = color;
         sw.title = `Recolor with color ${i}`;
-        sw.addEventListener("click", () => this.store.set({ activeColorIndex: i, editRecolorRandom: false }));
+        sw.addEventListener("click", () =>
+          this.store.set({ activeColorIndex: i, editRecolorRandom: false, editRecolorNone: false }),
+        );
         this.swatchHost.appendChild(sw);
       });
     }
+    const none = this.swatchHost.querySelector(".edit-swatch.none");
+    if (none) none.classList.toggle("active", s.editRecolorNone);
     const dice = this.swatchHost.querySelector(".edit-swatch.dice");
     if (dice) dice.classList.toggle("active", s.editRecolorRandom);
     this.swatchHost.querySelectorAll<HTMLElement>(".edit-swatch.color").forEach((el, i) =>
-      el.classList.toggle("active", !s.editRecolorRandom && i === s.activeColorIndex),
+      el.classList.toggle(
+        "active",
+        !s.editRecolorRandom && !s.editRecolorNone && i === s.activeColorIndex,
+      ),
     );
   }
 }

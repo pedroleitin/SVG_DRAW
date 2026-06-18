@@ -466,7 +466,9 @@ export class InputController {
 
 /** Apply the active Edit operation to one instance, returning a new instance. */
 function editInstance(state: SceneState, library: Library, inst: Instance): Instance {
+  // -1 = "none": transparent glyph / no cell background.
   const recolorIndex = () => {
+    if (state.editRecolorNone) return -1;
     if (!state.editRecolorRandom) return state.activeColorIndex;
     const len = paletteById(state.palettes, state.activePaletteId).colors.length;
     return Math.floor(Math.random() * len);
@@ -478,8 +480,14 @@ function editInstance(state: SceneState, library: Library, inst: Instance): Inst
       return { ...inst, assetId: pickAsset(state.brushAssets, library, Math.random) };
     case "recolor-item":
       return { ...inst, colorIndex: recolorIndex() };
-    case "recolor-cell":
-      return { ...inst, bgIndex: recolorIndex() };
+    case "recolor-cell": {
+      const idx = recolorIndex();
+      return { ...inst, bgIndex: idx < 0 ? undefined : idx };
+    }
+    case "recolor-both": {
+      const idx = recolorIndex();
+      return { ...inst, colorIndex: idx, bgIndex: idx < 0 ? undefined : idx };
+    }
     default:
       return inst;
   }

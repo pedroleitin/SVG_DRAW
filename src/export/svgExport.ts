@@ -2,6 +2,7 @@ import type { SceneState } from "../scene/types";
 import type { Library } from "../features/library";
 import { paletteById, colorAt } from "../features/palette";
 import { instanceGeom, cellBgRect } from "../scene/geom";
+import { FILL_SCALE } from "../features/placement";
 import { outSize } from "./frame";
 import { mapCycleTime, sampleLifecycle } from "../anim/animations";
 import { buildOrderField } from "../anim/order";
@@ -22,6 +23,7 @@ export function buildSceneSVG(
   const { outW, outH } = outSize(f);
   const palette = paletteById(state.palettes, state.activePaletteId);
   const cs = state.cellSize;
+  const fillMul = state.cellFill / FILL_SCALE;
   const margin = cs;
 
   const animate = time != null;
@@ -42,7 +44,7 @@ export function buildSceneSVG(
     const anim = animate && orderOf ? sampleLifecycle(state.animation, orderOf(inst), tcyc, T) : {};
     if (anim.hidden || (anim.opacity ?? 1) <= 0) continue;
 
-    const g = instanceGeom(inst, cs, anim);
+    const g = instanceGeom(inst, cs, anim, fillMul);
     const color = colorAt(palette, inst.colorIndex);
     const transform = g.rot ? ` transform="rotate(${r(g.rot)} ${r(g.cx)} ${r(g.cy)})"` : "";
     const op = g.opacity < 1 ? ` opacity="${g.opacity.toFixed(3)}"` : "";

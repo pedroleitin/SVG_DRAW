@@ -452,9 +452,15 @@ export class Shell {
     const wide = open === "export" || open === "animate" || open === "colors";
     this.contextEl.classList.toggle("wide", wide);
     this.contextEl.classList.toggle("anim", open === "animate");
+    // Edit gets a fixed wider width so the Recolor swatches have room to wrap as
+    // more colors are added (instead of fitting tight to the current count).
+    this.contextEl.classList.toggle("edit", open === "edit");
     // Any non-wide box that carries the brush footer fits its content, so a
     // small panel doesn't crowd the footer's controls on narrow windows.
-    this.contextEl.classList.toggle("fit", !wide && (brush || open === "shapes" || open === "halftone"));
+    this.contextEl.classList.toggle(
+      "fit",
+      !wide && open !== "edit" && (brush || open === "shapes" || open === "halftone"),
+    );
     // Drop the footer's divider when there's no panel above it.
     this.contextEl.classList.toggle("brush-only", open === null && brush);
     // The output-size pill above the context belongs to Export only.

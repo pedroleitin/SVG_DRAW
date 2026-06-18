@@ -10,6 +10,7 @@ import { instanceGeom, cellBgRect } from "../scene/geom";
 import { brushCells, brushBlocks } from "../scene/grid";
 import { dividerBlocks, blockAt } from "../features/divider";
 import { halftoneInstances, hasHalftoneImage } from "../features/halftone";
+import { FILL_SCALE } from "../features/placement";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 const EMPTY_ANIM: AnimOutput = {};
@@ -193,6 +194,8 @@ export class Renderer {
   private frameRects: SVGRectElement[] = [];
   private nodes = new Map<string, SVGUseElement>(); // cellKey -> <use>
   private registeredSymbols = new Set<string>();
+  /** Global cell-fill multiplier for this render pass (state.cellFill / FILL_SCALE). */
+  private fillMul = 1;
 
   constructor(
     private host: HTMLElement,
@@ -367,6 +370,7 @@ export class Renderer {
 
   render(state: SceneState, time = 0): void {
     this.lastState = state;
+    this.fillMul = state.cellFill / FILL_SCALE;
     const cam = state.camera;
     this.svg.setAttribute("viewBox", `${cam.x} ${cam.y} ${cam.w} ${cam.h}`);
     this.glideCellShape(state);
@@ -401,7 +405,7 @@ export class Renderer {
         this.htPreviewLayer.appendChild(node);
         this.htPreviewNodes[i] = node;
       }
-      const g = instanceGeom(inst, cs, EMPTY_ANIM);
+      const g = instanceGeom(inst, cs, EMPTY_ANIM, this.fillMul);
       node.setAttribute("href", `#sym-${inst.assetId}`);
       node.setAttribute("x", String(g.x));
       node.setAttribute("y", String(g.y));
@@ -943,7 +947,7 @@ export class Renderer {
     anim: AnimOutput,
   ): void {
     node.setAttribute("href", `#sym-${inst.assetId}`);
-    const g = instanceGeom(inst, cellSize, anim);
+    const g = instanceGeom(inst, cellSize, anim, this.fillMul);
     node.setAttribute("x", String(g.x));
     node.setAttribute("y", String(g.y));
     node.setAttribute("width", String(g.size));

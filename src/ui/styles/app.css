@@ -202,6 +202,18 @@ body {
   width: 760px;
 }
 
+/* Edit: fixed wider box so the Recolor swatches can wrap onto more rows as the
+ *  palette grows, without cramping the Edit-ops column. */
+#context.edit #ctx-body {
+  width: 560px;
+}
+
+/* Edit: let the ops column size to its controls and give the Recolor column the
+ *  remaining width, so its swatches fit on one row now and wrap as colors grow. */
+.edit-cols > .edit-side:first-child {
+  flex: 0 1 auto;
+}
+
 /* Fit: the body stretches to the box, which sizes to its content (incl. the
  *  footer) — so a small panel never crowds the footer's controls. */
 #context.fit #ctx-body {
@@ -1029,6 +1041,11 @@ body {
   flex-direction: row-reverse;
 }
 
+/* Cell-fill slider sits below the toggles with a little breathing room. */
+#grid-sliders {
+  margin-top: 14px;
+}
+
 .bg-row {
   display: flex;
   align-items: center;
@@ -1223,7 +1240,7 @@ body {
   background: var(--line);
 }
 
-/* Left bottom row: Rotate / Swap buttons + Brush / Size sliders, side by side. */
+/* Left bottom row: Rotate / Swap, each filling half the Edit column. */
 .edit-row {
   display: flex;
   align-items: center;
@@ -1232,14 +1249,7 @@ body {
 }
 
 .edit-row .tool-btn {
-  width: 84px;
-  flex-shrink: 0;
-}
-
-.edit-row .rng {
-  width: 132px;
-  flex-shrink: 0;
-  margin-bottom: 0;
+  flex: 1;
 }
 
 .edit-btns {
@@ -1254,6 +1264,7 @@ body {
 
 .edit-swatches {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -1282,6 +1293,19 @@ body {
 .edit-swatch.dice svg {
   width: 20px;
   height: 20px;
+}
+
+/* "None" (no color) swatch. */
+.edit-swatch.none {
+  display: grid;
+  place-items: center;
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.edit-swatch.none svg {
+  width: 22px;
+  height: 22px;
 }
 
 /* Panel title row: heading on the left, a toggle (e.g. Add mode) on the right. */

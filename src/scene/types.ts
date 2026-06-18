@@ -49,7 +49,7 @@ export interface StencilParams {
 }
 
 /** Edit operation applied to the instance under the cursor (Compose → Edit). */
-export type EditOp = "rotate" | "swap" | "recolor-item" | "recolor-cell";
+export type EditOp = "rotate" | "swap" | "recolor-item" | "recolor-cell" | "recolor-both";
 
 /** Top-level UI mode (selected in the floating modes bar). */
 export type Mode = "draw" | "compose" | "animate" | "export";
@@ -157,6 +157,9 @@ export interface SceneState {
   cellRounded: boolean;
   /** Inset a small gutter between cell-background squares. */
   cellGutter: boolean;
+  /** Fraction of the cell each placed SVG fills (1 = touches the cell edge).
+   *  Applied as a global render multiplier, so it affects every instance live. */
+  cellFill: number;
   /** Instances indexed by "col,row" for O(1) hit-testing. */
   instances: Record<string, Instance>;
   /** Cells where SVGs may not be placed (the Block tool), keyed "col,row". */
@@ -167,6 +170,9 @@ export interface SceneState {
   editOp: EditOp;
   /** When true, Recolor uses a random palette color instead of the active one. */
   editRecolorRandom: boolean;
+  /** When true, Recolor paints "none" — clears the cell background and/or makes
+   *  the glyph transparent (depending on the active Recolor target). */
+  editRecolorNone: boolean;
   /** When true, the Block tool clears (un-blocks) cells instead of blocking. */
   blockClean: boolean;
   palettes: Palette[];

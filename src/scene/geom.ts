@@ -39,11 +39,18 @@ export interface Box {
   opacity: number;
 }
 
-export function instanceGeom(inst: Instance, cellSize: number, anim: AnimOutput): Box {
+export function instanceGeom(
+  inst: Instance,
+  cellSize: number,
+  anim: AnimOutput,
+  fillMul = 1,
+): Box {
   const cw = inst.cw ?? 1;
   const ch = inst.ch ?? 1;
   // Square artwork, sized to the block's shorter side, centered in the block.
-  const size = cellSize * Math.min(cw, ch) * inst.scale * (anim.scaleMul ?? 1);
+  // `fillMul` is a global cell-fill control (Grid panel) applied on top of the
+  // instance's baked scale, so changing it rescales every instance live.
+  const size = cellSize * Math.min(cw, ch) * inst.scale * fillMul * (anim.scaleMul ?? 1);
   const cx = (inst.col + cw / 2 + inst.dx + (anim.dx ?? 0)) * cellSize;
   const cy = (inst.row + ch / 2 + inst.dy + (anim.dy ?? 0)) * cellSize;
   return {

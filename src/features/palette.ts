@@ -35,5 +35,6 @@ export function paletteById(palettes: Palette[], id: string): Palette {
 }
 
 export function colorAt(palette: Palette, index: number): string {
+  if (index < 0) return "transparent"; // "none" sentinel (Edit → Recolor)
   return palette.colors[index % palette.colors.length];
 }

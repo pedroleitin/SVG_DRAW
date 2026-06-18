@@ -13,6 +13,7 @@ import { AudioEngine } from "./features/audio";
 import { STARTER_PALETTES } from "./features/palette";
 import { fitFrame, snapToCell } from "./export/frame";
 import { makeCamera, resizeCamera } from "./scene/camera";
+import { FILL_SCALE } from "./features/placement";
 import type { SceneState, ToolId } from "./scene/types";
 
 // Apply the saved theme before first paint (avoids a flash).
@@ -47,12 +48,14 @@ const initial: SceneState = {
   brushShape: "square",
   cellRounded: false,
   cellGutter: false,
+  cellFill: FILL_SCALE,
   instances: {},
   blocked: {},
   blockMode: "drag",
   blockClean: false,
   editOp: "rotate",
   editRecolorRandom: false,
+  editRecolorNone: false,
   palettes: STARTER_PALETTES,
   activePaletteId: STARTER_PALETTES[0].id,
   activeColorIndex: 0,

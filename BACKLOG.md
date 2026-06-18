@@ -50,9 +50,12 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   toggle 4px), **cantos arredondados** (rounded cells), **mostrar/ocultar** o grid de
   pontos e **Show blockers** (liga/desliga o overlay das zonas bloqueadas) — no menu
   **Grid**, agora um botão **global** na caixa de settings (junto de Size / Clear).
+  Também um slider **Cell fill** (40–100%) que controla a fração da célula que cada SVG
+  ocupa: multiplicador global de render (`cellFill / FILL_SCALE`) aplicado em `instanceGeom`,
+  então reescala **todas** as instâncias ao vivo (100% = encosta na borda, sem espaço).
   Falta: grid retangular (largura ≠ altura de célula), offset de origem do grid,
   opacidade das linhas.
-  - Arquivos: [src/scene/geom.ts](src/scene/geom.ts) (`cellBgRect`), [src/render/renderer.ts](src/render/renderer.ts), [src/ui/gridPanel.ts](src/ui/gridPanel.ts), [src/scene/types.ts](src/scene/types.ts)
+  - Arquivos: [src/scene/geom.ts](src/scene/geom.ts) (`cellBgRect`/`instanceGeom`), [src/render/renderer.ts](src/render/renderer.ts), [src/ui/gridPanel.ts](src/ui/gridPanel.ts), [src/scene/types.ts](src/scene/types.ts), [src/export/svgExport.ts](src/export/svgExport.ts)
 - [x] 🟡 **Hover no grid** — feito: highlight da célula sob o cursor (contorno +
   leve fill; vermelho no Erase) + **ghost** esmaecido do asset do pincel na cor ativa.
   - Arquivos: [src/render/renderer.ts](src/render/renderer.ts) (`setHover`/`renderHover`), [src/tools/tools.ts](src/tools/tools.ts).
@@ -134,10 +137,13 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 - [x] 🟡 **Modo Edit (Compose)** — _feito._ Botão **Edit** no Compose abre um menu
   (ops + Brush à esquerda, Recolor à direita, com divisor) e edita os itens existentes
   como um pincel: **Rotate** (gira 90° por clique), **Swap** (troca o ícone pelos shapes
-  selecionados), **Recolor → Gliph/Cell** (recolore o ícone ou o cell-bg com a cor ativa
-  ou aleatória via dado). Slider **Brush** define o footprint; ciente de multi-célula
-  (hover adapta ao tamanho do gliph); undoable.
-  - Arquivos: [src/ui/editPanel.ts](src/ui/editPanel.ts), [src/tools/tools.ts](src/tools/tools.ts) (`paintEdit`/`editInstance`), [src/render/renderer.ts](src/render/renderer.ts) (hover), [src/scene/types.ts](src/scene/types.ts), [src/ui/shell.ts](src/ui/shell.ts).
+  selecionados), **Recolor → Gliph/Cell/Both** (recolore o ícone, o cell-bg, ou os dois
+  juntos, com a cor ativa, aleatória via dado, ou **None** — swatch branco com barra
+  diagonal vermelha que torna o gliph transparente / remove o fundo da célula). Slider
+  **Brush** define o footprint; ciente de multi-célula (hover adapta ao tamanho do gliph);
+  undoable. Caixa do Edit com largura fixa maior: os swatches do Recolor quebram em linhas
+  conforme a paleta cresce, e Rotate/Swap dividem a largura da coluna.
+  - Arquivos: [src/ui/editPanel.ts](src/ui/editPanel.ts), [src/tools/tools.ts](src/tools/tools.ts) (`paintEdit`/`editInstance`), [src/render/renderer.ts](src/render/renderer.ts) (hover), [src/features/palette.ts](src/features/palette.ts) (`colorAt` none), [src/scene/types.ts](src/scene/types.ts), [src/ui/shell.ts](src/ui/shell.ts), [src/ui/styles/app.css](src/ui/styles/app.css).
 
 ## 3b. Compose / Noise
 
