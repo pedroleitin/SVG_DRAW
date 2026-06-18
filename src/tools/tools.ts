@@ -61,7 +61,13 @@ export class InputController {
     svg.addEventListener("pointermove", this.onMove);
     svg.addEventListener("pointerleave", () => this.renderer.setHover(null));
     window.addEventListener("pointerup", this.onUp);
-    svg.addEventListener("wheel", this.onWheel, { passive: false });
+    // Wheel-zoom on the stage CONTAINER (a painted div), not the <svg>: WebKit/
+    // Safari only fires `wheel` over painted SVG content (glyphs), so an empty
+    // canvas area got no zoom. The div is always a hit-target; the pointer-events:
+    // none UI overlay lets wheel pass through to it (panels still scroll on their own).
+    (svg.parentElement ?? svg).addEventListener("wheel", this.onWheel as EventListener, {
+      passive: false,
+    });
     window.addEventListener("keydown", this.onKey);
     window.addEventListener("keyup", this.onKey);
   }
