@@ -367,5 +367,12 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 - [ ] 🟡 **Preview do Halftone em `<canvas>`** — desacoplar o preview ao vivo do DOM SVG
   (amostrar → desenhar no canvas; baking pra SVG só no Apply/export). Pré-requisito do
   halftone de **vídeo/GIF** (frames contínuos sem criar milhares de nós).
-- [ ] 🟡 **Virtualização/benchmark com muitos SVGs** — índice espacial pra `renderInstances`
-  iterar só o range visível em vez de todas as instâncias; medir com cenas densas.
+- [~] 🟡 **Virtualização/benchmark com muitos SVGs** — _medido; índice espacial dispensado._
+  O **render incremental** (cell-scan da área visível com zoom-in) já evita iterar off-screen.
+  Benchmark (5440 instâncias, idle spin, headless): zoom-in ~390 visíveis → **34ms/frame**;
+  zoom-out 5440 visíveis → **622ms/frame**. O caso lento é dominado pelo **nº de SVGs visíveis
+  animando** (5440 `setAttribute(transform)`/frame), **não** pela iteração — um índice espacial
+  (cull de off-screen) não ajudaria, pois nada está off-screen aí. A alavanca real pra cenas
+  densas **animadas** é o **render em `<canvas>`** (abaixo), não o índice. (Caso de cena enorme +
+  zoom médio com muitos off-screen pode pedir só elevar/afinar o `CELL_SCAN_CAP`.)
+  - Arquivos: [src/render/renderer.ts](src/render/renderer.ts) (`renderInstances` cell-scan).
