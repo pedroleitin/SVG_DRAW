@@ -36,6 +36,9 @@ export class InputController {
   private lastPaintW: { x: number; y: number } | null = null;
   private drawingPath = false;
   private pathPoints: { x: number; y: number }[] = [];
+  // Line tool: draw a freehand path (preview), filled with glyphs on release.
+  private liningPath = false;
+  private linePoints: { x: number; y: number }[] = [];
   // Block tool state.
   private blockBrushing = false;
   private blockDragStart: { x: number; y: number } | null = null;
@@ -99,6 +102,13 @@ export class InputController {
       this.store.set({ orderPath: this.pathPoints });
       return;
     }
+    if (tool === "line") {
+      // Draw the line as a preview stroke; it's filled with glyphs on release.
+      this.liningPath = true;
+      this.linePoints = [this.worldAt(e)];
+      this.renderer.setLinePreview(this.linePoints);
+      return;
+    }
     if (tool === "block") {
       this.strokeCells.clear();
       this.blockKeys = [];
@@ -156,6 +166,16 @@ export class InputController {
       }
       return;
     }
+    if (this.liningPath) {
+      const p = this.worldAt(e);
+      const last = this.linePoints[this.linePoints.length - 1];
+      const minStep = this.store.get().cellSize * 0.35;
+      if (Math.hypot(p.x - last.x, p.y - last.y) >= minStep) {
+        this.linePoints.push(p);
+        this.renderer.setLinePreview(this.linePoints);
+      }
+      return;
+    }
     if (this.blockDragStart) {
       // The rubber-band always snaps to the whole cells it covers (what you
       // see = what gets blocked).
@@ -191,6 +211,12 @@ export class InputController {
       });
       this.drawingPath = false;
     }
+    if (this.liningPath) {
+      this.linePoints.push(this.worldAt(e));
+      this.commitLine();
+      this.renderer.setLinePreview(null);
+      this.liningPath = false;
+    }
     if (this.blockDragStart) {
       this.commitBlockDrag(this.blockDragStart, this.worldAt(e));
       this.blockDragStart = null;
@@ -223,8 +249,7 @@ export class InputController {
     }
     const cs = state.cellSize;
     const w = this.worldAt(e);
-    // Line tool: a circular footprint (Brush = thickness), 1 SVG per cell.
-    const span = state.tool === "line" ? 1 : Math.max(1, Math.round(state.brushSpan ?? 1));
+    const span = Math.max(1, Math.round(state.brushSpan ?? 1));
     const instances = this.strokeInstances; // mutated in place; cloned at stroke start
     // While the Stencil is open, the brush may only paint inside the lit (green)
     // opening — built once, then reused across the interpolated points.
@@ -288,10 +313,8 @@ export class InputController {
     const litAt = (col: number, row: number): boolean => !lit || lit(col, row);
 
     // DRAW: an N×N footprint (Brush) of span×span blocks (Size). Each block
-    // clears what it covers, so placements never overlap. The Line tool forces a
-    // circular footprint (a clean ribbon) of single cells.
-    const shape = state.tool === "line" ? "circle" : state.brushShape;
-    const blocks = brushBlocks(wx / cs, wy / cs, state.brushSize, shape, span);
+    // clears what it covers, so placements never overlap.
+    const blocks = brushBlocks(wx / cs, wy / cs, state.brushSize, state.brushShape, span);
     for (const blk of blocks) {
       // Skip if any covered cell is already painted this stroke, is blocked, or
       // (with the stencil on) falls outside the lit opening.
@@ -483,6 +506,44 @@ export class InputController {
       this.history.dispatch(new PlaceInstances(placed));
     } else {
       this.history.dispatch(new EraseInstances(erased.map((i) => cellKey(i.col, i.row))));
+    }
+  }
+
+  /** Rasterize the drawn line into glyph cells (Brush = thickness, circular) and
+   *  place them as one undoable step. */
+  private commitLine() {
+    const state = this.store.get();
+    const cs = state.cellSize;
+    const pts = this.linePoints;
+    if (!pts.length) return;
+    const seen = new Set<string>();
+    const places: Instance[] = [];
+    const stamp = (xCell: number, yCell: number) => {
+      for (const c of brushCells(xCell, yCell, state.brushSize, "circle")) {
+        const key = cellKey(c.col, c.row);
+        if (seen.has(key) || state.blocked[key]) continue;
+        seen.add(key);
+        places.push(buildInstance(state, this.library, c.col, c.row));
+      }
+    };
+    if (pts.length === 1) {
+      stamp(pts[0].x / cs, pts[0].y / cs);
+    } else {
+      // Walk each segment in sub-cell steps so the glyphs follow the curve with
+      // no gaps even where the sampled points are far apart.
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1];
+        const b = pts[i];
+        const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / (cs * 0.5)));
+        for (let s = 0; s <= steps; s++) {
+          const t = s / steps;
+          stamp((a.x + (b.x - a.x) * t) / cs, (a.y + (b.y - a.y) * t) / cs);
+        }
+      }
+    }
+    if (places.length) {
+      this.history.dispatch(new PlaceInstances(places));
+      this.audio.note(places.length);
     }
   }
 

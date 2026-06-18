@@ -108,14 +108,15 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   Falta: densidade do traço, modo "só preencher vazias" vs "sobrescrever", apagar por
   filtro (por asset / por cor).
   - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/scene/grid.ts](src/scene/grid.ts) (`brushCells`/`brushBlocks`), [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/render/renderer.ts](src/render/renderer.ts)
-- [~] 🟡 **Modo Path / Line (desenhar linhas a preencher)** — _v1 feito (mão livre + espessura)._
-  Ferramenta **Line** no Draw: arrasta à mão livre e as células ao longo do traçado são
-  preenchidas com os **shapes** (Brush) + **cell background** (Cell) atuais. Footprint
-  **circular** (faixa limpa), **espessura = Brush**, 1 SVG por célula, reusa a interpolação do
-  brush (sem buracos em movimento rápido) e os buffers de traço (um passo de undo).
+- [~] 🟡 **Modo Path / Line (desenhar linhas a preencher)** — _v1 feito (mão livre, draw-then-fill)._
+  Ferramenta **Line** no Draw, no estilo do **draw path do Animate**: arrasta à mão livre e vê
+  o **traço** (polilinha tracejada, preview); **ao soltar** o caminho vira **glyphs** nas células
+  que ele cruza, com os **shapes** + **cell background** atuais. Espessura = **Brush** (footprint
+  circular ao longo do caminho), rasterização interpolada (segue a curva sem buracos), **um
+  passo de undo** (`PlaceInstances`).
   Futuro: traçado por **pontos** (polilinha reta), **fechar/preencher área**, espessura própria
-  (hoje compartilha o Brush) e preview do traço (vetor) antes de baixar.
-  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (`paint`/`paintAt` ramo line), [src/scene/types.ts](src/scene/types.ts) (`ToolId` `"line"`), [src/ui/shell.ts](src/ui/shell.ts) (botão + footer), [src/render/renderer.ts](src/render/renderer.ts) (hover).
+  (hoje compartilha o Brush), e editar/suavizar o caminho antes de baixar.
+  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (`liningPath`/`commitLine`), [src/scene/types.ts](src/scene/types.ts) (`ToolId` `"line"`), [src/ui/shell.ts](src/ui/shell.ts) (botão + footer), [src/render/renderer.ts](src/render/renderer.ts) (`setLinePreview` + hover), [src/ui/styles/app.css](src/ui/styles/app.css) (`.line-preview`).
 - [~] 🟡 **Brush/Size como rodapé compartilhado do context** — _parcial._ A barra
   **Brush / Size / Cell background** virou um **rodapé dentro da caixa do context**,
   aparecendo nos geradores (Noise/Divider/Seamless/Block/Edit) e no Draw/Erase, e some em

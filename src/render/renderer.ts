@@ -209,6 +209,7 @@ export class Renderer {
   private hoverPt: { cx: number; cy: number } | null = null; // fractional cell coords
   private lastState?: SceneState;
   private stencilShape!: SVGPathElement;
+  private linePreview!: SVGPolylineElement;
   private htPreviewLayer!: SVGGElement;
   private htPreviewBg!: SVGGElement;
   private htPreviewFg!: SVGGElement;
@@ -342,6 +343,13 @@ export class Renderer {
     this.stencilShape.style.pointerEvents = "none";
     this.stencilShape.style.display = "none";
 
+    // Line-tool preview: the freehand stroke being drawn (filled with glyphs on
+    // release). A dashed polyline in world space.
+    this.linePreview = document.createElementNS(SVGNS, "polyline");
+    this.linePreview.setAttribute("class", "line-preview");
+    this.linePreview.style.pointerEvents = "none";
+    this.linePreview.style.display = "none";
+
     // Order-path overlay: the drawn reveal line with START / FINISH labels.
     this.pathLayer = document.createElementNS(SVGNS, "g");
     this.pathLayer.setAttribute("class", "order-path");
@@ -384,6 +392,7 @@ export class Renderer {
       this.hoverLayer,
       this.htPreviewLayer,
       this.stencilShape,
+      this.linePreview,
       this.pathLayer,
       this.frameLayer,
     );
@@ -671,6 +680,19 @@ export class Renderer {
     this.blockRectEl.setAttribute("stroke-width", String(2.2 * px));
     this.blockRectEl.setAttribute("stroke-dasharray", `0 ${6 * px}`); // round dots
     this.blockRectEl.style.display = "";
+  }
+
+  /** Show/hide the Line tool's freehand preview stroke (world-space points). */
+  setLinePreview(pts: { x: number; y: number }[] | null): void {
+    if (!pts || pts.length < 1) {
+      this.linePreview.style.display = "none";
+      return;
+    }
+    const px = this.lastState ? this.lastState.camera.w / this.hostSize.width : 1;
+    this.linePreview.setAttribute("points", pts.map((p) => `${p.x},${p.y}`).join(" "));
+    this.linePreview.setAttribute("stroke-width", String(2.5 * px));
+    this.linePreview.setAttribute("stroke-dasharray", `${8 * px} ${6 * px}`);
+    this.linePreview.style.display = "";
   }
 
   /** Lazily grow the pool of footprint-highlight rects. */
