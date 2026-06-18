@@ -15,6 +15,7 @@ import {
   hasHalftoneImage,
   halftoneImageVersion,
   halftoneIsAnimated,
+  halftoneLastBox,
   advanceHalftone,
 } from "../features/halftone";
 import { FILL_SCALE } from "../features/placement";
@@ -439,7 +440,11 @@ export class Renderer {
     if (sig === this.htPreviewSig) return;
     this.htPreviewSig = sig;
 
-    const places = halftoneInstances(state, this.library).places;
+    // While playing, anchor to the established box (the area you set up / applied)
+    // so zoom/pan move over it instead of re-fitting the halftone to the window.
+    // While setting up (not playing), fit to view live (and refresh that box).
+    const box = state.animation.playing ? halftoneLastBox() ?? undefined : undefined;
+    const places = halftoneInstances(state, this.library, box).places;
     let i = 0; // glyph node cursor
     let b = 0; // bg node cursor
     for (const inst of places) {
