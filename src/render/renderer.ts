@@ -1,4 +1,5 @@
 import type { SceneState, Instance } from "../scene/types";
+import { cellKey } from "../scene/types";
 import { visibleCellRange } from "../scene/grid";
 import type { Library } from "../features/library";
 import { paletteById, colorAt } from "../features/palette";
@@ -23,6 +24,24 @@ import { FILL_SCALE } from "../features/placement";
 const SVGNS = "http://www.w3.org/2000/svg";
 const EMPTY_ANIM: AnimOutput = {};
 const ORDER_COLOR = "#e03131";
+/** Largest multi-cell block span (brush Size ≤ 6, divider ≤ ~9). The visible-cell
+ *  scan looks back this many cells up/left to catch blocks anchored off-screen. */
+const MAX_BLOCK_SPAN = 16;
+/** Above this many visible cells (very zoomed out) iterate instances instead of
+ *  scanning the cell range — keeps the cheaper path bounded. */
+const CELL_SCAN_CAP = 6000;
+
+/** Per-render context shared by both instance-iteration strategies. */
+interface RenderCtx {
+  state: SceneState;
+  palette: Parameters<typeof colorAt>[0];
+  range: { minCol: number; maxCol: number; minRow: number; maxRow: number };
+  animate: boolean;
+  orderOf: ((inst: Instance) => number) | null;
+  T: number;
+  tcyc: number;
+  seen: Set<string>;
+}
 
 /** The instance whose block covers cell (col,row), or null. */
 function instanceCovering(
@@ -911,37 +930,24 @@ export class Renderer {
     const orderOf = animate ? buildOrderField(state) : null;
     const T = time * anim.speed;
     const tcyc = animate ? mapCycleTime(anim, T) : 0;
+    const ctx: RenderCtx = { state, palette, range: r, animate, orderOf, T, tcyc, seen };
 
-    // Iterate instances (not cells) so multi-cell blocks render even when their
-    // origin is just off-screen; cull each by its block box vs the viewport.
-    for (const key in instances) {
-      const inst = instances[key];
-      const cw = inst.cw ?? 1;
-      const ch = inst.ch ?? 1;
-      if (
-        inst.col + cw <= r.minCol ||
-        inst.col > r.maxCol ||
-        inst.row + ch <= r.minRow ||
-        inst.row > r.maxRow
-      ) {
-        continue;
+    // Incremental: scan the visible cell range (+ a back-margin for multi-cell
+    // blocks anchored off-screen) so a dense scene viewed up close costs
+    // O(visible), not O(all instances). Fall back to iterating instances when
+    // zoomed far out (the scan area would be larger than the scene).
+    const M = MAX_BLOCK_SPAN;
+    const visCells = (r.maxCol - r.minCol + 1 + M) * (r.maxRow - r.minRow + 1 + M);
+    if (visCells <= CELL_SCAN_CAP) {
+      for (let row = r.minRow - M; row <= r.maxRow; row++) {
+        for (let col = r.minCol - M; col <= r.maxCol; col++) {
+          const key = cellKey(col, row);
+          const inst = instances[key];
+          if (inst) this.renderOneInstance(key, inst, ctx);
+        }
       }
-      seen.add(key);
-      this.ensureSymbol(inst.assetId);
-      let node = this.nodes.get(key);
-      if (!node) {
-        node = document.createElementNS(SVGNS, "use");
-        this.content.appendChild(node);
-        this.nodes.set(key, node);
-      }
-      // Sample this instance's lifecycle at the current cycle time. Its
-      // order (when it appears) comes from the active order preset.
-      let out: AnimOutput = EMPTY_ANIM;
-      if (animate && orderOf) {
-        out = sampleLifecycle(anim, orderOf(inst), tcyc, T);
-      }
-      this.applyCellBg(key, inst, cellSize, palette, out, state.cellRounded, state.cellGutter);
-      this.applyInstance(node, inst, cellSize, inst.color ?? colorAt(palette, inst.colorIndex), out);
+    } else {
+      for (const key in instances) this.renderOneInstance(key, instances[key], ctx);
     }
 
     // Recycle nodes that scrolled out of view or were erased.
@@ -957,6 +963,35 @@ export class Renderer {
         this.cellBgNodes.delete(key);
       }
     }
+  }
+
+  /** Render one instance (block) if it overlaps the viewport: cull, ensure node,
+   *  sample its lifecycle, and apply geometry/color. Shared by both iteration
+   *  strategies in renderInstances. */
+  private renderOneInstance(key: string, inst: Instance, ctx: RenderCtx): void {
+    const r = ctx.range;
+    const cw = inst.cw ?? 1;
+    const ch = inst.ch ?? 1;
+    if (inst.col + cw <= r.minCol || inst.col > r.maxCol || inst.row + ch <= r.minRow || inst.row > r.maxRow) {
+      return;
+    }
+    ctx.seen.add(key);
+    this.ensureSymbol(inst.assetId);
+    let node = this.nodes.get(key);
+    if (!node) {
+      node = document.createElementNS(SVGNS, "use");
+      this.content.appendChild(node);
+      this.nodes.set(key, node);
+    }
+    const cs = ctx.state.cellSize;
+    // Sample this instance's lifecycle at the current cycle time (order from the
+    // active preset). Static scene = EMPTY_ANIM.
+    let out: AnimOutput = EMPTY_ANIM;
+    if (ctx.animate && ctx.orderOf) {
+      out = sampleLifecycle(ctx.state.animation, ctx.orderOf(inst), ctx.tcyc, ctx.T);
+    }
+    this.applyCellBg(key, inst, cs, ctx.palette, out, ctx.state.cellRounded, ctx.state.cellGutter);
+    this.applyInstance(node, inst, cs, inst.color ?? colorAt(ctx.palette, inst.colorIndex), out);
   }
 
   /** Draw (or remove) the colored cell-background square behind an instance.

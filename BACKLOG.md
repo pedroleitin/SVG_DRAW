@@ -341,17 +341,24 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 > recompute quando nada muda); **dirty-check** em `applyInstance`/`applyCellBg` (pula
 > `setAttribute` quando o nó não mudou); **reuso do `Box`** em `instanceGeom`.
 
-- [~] 🔴 **Desenho “falhado” com muitos SVGs** — _interpolação + clone-once feitos; render
-  incremental pendente._ A linha saía com **buracos**, principalmente em **movimento rápido do
-  mouse** (eventos `pointermove` espaçados, sem nada entre eles). Dois fixes:
-  - **Interpolação**: `paint` agora pinta ao longo da **linha** do ponto anterior ao atual
-    (`paintAt` por passo de ~½ célula, `lastPaintW`), então flick rápido preenche contíguo.
+- [x] 🔴 **Desenho “falhado” com muitos SVGs** — _feito (3 frentes)._ A linha saía com
+  **buracos**, principalmente em **movimento rápido do mouse** (eventos `pointermove`
+  espaçados). Três fixes:
+  - **Interpolação**: `paint` pinta ao longo da **linha** do ponto anterior ao atual
+    (`paintAt` por passo de ~½ célula, `lastPaintW`) → flick rápido preenche contíguo.
   - **Clone-once**: o mapa de instâncias é clonado **uma vez no `pointerdown`**
-    (`strokeInstances`) e mutado em lugar (antes era `{ ...state.instances }` O(N) por ponto);
+    (`strokeInstances`) e mutado em lugar (antes `{ ...state.instances }` O(N) por ponto);
     `commitStroke` reconstrói o pré-traço com clone fresco → undo/redo intactos.
-  Falta: o render ainda varre **todas** as instâncias por frame — **render incremental** ligado
-  à virtualização.
-  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (`paint`/`paintAt`/`strokeInstances`/`lastPaintW`), [src/render/renderer.ts](src/render/renderer.ts) (`renderInstances`, pendente).
+  - **Render incremental**: `renderInstances` **varre a área visível** (+ margem `MAX_BLOCK_SPAN`
+    pra blocos multi-célula ancorados fora da tela) em vez de iterar **todas** as instâncias,
+    quando a vista é pequena (`visCells ≤ CELL_SCAN_CAP`); cai pra iteração por instância só em
+    zoom-out extremo. Custo O(visível) no caso do desenho/zoom-in. Verificado: contagem estável
+    entre os dois caminhos, multi-célula (Divider) persiste.
+  - Arquivos: [src/tools/tools.ts](src/tools/tools.ts) (`paint`/`paintAt`/`strokeInstances`/`lastPaintW`), [src/render/renderer.ts](src/render/renderer.ts) (`renderInstances`/`renderOneInstance`).
+- [ ] ⚪ **Bug: `<rect>` com largura/altura negativa em zoom-out extremo** — em zoom muito
+  afastado o console acusa `<rect> attribute width: A negative value` (algum overlay/grid).
+  Pré-existente, cosmético (o rect só não renderiza). Achar a origem e clampar a ≥ 0.
+  - Arquivos prováveis: [src/render/renderer.ts](src/render/renderer.ts) (grid/frame/overlays).
 - [ ] 🟡 **Preview do Halftone em `<canvas>`** — desacoplar o preview ao vivo do DOM SVG
   (amostrar → desenhar no canvas; baking pra SVG só no Apply/export). Pré-requisito do
   halftone de **vídeo/GIF** (frames contínuos sem criar milhares de nós).
