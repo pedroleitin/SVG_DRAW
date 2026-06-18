@@ -14,6 +14,7 @@ import {
   halftoneDuration,
   setHalftoneFrame,
   halftoneInstances,
+  halftoneLastBox,
 } from "../features/halftone";
 import { createDropdown } from "./widgets";
 import type { DropdownHandle } from "./widgets";
@@ -253,13 +254,14 @@ export class ExportPanel {
   ): (timeSec: number) => Promise<string> {
     const dur = halftoneDuration() || this.duration;
     const bg = kind === "mp4" ? this.bg() ?? "#ffffff" : this.bg();
+    // Reuse the exact grid the user last saw (preview/apply), not a fresh fit from
+    // the export-time camera — so the per-cell shapes/colors (seeded by col,row)
+    // and the framing match what's on screen. The frame just crops it.
+    const box = halftoneLastBox() ?? undefined;
     return async (timeSec: number): Promise<string> => {
       const u = dur > 0 ? (timeSec / dur) % 1 : 0;
       await setHalftoneFrame(u);
-      // Same view-fit as the live preview, so the per-cell shapes/colors (seeded
-      // by col,row) match exactly. The frame just crops it — use Free Form +
-      // "Fit to view" so the crop equals what you see.
-      const { places } = halftoneInstances(state, this.library);
+      const { places } = halftoneInstances(state, this.library, box);
       const instances: Record<string, Instance> = {};
       for (const p of places) instances[cellKey(p.col, p.row)] = p;
       return buildSceneSVG({ ...state, instances }, this.library, undefined, bg);

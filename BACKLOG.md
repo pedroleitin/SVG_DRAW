@@ -285,9 +285,13 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
     fonte animada): os exports **PNG-seq** e **MP4** recebem um `renderFrame` opcional que, por
     frame, seta a fonte no tempo `t`, roda `halftoneInstances` (mesmo **encaixe na view** do
     preview, então os glyphs/cores por célula — semeados por `col,row` — batem exatamente) e
-    emite o SVG do frame; o frame só **recorta**. Marcar o toggle ajusta a duração pra 1 passe.
-    **Dica:** use **Free Form + Fit to view** (frame = view) pro export sair idêntico à tela;
-    em aspecto fixo o frame recorta um sub-trecho.
+    emite o SVG do frame; o frame só **recorta**. O export **reusa o box exato** do último
+    preview/apply (`halftoneLastBox`) em vez de re-encaixar pela câmera no momento do export —
+    então o grid (formas/cores/posição) é idêntico ao que se viu, mesmo se você der zoom/pan no
+    modo Export. Marcar o toggle ajusta a duração pra 1 passe. **Dica:** use **Free Form + Fit
+    to view** (frame = view) pro recorte casar; em aspecto fixo o frame recorta um sub-trecho.
+    _Obs.: num vídeo, frames diferentes acendem células diferentes — comparar dois instantes
+    distintos mostra padrões diferentes (não é bug)._
     - Arquivos: [src/export/sequence.ts](src/export/sequence.ts), [src/export/video.ts](src/export/video.ts) (`renderFrame`), [src/ui/exportPanel.ts](src/ui/exportPanel.ts) (`halftoneFrameRenderer`).
 - [x] 🟡 **Acesso aos Shapes a partir do Halftone** — _feito._ O painel do Halftone embute
   um **picker de Shapes inline** (reusa o `ShapesPanel`, mesma seleção do brush), então dá

@@ -3,6 +3,7 @@ import type { Library } from "./library";
 import type { MaskResult } from "./placement";
 import { buildInstance, FILL_SCALE } from "./placement";
 import { fitBox } from "./stencil";
+import type { CellBox } from "./stencil";
 import { cellKey } from "../scene/types";
 
 /** Renders an uploaded image as a grid of the selected SVG shapes — halftone
@@ -254,13 +255,27 @@ const DIFFUSION: Record<"floyd" | "atkinson" | "jarvis", { div: number; k: [numb
   },
 };
 
+/** The fit box of the most recent live (preview/apply) halftone build — so the
+ *  animated export can reuse the exact same grid the user saw, instead of
+ *  re-deriving it from the camera at export time. */
+let lastBox: CellBox | null = null;
+export function halftoneLastBox(): CellBox | null {
+  return lastBox;
+}
+
 /** Build the instances that render the image as shapes, aspect-fit live into the
- *  current view (so cell size / pan / zoom re-resolve it). Clears that region
- *  first (replace), so re-applying re-renders cleanly. Pure. */
-export function halftoneInstances(state: SceneState, library: Library): MaskResult {
+ *  current view (so cell size / pan / zoom re-resolve it) — or into an explicit
+ *  `boxOverride` (the export reusing the last live box). Clears that region first
+ *  (replace), so re-applying re-renders cleanly. Pure apart from caching the box. */
+export function halftoneInstances(
+  state: SceneState,
+  library: Library,
+  boxOverride?: CellBox,
+): MaskResult {
   const aspect = halftoneAspect();
   if (aspect == null) return { places: [], eraseKeys: [] };
-  const box = fitBox(state, aspect);
+  const box = boxOverride ?? fitBox(state, aspect);
+  if (!boxOverride) lastBox = box; // remember live fits, not export reuses
   const { mode, target, invert, contrast, shapeByLum } = state.halftone;
   const { cols, rows } = box;
 
