@@ -309,7 +309,12 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
     cena fica estática (`animate = playing && !halftoneIsAnimated()`). Pausar esconde o preview
     fora do painel.
     - Arquivos: [src/features/halftone.ts](src/features/halftone.ts) (`advanceHalftone`), [src/render/renderer.ts](src/render/renderer.ts) (gate + advance + prioridade), [src/main.ts](src/main.ts) (play/pause do vídeo), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts) (Play global + uiTick).
-  - [ ] **Fase C — Order "Halftone"** (revelar células por luminância/ordem do vídeo).
+  - [x] **Fase C — Order "Halftone".** Novo preset no menu **Order** que revela as células pela
+    **luminância** da fonte no cell (escuro/tinta primeiro, varrendo pro claro). Mapeia o cell →
+    uv via `halftoneLastBox` e amostra `sampleHalftoneLum`; sem fonte, cai pra ordem de
+    colocação. Útil pra halftone de **imagem estática** (com vídeo, a Fase B toca a fonte e tem
+    prioridade na revelação).
+    - Arquivos: [src/anim/animations.ts](src/anim/animations.ts) (`OrderMode`/`ORDER_MODES`), [src/anim/order.ts](src/anim/order.ts).
 - [ ] 🟡 **Overlay de preview da fonte** — mostrar a imagem/vídeo por baixo/por cima
   do grid (com opacidade) como referência enquanto distribui; toggle on/off. (O Halftone já
   tem o preview do **resultado**; isto seria o preview da **fonte** crua.)

@@ -1,5 +1,6 @@
 import type { SceneState, Instance, Point } from "../scene/types";
 import { directionPhase } from "./animations";
+import { halftoneLastBox, sampleHalftoneLum, hasHalftoneImage } from "../features/halftone";
 
 /** Builds a function instance → order∈[0,1] for the active OrderMode.
  *  Memoized on (instances ref, order, direction, path) so during playback —
@@ -64,6 +65,15 @@ export function buildOrderField(state: SceneState): (inst: Instance) => number {
         );
       case "radial":
         return Math.hypot(inst.col - cx, inst.row - cy);
+      case "halftone": {
+        // Reveal by the halftone source's luminance at each cell — dark (ink)
+        // first. Falls back to placement order without a source.
+        const box = halftoneLastBox();
+        if (!box || !hasHalftoneImage()) return inst.seq;
+        const u = (inst.col - box.col + 0.5) / box.cols;
+        const v = (inst.row - box.row + 0.5) / box.rows;
+        return sampleHalftoneLum(u, v);
+      }
       case "linear":
       default:
         return directionPhase(inst.col, inst.row, a.direction);

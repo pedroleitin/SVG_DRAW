@@ -76,8 +76,15 @@ export function directionPhase(col: number, row: number, dir: Direction): number
 
 // ---- Lifecycle config ----
 
-export type OrderMode = "free" | "random" | "sequential" | "linear" | "radial";
-export const ORDER_MODES: OrderMode[] = ["linear", "radial", "sequential", "random", "free"];
+export type OrderMode = "free" | "random" | "sequential" | "linear" | "radial" | "halftone";
+export const ORDER_MODES: OrderMode[] = [
+  "linear",
+  "radial",
+  "sequential",
+  "random",
+  "free",
+  "halftone",
+];
 
 export type PlaybackMode = "loop" | "pingpong" | "once";
 export const PLAYBACK_MODES: PlaybackMode[] = ["loop", "pingpong", "once"];
