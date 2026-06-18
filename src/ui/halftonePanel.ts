@@ -284,11 +284,13 @@ export class HalftonePanel {
     }
   }
 
-  /** Jump to Export pre-set for this halftone: Halftone-source on, and the frame
-   *  cropped to the union of all frames (covers every glyph, Free Form). */
+  /** Jump to Export pre-set for this halftone: bake the current view, turn on the
+   *  Halftone-source export, and crop the frame to the union of all frames (covers
+   *  every glyph, Free Form). */
   private async sendToExport(): Promise<void> {
     if (!hasHalftoneImage()) return;
     this.stopPlay();
+    this.apply(); // bake what's on screen so it shows in Export (preview is panel-only)
     const cov = await halftoneCoverage(this.store.get(), this.library);
     const s = this.store.get();
     const cs = s.cellSize;
