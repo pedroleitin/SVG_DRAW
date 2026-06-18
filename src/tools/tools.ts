@@ -43,7 +43,6 @@ export class InputController {
   private blockBrushing = false;
   private blockDragStart: { x: number; y: number } | null = null;
   private blockKeys: string[] = [];
-  private blockRemoved: Instance[] = [];
   private blockCleanStroke = false; // clean (un-block) vs block, captured at down
   // Edit tool state.
   private editing = false;
@@ -112,7 +111,6 @@ export class InputController {
     if (tool === "block") {
       this.strokeCells.clear();
       this.blockKeys = [];
-      this.blockRemoved = [];
       this.blockCleanStroke = this.store.get().blockClean;
       if (this.store.get().blockMode === "drag") {
         this.blockDragStart = this.worldAt(e);
@@ -296,7 +294,7 @@ export class InputController {
       const cells = brushCells(wx / cs, wy / cs, state.brushSize, state.brushShape);
       for (const c of cells) {
         const key = cellKey(c.col, c.row);
-        if (this.strokeCells.has(key)) continue;
+        if (this.strokeCells.has(key) || state.blocked[key]) continue; // blocked = protected
         this.strokeCells.add(key);
         for (const k of coveringKeys(instances, c.col, c.row)) {
           const inst = instances[k];
@@ -384,8 +382,8 @@ export class InputController {
     this.audio.note(b.col + b.row);
   }
 
-  /** Block brush: block (or, in Clean mode, un-block) footprint cells, removing
-   *  any SVGs when blocking. */
+  /** Block brush: block (or, in Clean mode, un-block) footprint cells. Blocking
+   *  preserves any SVG already there (draw/erase/edit skip blocked cells). */
   private paintBlock(e: PointerEvent) {
     const state = this.store.get();
     const clean = this.blockCleanStroke;
@@ -393,7 +391,6 @@ export class InputController {
     const w = this.worldAt(e);
     const cells = brushCells(w.x / cs, w.y / cs, state.brushSize, state.brushShape);
     const blocked = { ...state.blocked };
-    const instances = { ...state.instances };
     let changed = false;
     for (const c of cells) {
       const key = cellKey(c.col, c.row);
@@ -408,15 +405,10 @@ export class InputController {
         if (blocked[key]) continue;
         blocked[key] = true;
         this.blockKeys.push(key);
-        const inst = instances[key];
-        if (inst) {
-          delete instances[key];
-          this.blockRemoved.push(inst);
-        }
         changed = true;
       }
     }
-    if (changed) this.store.set({ blocked, instances });
+    if (changed) this.store.set({ blocked });
   }
 
   /** Block drag: block (or clean) every cell the rubber-band rectangle covers. */
@@ -435,14 +427,12 @@ export class InputController {
   private commitBlockStroke() {
     if (!this.blockKeys.length) return;
     const blocked = { ...this.store.get().blocked };
-    const instances = { ...this.store.get().instances };
     if (this.blockCleanStroke) {
       for (const key of this.blockKeys) blocked[key] = true; // restore pre-stroke
     } else {
-      for (const key of this.blockKeys) delete blocked[key];
-      for (const inst of this.blockRemoved) instances[cellKey(inst.col, inst.row)] = inst;
+      for (const key of this.blockKeys) delete blocked[key]; // restore pre-stroke
     }
-    this.store.set({ blocked, instances }); // back to pre-stroke
+    this.store.set({ blocked }); // back to pre-stroke
     this.history.dispatch(new BlockCells(this.blockKeys, !this.blockCleanStroke));
   }
 
@@ -456,6 +446,7 @@ export class InputController {
     const instances = this.strokeInstances; // mutated in place; cloned at stroke start
     let changed = false;
     for (const c of cells) {
+      if (state.blocked[cellKey(c.col, c.row)]) continue; // blocked = protected
       for (const k of coveringKeys(instances, c.col, c.row)) {
         if (this.strokeCells.has(k)) continue;
         this.strokeCells.add(k);

@@ -100,41 +100,31 @@ export class ApplyMaskCommand implements Command {
 export class BlockCells implements Command {
   readonly label = "Block";
   private prevBlocked: Record<string, true | undefined> = {};
-  private removed: Record<string, Instance> = {};
 
   constructor(
     private keys: string[],
     private block = true,
   ) {}
 
+  // Blocking only marks cells — it preserves any SVG already there (the draw /
+  // erase / edit tools skip blocked cells), so the content stays but is protected.
   apply(store: Store): void {
     const blocked = { ...store.get().blocked };
-    const instances = { ...store.get().instances };
     for (const key of this.keys) {
       if (!(key in this.prevBlocked)) this.prevBlocked[key] = blocked[key];
-      if (this.block) {
-        blocked[key] = true;
-        const inst = instances[key];
-        if (inst) {
-          if (!(key in this.removed)) this.removed[key] = inst;
-          delete instances[key];
-        }
-      } else {
-        delete blocked[key];
-      }
+      if (this.block) blocked[key] = true;
+      else delete blocked[key];
     }
-    store.set({ blocked, instances });
+    store.set({ blocked });
   }
 
   invert(store: Store): void {
     const blocked = { ...store.get().blocked };
-    const instances = { ...store.get().instances };
     for (const [key, before] of Object.entries(this.prevBlocked)) {
       if (before) blocked[key] = true;
       else delete blocked[key];
     }
-    for (const [key, inst] of Object.entries(this.removed)) instances[key] = inst;
-    store.set({ blocked, instances });
+    store.set({ blocked });
   }
 }
 

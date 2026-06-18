@@ -145,9 +145,10 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
 - [x] 🟡 **Modo Block (zona bloqueada)** — _feito._ Ferramenta **Block** (entre Erase
   e Noise) marca células onde **não se pode colocar SVG**: o draw pula essas células e
   o noise (`applyMask`) também. Menu de contexto com segmented **Drag** (retângulo
-  clicar-arrastar) e **Brush** (pintar com o footprint atual); ambos removem SVGs já
-  presentes nas células bloqueadas. Overlay **avermelhado + borda vermelha dashed**;
-  hover do brush em vermelho. Tudo undoable (`blocked: Record<key,true>` no estado).
+  clicar-arrastar) e **Brush** (pintar com o footprint atual). Bloquear agora **preserva e
+  protege** o que já está na célula: o SVG existente fica, e **Draw / Erase / Edit pulam
+  células bloqueadas** (imutável até des-bloquear no modo Clean). Overlay **avermelhado +
+  borda vermelha dashed**; hover do brush em vermelho. Tudo undoable (`blocked` no estado).
   - Arquivos: [src/scene/types.ts](src/scene/types.ts), [src/tools/tools.ts](src/tools/tools.ts), [src/commands/sceneCommands.ts](src/commands/sceneCommands.ts) (`BlockCells`),
     [src/features/placement.ts](src/features/placement.ts), [src/render/renderer.ts](src/render/renderer.ts), [src/ui/blockPanel.ts](src/ui/blockPanel.ts), [src/ui/shell.ts](src/ui/shell.ts).
   - Refinamento futuro: des-bloquear (apagar zona), e respeitar bloqueio na escala multi-célula.
