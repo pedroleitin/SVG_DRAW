@@ -253,20 +253,13 @@ export class ExportPanel {
   ): (timeSec: number) => Promise<string> {
     const dur = halftoneDuration() || this.duration;
     const bg = kind === "mp4" ? this.bg() ?? "#ffffff" : this.bg();
-    // Fit the halftone to the EXPORT FRAME (not the view), so the rendered cells
-    // line up with the crop — otherwise the frame captures an offset sub-region.
-    const cs = state.cellSize;
-    const f = state.frame;
-    const range = {
-      minCol: Math.round(f.x / cs),
-      minRow: Math.round(f.y / cs),
-      maxCol: Math.round((f.x + f.w) / cs) - 1,
-      maxRow: Math.round((f.y + f.h) / cs) - 1,
-    };
     return async (timeSec: number): Promise<string> => {
       const u = dur > 0 ? (timeSec / dur) % 1 : 0;
       await setHalftoneFrame(u);
-      const { places } = halftoneInstances(state, this.library, range);
+      // Same view-fit as the live preview, so the per-cell shapes/colors (seeded
+      // by col,row) match exactly. The frame just crops it — use Free Form +
+      // "Fit to view" so the crop equals what you see.
+      const { places } = halftoneInstances(state, this.library);
       const instances: Record<string, Instance> = {};
       for (const p of places) instances[cellKey(p.col, p.row)] = p;
       return buildSceneSVG({ ...state, instances }, this.library, undefined, bg);
