@@ -31,6 +31,9 @@ export class InputController {
   /** Working instances map for the active stroke — cloned ONCE on pointerdown and
    *  mutated per move (avoids an O(N) clone of every SVG on each pointer event). */
   private strokeInstances: Record<string, Instance> = {};
+  /** Last painted world point — the brush interpolates from here so fast moves
+   *  don't leave gaps between sparse pointermove events. Null = stroke start. */
+  private lastPaintW: { x: number; y: number } | null = null;
   private drawingPath = false;
   private pathPoints: { x: number; y: number }[] = [];
   // Block tool state.
@@ -125,6 +128,7 @@ export class InputController {
     this.strokePlaced = [];
     this.strokeErased = [];
     this.strokeInstances = { ...this.store.get().instances }; // clone once per stroke
+    this.lastPaintW = null; // fresh stroke — no interpolation from a prior point
     this.paint(e);
   };
 
@@ -221,10 +225,49 @@ export class InputController {
     const w = this.worldAt(e);
     const span = Math.max(1, Math.round(state.brushSpan ?? 1));
     const instances = this.strokeInstances; // mutated in place; cloned at stroke start
+    // While the Stencil is open, the brush may only paint inside the lit (green)
+    // opening — built once, then reused across the interpolated points.
+    const lit = state.tool !== "erase" && state.contextPanel === "stencil" ? stencilLit(state) : null;
+
+    // Interpolate from the previous point so a fast pointer move (sparse events)
+    // doesn't leave gaps along the path.
+    let changed = false;
+    const prev = this.lastPaintW;
+    if (prev) {
+      const steps = Math.max(1, Math.ceil(Math.hypot(w.x - prev.x, w.y - prev.y) / (cs * 0.5)));
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        if (this.paintAt(prev.x + (w.x - prev.x) * t, prev.y + (w.y - prev.y) * t, state, instances, span, lit)) {
+          changed = true;
+        }
+      }
+    } else if (this.paintAt(w.x, w.y, state, instances, span, lit)) {
+      changed = true;
+    }
+    this.lastPaintW = w;
+
+    if (changed) {
+      this.store.set({ instances });
+      if (state.tool === "erase") this.audio.erase();
+      else this.audio.note(Math.floor(w.x / cs) + Math.floor(w.y / cs));
+    }
+  }
+
+  /** Paint the brush footprint at a single world point (no store/audio side
+   *  effects — the caller batches those). Returns whether anything changed. */
+  private paintAt(
+    wx: number,
+    wy: number,
+    state: SceneState,
+    instances: Record<string, Instance>,
+    span: number,
+    lit: ((col: number, row: number) => boolean) | null,
+  ): boolean {
+    const cs = state.cellSize;
     let changed = false;
 
     if (state.tool === "erase") {
-      const cells = brushCells(w.x / cs, w.y / cs, state.brushSize, state.brushShape);
+      const cells = brushCells(wx / cs, wy / cs, state.brushSize, state.brushShape);
       for (const c of cells) {
         const key = cellKey(c.col, c.row);
         if (this.strokeCells.has(key)) continue;
@@ -238,21 +281,14 @@ export class InputController {
           }
         }
       }
-      if (changed) {
-        this.store.set({ instances });
-        this.audio.erase();
-      }
-      return;
+      return changed;
     }
 
-    // While the Stencil is open, the brush may only paint inside the lit (green)
-    // opening — cells outside it are masked off.
-    const lit = state.contextPanel === "stencil" ? stencilLit(state) : null;
     const litAt = (col: number, row: number): boolean => !lit || lit(col, row);
 
     // DRAW: an N×N footprint (Brush) of span×span blocks (Size). Each block
     // clears what it covers, so placements never overlap.
-    const blocks = brushBlocks(w.x / cs, w.y / cs, state.brushSize, state.brushShape, span);
+    const blocks = brushBlocks(wx / cs, wy / cs, state.brushSize, state.brushShape, span);
     for (const blk of blocks) {
       // Skip if any covered cell is already painted this stroke, is blocked, or
       // (with the stencil on) falls outside the lit opening.
@@ -284,10 +320,7 @@ export class InputController {
       this.strokePlaced.push(inst);
       changed = true;
     }
-    if (changed) {
-      this.store.set({ instances });
-      this.audio.note(Math.floor(w.x / cs) + Math.floor(w.y / cs));
-    }
+    return changed;
   }
 
   /** Divider brush: fill the subdivision block under the cursor with one SVG
