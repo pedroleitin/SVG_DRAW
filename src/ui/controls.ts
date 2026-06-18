@@ -10,8 +10,20 @@ import { fitBox, textBox } from "../features/stencil";
 import { renderStencilText } from "../features/stencilText";
 import { visibleCellRange } from "../scene/grid";
 import { morphResize } from "./morph";
-import { createSlider } from "./widgets";
-import type { SliderHandle } from "./widgets";
+import { createSlider, createDropdown } from "./widgets";
+import type { SliderHandle, DropdownHandle } from "./widgets";
+
+/** Fonts offered for the Text stencil source (CSS font-family → label). */
+const STENCIL_FONTS: { value: string; label: string }[] = [
+  { value: "sans-serif", label: "Sans" },
+  { value: "serif", label: "Serif" },
+  { value: "monospace", label: "Mono" },
+  { value: "Georgia, serif", label: "Georgia" },
+  { value: '"Times New Roman", serif', label: "Times" },
+  { value: '"Courier New", monospace', label: "Courier" },
+  { value: "Impact, sans-serif", label: "Impact" },
+  { value: "Verdana, sans-serif", label: "Verdana" },
+];
 
 // Only the numeric mask params get sliders (excludes the boolean `seamless`).
 type MaskKey = Exclude<keyof MaskParams, "seamless">;
@@ -56,7 +68,7 @@ const TEXT_SIZE: SliderDef<"size"> = {
   key: "size",
   label: "Size",
   min: 2,
-  max: 14,
+  max: 30,
   step: 1,
   format: (v) => String(v),
 };
@@ -86,6 +98,7 @@ export class Controls {
   private addChk!: HTMLInputElement;
   private textInput!: HTMLInputElement;
   private textBold!: HTMLInputElement;
+  private textFont!: DropdownHandle;
   private textSize!: SliderHandle;
   private noiseEl!: HTMLElement;
   private stripesEl!: HTMLElement;
@@ -144,7 +157,10 @@ export class Controls {
         <input class="text-input" id="stencil-text" type="text" placeholder="Type text…" maxlength="40" />
         <div class="noise-right">
           <div class="sliders" id="text-sliders"></div>
-          <label class="chk"><span>Bold</span><input type="checkbox" id="text-bold" /></label>
+          <div class="text-fontrow">
+            <div id="text-font-slot"></div>
+            <label class="chk"><span>Bold</span><input type="checkbox" id="text-bold" /></label>
+          </div>
         </div>
       </div>
       <label class="chk stencil-lock"><input type="checkbox" id="stencil-lock" />
@@ -252,6 +268,13 @@ export class Controls {
     this.textInput.addEventListener("input", () => this.updateText({ text: this.textInput.value }));
     this.textBold = panel.querySelector("#text-bold") as HTMLInputElement;
     this.textBold.addEventListener("change", () => this.updateText({ bold: this.textBold.checked }));
+    this.textFont = createDropdown(
+      STENCIL_FONTS,
+      this.store.get().stencil.text.font,
+      (v) => this.updateText({ font: v }),
+      { prefix: "Font" },
+    );
+    panel.querySelector("#text-font-slot")!.append(this.textFont.el);
     this.textSize = createSlider({
       label: TEXT_SIZE.label,
       min: TEXT_SIZE.min,
@@ -298,7 +321,7 @@ export class Controls {
   private updateText(patch: Partial<SceneState["stencil"]["text"]>): void {
     const st = this.store.get().stencil;
     const t = { ...st.text, ...patch };
-    const dims = renderStencilText(t.text, t.bold);
+    const dims = renderStencilText(t.text, t.bold, t.font);
     const box = dims ? textBox(this.store.get(), dims.w / dims.h, t.size) : null;
     this.store.set({ stencil: { ...st, type: "text", text: { ...t, box } } });
   }
@@ -350,6 +373,7 @@ export class Controls {
     this.imgInvert.checked = s.stencil.image.invert;
     this.textSize.setValue(s.stencil.text.size);
     this.textBold.checked = s.stencil.text.bold;
+    this.textFont.setValue(s.stencil.text.font);
     if (document.activeElement !== this.textInput) this.textInput.value = s.stencil.text.text;
     this.lockChk.checked = s.stencil.lock;
     this.addChk.checked = s.stencil.add;

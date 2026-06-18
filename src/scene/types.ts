@@ -47,6 +47,8 @@ export interface StencilParams {
     text: string;
     size: number;
     bold: boolean;
+    /** CSS font-family used to rasterize the text. */
+    font: string;
     box: { col: number; row: number; cols: number; rows: number } | null;
   };
 }

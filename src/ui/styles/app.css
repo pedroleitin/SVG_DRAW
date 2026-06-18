@@ -1536,6 +1536,13 @@ body.perf-noblur .dd-menu {
   overscroll-behavior: none;
 }
 
+/* Stencil Text: font dropdown + Bold on one row. */
+.text-fontrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* Ambient mode (small screens): hide the whole floating UI — just the glyph field. */
 body.ambient #ui {
   display: none;

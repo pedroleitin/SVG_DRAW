@@ -19,13 +19,17 @@ export function stencilTextAspect(): number | null {
 }
 
 /** Rasterize white text on black; returns the canvas dims (or null if empty). */
-export function renderStencilText(text: string, bold: boolean): { w: number; h: number } | null {
+export function renderStencilText(
+  text: string,
+  bold: boolean,
+  family = "sans-serif",
+): { w: number; h: number } | null {
   if (!text.trim()) {
     txt = null;
     return null;
   }
   const fontPx = 80;
-  const font = `${bold ? "700 " : ""}${fontPx}px sans-serif`;
+  const font = `${bold ? "700 " : ""}${fontPx}px ${family}`;
   const probe = document.createElement("canvas").getContext("2d");
   if (!probe) return null;
   probe.font = font;

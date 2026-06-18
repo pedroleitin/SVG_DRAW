@@ -98,7 +98,7 @@ const initial: SceneState = {
     add: false,
     stripes: { angle: 45, period: 4, ratio: 0.5 },
     image: { box: null, threshold: 0.5, invert: false },
-    text: { text: "HELLO", size: 6, bold: true, box: null },
+    text: { text: "HELLO", size: 6, bold: true, font: "sans-serif", box: null },
   },
   halftone: {
     mode: "halftone",
