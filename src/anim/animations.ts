@@ -33,7 +33,9 @@ export const ANIMATIONS: Record<string, AnimFn> = {
   }),
 };
 
-export const IDLE_IDS = Object.keys(ANIMATIONS);
+// "shuffle" isn't a transform motion — it swaps each glyph's shape over time.
+// The renderer handles it (sampleLifecycle treats it as `none` for transforms).
+export const IDLE_IDS = [...Object.keys(ANIMATIONS), "shuffle"];
 
 // ---- Direction (used by the "linear" order preset) ----
 

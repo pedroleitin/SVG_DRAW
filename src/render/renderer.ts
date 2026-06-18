@@ -42,6 +42,8 @@ interface RenderCtx {
   T: number;
   tcyc: number;
   seen: Set<string>;
+  /** Asset pool for the "shuffle" idle (glyphs swap over time); null when off. */
+  shuffleIds: string[] | null;
 }
 
 /** The instance whose block covers cell (col,row), or null. */
@@ -1061,7 +1063,9 @@ export class Renderer {
     const orderOf = animate ? buildOrderField(state) : null;
     const T = time * anim.speed;
     const tcyc = animate ? mapCycleTime(anim, T) : 0;
-    const ctx: RenderCtx = { state, palette, range: r, animate, orderOf, T, tcyc, seen };
+    // Shuffle idle: pre-fetch the asset pool once per frame (not per instance).
+    const shuffleIds = animate && anim.idle === "shuffle" ? this.library.ids() : null;
+    const ctx: RenderCtx = { state, palette, range: r, animate, orderOf, T, tcyc, seen, shuffleIds };
 
     // Incremental: scan the visible cell range (+ a back-margin for multi-cell
     // blocks anchored off-screen) so a dense scene viewed up close costs
@@ -1107,7 +1111,12 @@ export class Renderer {
       return;
     }
     ctx.seen.add(key);
-    this.ensureSymbol(inst.assetId);
+    // "shuffle" idle swaps the displayed glyph over time (staggered per cell).
+    const assetId =
+      ctx.shuffleIds && ctx.shuffleIds.length > 1
+        ? this.shuffledAsset(inst, ctx.T, ctx.state.animation.idleAmount, ctx.shuffleIds)
+        : inst.assetId;
+    this.ensureSymbol(assetId);
     let node = this.nodes.get(key);
     if (!node) {
       node = document.createElementNS(SVGNS, "use");
@@ -1122,7 +1131,17 @@ export class Renderer {
       out = sampleLifecycle(ctx.state.animation, ctx.orderOf(inst), ctx.tcyc, ctx.T);
     }
     this.applyCellBg(key, inst, cs, ctx.palette, out, ctx.state.cellRounded, ctx.state.cellGutter);
-    this.applyInstance(node, inst, cs, inst.color ?? colorAt(ctx.palette, inst.colorIndex), out);
+    this.applyInstance(node, inst, cs, inst.color ?? colorAt(ctx.palette, inst.colorIndex), out, assetId);
+  }
+
+  /** "shuffle" idle: pick a glyph from the pool that changes over time, staggered
+   *  per cell so they don't all flip on the same beat. `amount` (0..1) sets pace. */
+  private shuffledAsset(inst: Instance, T: number, amount: number, ids: string[]): string {
+    // amount 0 = calm (~0.7s/swap), 1 = frantic (~0.12s/swap).
+    const interval = 0.7 - 0.58 * Math.max(0, Math.min(1, amount));
+    const phase = (inst.seed >>> 0) % 997; // per-cell offset so flips desync
+    const step = Math.floor(T / interval) + phase;
+    return ids[hash2(inst.col, inst.row, step) % ids.length];
   }
 
   /** Draw (or remove) the colored cell-background square behind an instance.
@@ -1191,15 +1210,16 @@ export class Renderer {
     cellSize: number,
     color: string,
     anim: AnimOutput,
+    assetId: string = inst.assetId,
   ): void {
     const g = instanceGeom(inst, cellSize, anim, this.fillMul, this.scratchBox);
     // Dirty-check: skip all DOM writes when nothing this node shows changed
     // (e.g. a pan only moves the viewBox; static instances during animation).
-    const sig = `${inst.assetId}|${g.x}|${g.y}|${g.size}|${g.rot}|${g.cx}|${g.cy}|${g.opacity}|${color}|${inst.id}`;
+    const sig = `${assetId}|${g.x}|${g.y}|${g.size}|${g.rot}|${g.cx}|${g.cy}|${g.opacity}|${color}|${inst.id}`;
     const dirty = node as unknown as { __sig?: string };
     if (dirty.__sig === sig) return;
     dirty.__sig = sig;
-    node.setAttribute("href", `#sym-${inst.assetId}`);
+    node.setAttribute("href", `#sym-${assetId}`);
     node.setAttribute("x", String(g.x));
     node.setAttribute("y", String(g.y));
     node.setAttribute("width", String(g.size));
