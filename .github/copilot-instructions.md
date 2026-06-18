@@ -82,6 +82,10 @@ CSS duration, sync the matching `SIZE`/`FADE` constant in `morph.ts`.**
 - SVG **geometry presentation attributes** (`x`/`y`/`width`/`height`/`rx`) can CSS-transition,
   but `auto ↔ number` won't interpolate — always set `rx` numerically.
 - The zoom-out button label is `−` (U+2212), not an ASCII hyphen.
+- **Safari / WebKit (WIP)**: no `ImageDecoder` (animated GIF falls back to a play-only `<img>`,
+  no scrubber) and limited WebCodecs (MP4 export); a `.safari-wip` badge shows in-app. Wheel-zoom
+  is bound to the **`#stage` div**, not the `<svg>` — WebKit only fires `wheel` over painted SVG
+  content. Wheel deltas are normalized + floored (Safari/Firefox report line-mode or tiny deltas).
 
 ## Verification
 

@@ -111,6 +111,11 @@ brush-relevant panels.
 - Micro-interactions throughout: button hover/press, cell-shape glide, hover preview fade, and an animated
   fade → size-morph → fade transition when menus change
 
+**Browser support**
+- Best on **Chrome / Edge**. On **Safari (WebKit)** some things are still **WIP** — animated GIF in
+  Halftone (no `ImageDecoder`, so it falls back to a play-only `<img>` with no frame scrubber) and **MP4
+  export** (WebCodecs); dense-scene performance is also rougher. An in-app badge flags this on Safari.
+
 > `tsconfig` uses `noEmit`, so `tsc` only typechecks — Vite owns bundling. Verification through the project
 > has been done with headless Chrome (playwright-core).
 
