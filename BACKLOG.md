@@ -108,6 +108,12 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   Falta: densidade do traço, modo "só preencher vazias" vs "sobrescrever", apagar por
   filtro (por asset / por cor).
   - Arquivos: [src/tools/tools.ts](src/tools/tools.ts), [src/scene/grid.ts](src/scene/grid.ts) (`brushCells`/`brushBlocks`), [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/render/renderer.ts](src/render/renderer.ts)
+- [ ] 🟡 **Modo Path (desenhar linhas a preencher)** — uma ferramenta de **caminho** no Draw:
+  desenha **linhas/curvas** (vetor) e as células ao longo do traçado são preenchidas com o que
+  estiver setado em **Brush** (shapes selecionados) e **Cell** (fundo da célula) — em vez de
+  pintar célula a célula. Pensar em: linha contínua vs segmentos, espessura (quantas células),
+  fechar/preencher área, e reuso da interpolação que já existe no brush.
+  - Arquivos prováveis: [src/tools/tools.ts](src/tools/tools.ts) (nova ferramenta de path), [src/scene/grid.ts](src/scene/grid.ts) (rasterizar a linha em células), [src/ui/](src/ui/) (botão/toolbox), [src/render/renderer.ts](src/render/renderer.ts).
 - [~] 🟡 **Brush/Size como rodapé compartilhado do context** — _parcial._ A barra
   **Brush / Size / Cell background** virou um **rodapé dentro da caixa do context**,
   aparecendo nos geradores (Noise/Divider/Seamless/Block/Edit) e no Draw/Erase, e some em
