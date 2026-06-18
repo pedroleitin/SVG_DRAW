@@ -38,7 +38,7 @@ export class AnimPanel {
 
     const selHost = panel.querySelector("#anim-selects")!;
     // "free" is the hand-drawn path mode — show it as "draw path".
-    this.addSelect(selHost, "order", "Order", ORDER_MODES, { free: "draw path" });
+    this.addSelect(selHost, "order", "Order", ORDER_MODES, { free: "draw path", all: "all at once" });
     this.addSelect(selHost, "direction", "Dir", DIRECTIONS);
     this.addSelect(selHost, "enter", "Intro", ENTER_EXITS);
     this.addSelect(selHost, "exit", "Outro", ENTER_EXITS);

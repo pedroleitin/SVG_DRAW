@@ -49,6 +49,10 @@ export function buildOrderField(state: SceneState): (inst: Instance) => number {
 
   const raw = (inst: Instance): number => {
     switch (a.order) {
+      case "all":
+        // No reveal sequence — every instance starts together (o=0 for all),
+        // so the scene shows everything at once (pairs with Shuffle / idle).
+        return 0;
       case "random":
         return frac(inst.seed);
       case "sequential":

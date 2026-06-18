@@ -78,8 +78,9 @@ export function directionPhase(col: number, row: number, dir: Direction): number
 
 // ---- Lifecycle config ----
 
-export type OrderMode = "free" | "random" | "sequential" | "linear" | "radial" | "halftone";
+export type OrderMode = "all" | "free" | "random" | "sequential" | "linear" | "radial" | "halftone";
 export const ORDER_MODES: OrderMode[] = [
+  "all",
   "linear",
   "radial",
   "sequential",
