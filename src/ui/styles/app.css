@@ -1146,6 +1146,12 @@ body.perf-noblur .dd-menu {
   cursor: not-allowed;
 }
 
+/* A control overridden by another setting (e.g. Size while Random size is on). */
+.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 .seg-btn svg {
   display: block;
 }

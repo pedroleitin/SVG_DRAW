@@ -162,6 +162,9 @@ export interface SceneState {
   brushSize: number;
   /** Cell span of each placed SVG (1..6) — a single SVG over N×N cells. */
   brushSpan: number;
+  /** When true, Draw ignores brushSpan and gives each placed cell a random span
+   *  (1..3), seeded per cell so the scene still reproduces exactly. */
+  brushRandomSize: boolean;
   /** Brush footprint shape. */
   brushShape: BrushShape;
   /** Round the cell-background squares (border radius). */

@@ -12,6 +12,7 @@ import { buildInstance, pickAsset } from "../features/placement";
 import { dividerBlocks, blockAt } from "../features/divider";
 import { stencilLit } from "../features/stencil";
 import { paletteById } from "../features/palette";
+import { hash2 } from "../util/rng";
 import type { AudioEngine } from "../features/audio";
 import { screenToWorld, zoomAt, panBy } from "../scene/camera";
 import { worldToCell, brushCells, brushBlocks } from "../scene/grid";
@@ -317,14 +318,20 @@ export class InputController {
     const litAt = (col: number, row: number): boolean => !lit || lit(col, row);
 
     // DRAW: an N×N footprint (Brush) of span×span blocks (Size). Each block
-    // clears what it covers, so placements never overlap.
-    const blocks = brushBlocks(wx / cs, wy / cs, state.brushSize, state.brushShape, span);
+    // clears what it covers, so placements never overlap. With "random size" on,
+    // the footprint is tiled into unit cells, each grown to a per-cell random
+    // span (1–3) — seeded off the cell + scene seed so it reproduces exactly.
+    const randomSize = state.brushRandomSize;
+    const tileSpan = randomSize ? 1 : span;
+    const rsSeed = (state.mask.seed ^ 0x5f3a) >>> 0;
+    const blocks = brushBlocks(wx / cs, wy / cs, state.brushSize, state.brushShape, tileSpan);
     for (const blk of blocks) {
+      const bs = randomSize ? 1 + (hash2(blk.col, blk.row, rsSeed) % 3) : span;
       // Skip if any covered cell is already painted this stroke, is blocked, or
       // (with the stencil on) falls outside the lit opening.
       let skip = false;
-      for (let y = blk.row; y < blk.row + span && !skip; y++) {
-        for (let x = blk.col; x < blk.col + span; x++) {
+      for (let y = blk.row; y < blk.row + bs && !skip; y++) {
+        for (let x = blk.col; x < blk.col + bs; x++) {
           const k = cellKey(x, y);
           if (this.strokeCells.has(k) || state.blocked[k] || !litAt(x, y)) {
             skip = true;
@@ -334,7 +341,7 @@ export class InputController {
       }
       if (skip) continue;
       // Clear whatever the block covers.
-      for (const k of instancesInRect(instances, blk.col, blk.row, span, span)) {
+      for (const k of instancesInRect(instances, blk.col, blk.row, bs, bs)) {
         const inst = instances[k];
         if (inst) {
           delete instances[k];
@@ -342,10 +349,10 @@ export class InputController {
         }
       }
       // Reserve the block's cells, then place it.
-      for (let y = blk.row; y < blk.row + span; y++) {
-        for (let x = blk.col; x < blk.col + span; x++) this.strokeCells.add(cellKey(x, y));
+      for (let y = blk.row; y < blk.row + bs; y++) {
+        for (let x = blk.col; x < blk.col + bs; x++) this.strokeCells.add(cellKey(x, y));
       }
-      const inst = buildInstance(state, this.library, blk.col, blk.row, span, span);
+      const inst = buildInstance(state, this.library, blk.col, blk.row, bs, bs);
       instances[cellKey(blk.col, blk.row)] = inst;
       this.strokePlaced.push(inst);
       changed = true;

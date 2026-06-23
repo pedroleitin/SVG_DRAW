@@ -9,6 +9,7 @@ export class BrushPanel {
   private sizeSlider: SliderHandle;
   private spanSlider: SliderHandle;
   private bgChk: HTMLInputElement;
+  private randSizeChk: HTMLInputElement;
 
   constructor(host: HTMLElement, private store: Store) {
     host.innerHTML = `
@@ -17,6 +18,7 @@ export class BrushPanel {
         <div class="brush-controls">
           <div id="brush-span"></div>
           <div id="brush-size"></div>
+          <label class="chk"><span>Random size</span><input type="checkbox" id="brush-rand-size" title="Each placed cell gets a random size (1–3)" /></label>
         </div>
       </div>
       <span class="tb-sep"></span>
@@ -58,6 +60,12 @@ export class BrushPanel {
       this.store.set({ activeBgIndex: this.bgChk.checked ? "random" : null }),
     );
 
+    // Random size: Draw places a randomly-sized (1–3) SVG per cell.
+    this.randSizeChk = host.querySelector("#brush-rand-size") as HTMLInputElement;
+    this.randSizeChk.addEventListener("change", () =>
+      this.store.set({ brushRandomSize: this.randSizeChk.checked }),
+    );
+
     this.sync(s);
     store.subscribe((st) => this.sync(st));
   }
@@ -66,5 +74,8 @@ export class BrushPanel {
     this.sizeSlider.setValue(s.brushSize);
     this.spanSlider.setValue(s.brushSpan);
     this.bgChk.checked = s.activeBgIndex != null;
+    this.randSizeChk.checked = s.brushRandomSize;
+    // Random size overrides the Size slider — dim it to show it's inactive.
+    this.spanSlider.el.classList.toggle("disabled", s.brushRandomSize);
   }
 }
