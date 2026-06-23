@@ -51,7 +51,7 @@ export function buildSceneSVG(
     // Cell-background square (fixed to the cell, shares the fade), behind the use.
     if (inst.bgIndex != null) {
       const bgOp = g.opacity < 1 ? ` opacity="${g.opacity.toFixed(3)}"` : "";
-      const b = cellBgRect(inst.col, inst.row, cs, state.cellRounded, state.cellGutter);
+      const b = cellBgRect(inst.col, inst.row, cs, state.cellRounded, state.cellGutter, inst.cw ?? 1, inst.ch ?? 1);
       const rx = b.rx ? ` rx="${b.rx}"` : "";
       uses.push(
         `<rect x="${r(b.x)}" y="${r(b.y)}" width="${r(b.w)}" height="${r(b.h)}"${rx} fill="${colorAt(palette, inst.bgIndex)}"${bgOp}/>`,
