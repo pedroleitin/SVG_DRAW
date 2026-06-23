@@ -1021,22 +1021,35 @@ body.perf-noblur .dd-menu {
   align-items: start;
 }
 
-/* Palette heading row: title + "Import .ase" button. */
-.pal-head {
+/* .ase import drop zone (below Cell background). Click to browse, or drop a file. */
+.ase-drop {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.ase-btn {
-  font-size: 11px;
-  padding: 3px 8px;
-}
-/* Drag-and-drop feedback when dropping an .ase onto the Colors panel. */
-.drag-over {
-  outline: 2px dashed var(--accent, #888);
-  outline-offset: 4px;
+  justify-content: center;
+  gap: 2px;
+  padding: 14px;
+  border: 1.5px dashed var(--line);
   border-radius: 8px;
+  color: var(--muted, #888);
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.ase-drop small {
+  font-size: 10px;
+  opacity: 0.7;
+}
+.ase-drop:hover {
+  color: var(--text, #333);
+  border-color: var(--muted, #999);
+}
+.ase-drop.drag-over {
+  border-color: var(--accent, #888);
+  border-style: solid;
+  color: var(--text, #333);
+  background: color-mix(in srgb, var(--accent, #888) 10%, transparent);
 }
 
 /* Always-on brush bar (Draw/Erase): two titled groups in a row. */

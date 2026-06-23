@@ -23,14 +23,10 @@ export class ColorsPanel {
       <h2>Colors</h2>
       <div class="colors-cols">
         <div class="colors-left">
-          <div class="pal-head">
-            <h3 class="exp-sub">Palette</h3>
-            <button id="ase-import" class="tool-btn ase-btn" title="Import an Adobe .ase swatch file (or drop one here)">Import .ase</button>
-          </div>
+          <h3 class="exp-sub">Palette</h3>
           <div class="palette-list"></div>
           <div class="swatches"></div>
           <label class="hex-row"><span>Hex</span><input type="text" id="color-hex" class="hex-input" spellcheck="false" maxlength="7" /></label>
-          <input type="file" id="ase-file" accept=".ase" hidden />
         </div>
         <div class="colors-right">
           <h3 class="exp-sub">Canvas background</h3>
@@ -44,6 +40,11 @@ export class ColorsPanel {
             <button class="seg-btn seg-text" data-bg="none">None</button>
             <button class="seg-btn seg-text" data-bg="random">Random</button>
           </div>
+          <h3 class="exp-sub">Import palette</h3>
+          <div id="ase-drop" class="ase-drop" title="Drop an Adobe .ase swatch file (or click to browse)">
+            Drop <b>.ase</b> here<small>or click to browse</small>
+          </div>
+          <input type="file" id="ase-file" accept=".ase" hidden />
         </div>
       </div>`;
 
@@ -77,23 +78,22 @@ export class ColorsPanel {
       );
     }
 
-    // Import .ase swatch files — via the button or by dropping onto the panel.
+    // Import .ase swatch files — drop one onto the zone (or click to browse).
     const aseFile = this.root.querySelector("#ase-file") as HTMLInputElement;
-    this.root.querySelector("#ase-import")!.addEventListener("click", () => aseFile.click());
+    const drop = this.root.querySelector("#ase-drop") as HTMLElement;
+    drop.addEventListener("click", () => aseFile.click());
     aseFile.addEventListener("change", () => {
       if (aseFile.files?.[0]) this.importAse(aseFile.files[0]);
       aseFile.value = ""; // allow re-importing the same file
     });
-    this.root.addEventListener("dragover", (e) => {
+    drop.addEventListener("dragover", (e) => {
       e.preventDefault();
-      this.root.classList.add("drag-over");
+      drop.classList.add("drag-over");
     });
-    this.root.addEventListener("dragleave", (e) => {
-      if (e.target === this.root) this.root.classList.remove("drag-over");
-    });
-    this.root.addEventListener("drop", (e) => {
+    drop.addEventListener("dragleave", () => drop.classList.remove("drag-over"));
+    drop.addEventListener("drop", (e) => {
       e.preventDefault();
-      this.root.classList.remove("drag-over");
+      drop.classList.remove("drag-over");
       const file = [...(e.dataTransfer?.files ?? [])].find((f) => /\.ase$/i.test(f.name));
       if (file) this.importAse(file);
     });
