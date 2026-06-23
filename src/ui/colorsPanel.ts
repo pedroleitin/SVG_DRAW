@@ -40,9 +40,10 @@ export class ColorsPanel {
             <button class="seg-btn seg-text" data-bg="none">None</button>
             <button class="seg-btn seg-text" data-bg="random">Random</button>
           </div>
-          <h3 class="exp-sub">Import palette</h3>
+          <h3 class="exp-sub imp-title">Import palette</h3>
           <div id="ase-drop" class="ase-drop" title="Drop an Adobe .ase swatch file (or click to browse)">
-            Drop <b>.ase</b> here<small>or click to browse</small>
+            <span>Drop <b>.ase</b> here</span>
+            <small>or click to browse</small>
           </div>
           <input type="file" id="ase-file" accept=".ase" hidden />
         </div>

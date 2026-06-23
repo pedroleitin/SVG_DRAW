@@ -1041,6 +1041,10 @@ body.perf-noblur .dd-menu {
   font-size: 10px;
   opacity: 0.7;
 }
+/* Extra breathing room between the Cell-background segment and this title. */
+.imp-title {
+  margin-top: 18px;
+}
 .ase-drop:hover {
   color: var(--text, #333);
   border-color: var(--muted, #999);
