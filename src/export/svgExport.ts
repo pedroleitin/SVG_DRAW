@@ -2,7 +2,7 @@ import type { SceneState } from "../scene/types";
 import type { Library } from "../features/library";
 import { paletteById, colorAt } from "../features/palette";
 import { instanceGeom, cellBgRect } from "../scene/geom";
-import { FILL_SCALE } from "../features/placement";
+import { FILL_SCALE, shufflePool, shuffledAssetId } from "../features/placement";
 import { outSize } from "./frame";
 import { mapCycleTime, sampleLifecycle } from "../anim/animations";
 import { buildOrderField } from "../anim/order";
@@ -30,6 +30,9 @@ export function buildSceneSVG(
   const orderOf = animate ? buildOrderField(state) : null;
   const T = animate ? time * state.animation.speed : 0;
   const tcyc = animate ? mapCycleTime(state.animation, T) : 0;
+  // Shuffle idle swaps each glyph over time — apply it so exports match the canvas.
+  const shuffle =
+    animate && state.animation.idle === "shuffle" ? shufflePool(state.brushAssets, library) : null;
 
   const used = new Set<string>();
   const uses: string[] = [];
@@ -59,9 +62,10 @@ export function buildSceneSVG(
     }
     // Skip hidden glyphs (e.g. Halftone's cell-only target).
     if (color !== "transparent") {
-      used.add(inst.assetId);
+      const assetId = shuffle ? shuffledAssetId(inst, shuffle, T, state.animation.idleAmount) : inst.assetId;
+      used.add(assetId);
       uses.push(
-        `<use href="#sym-${inst.assetId}" x="${r(g.x)}" y="${r(g.y)}" width="${r(g.size)}" height="${r(g.size)}" style="color:${color}"${transform}${op}/>`,
+        `<use href="#sym-${assetId}" x="${r(g.x)}" y="${r(g.y)}" width="${r(g.size)}" height="${r(g.size)}" style="color:${color}"${transform}${op}/>`,
       );
     }
   }

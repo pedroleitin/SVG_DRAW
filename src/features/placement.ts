@@ -16,6 +16,25 @@ export function pickAsset(brushAssets: string[], library: Library, rng: () => nu
   return pool.length === 1 ? pool[0] : pool[randInt(rng, 0, pool.length - 1)];
 }
 
+/** The pool the Shuffle idle draws from: the selected shapes, or every library
+ *  asset when "random"/none is selected (mirrors pickAsset's pool). */
+export function shufflePool(brushAssets: string[], library: Library): string[] {
+  const pool = brushAssets.filter((id) => id !== "random" && library.get(id));
+  return brushAssets.includes("random") || pool.length === 0 ? library.ids() : pool;
+}
+
+/** Shuffle idle: the asset shown at time `T`, picked from `pool` and changing
+ *  over time — staggered per instance (by seed) so they don't all flip together.
+ *  `amount` (0..1) sets the pace. Pure + deterministic, so live render and export
+ *  agree. Returns `inst.assetId` when the pool can't vary. */
+export function shuffledAssetId(inst: Instance, pool: string[], T: number, amount: number): string {
+  if (pool.length < 2) return inst.assetId;
+  const interval = 0.7 - 0.58 * Math.max(0, Math.min(1, amount)); // 0=calm, 1=frantic
+  const phase = (inst.seed >>> 0) % 997; // per-cell offset so flips desync
+  const step = Math.floor(T / interval) + phase;
+  return pool[hash2(inst.col, inst.row, step) % pool.length];
+}
+
 /** Fraction of the cell an SVG fills (leaves a small gutter). */
 export const FILL_SCALE = 0.85;
 

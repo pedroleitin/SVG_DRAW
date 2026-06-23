@@ -19,7 +19,7 @@ import {
   halftoneLastBox,
   advanceHalftone,
 } from "../features/halftone";
-import { FILL_SCALE } from "../features/placement";
+import { FILL_SCALE, shufflePool, shuffledAssetId } from "../features/placement";
 import { hash2, mulberry32, randInt } from "../util/rng";
 
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -1077,8 +1077,9 @@ export class Renderer {
     const orderOf = animate ? buildOrderField(state) : null;
     const T = time * anim.speed;
     const tcyc = animate ? mapCycleTime(anim, T) : 0;
-    // Shuffle idle: pre-fetch the asset pool once per frame (not per instance).
-    const shuffleIds = animate && anim.idle === "shuffle" ? this.library.ids() : null;
+    // Shuffle idle: pre-fetch the asset pool (selected shapes) once per frame.
+    const shuffleIds =
+      animate && anim.idle === "shuffle" ? shufflePool(state.brushAssets, this.library) : null;
     const ctx: RenderCtx = { state, palette, range: r, animate, orderOf, T, tcyc, seen, shuffleIds };
 
     // Incremental: scan the visible cell range (+ a back-margin for multi-cell
@@ -1126,10 +1127,9 @@ export class Renderer {
     }
     ctx.seen.add(key);
     // "shuffle" idle swaps the displayed glyph over time (staggered per cell).
-    const assetId =
-      ctx.shuffleIds && ctx.shuffleIds.length > 1
-        ? this.shuffledAsset(inst, ctx.T, ctx.state.animation.idleAmount, ctx.shuffleIds)
-        : inst.assetId;
+    const assetId = ctx.shuffleIds
+      ? shuffledAssetId(inst, ctx.shuffleIds, ctx.T, ctx.state.animation.idleAmount)
+      : inst.assetId;
     this.ensureSymbol(assetId);
     let node = this.nodes.get(key);
     if (!node) {
@@ -1146,16 +1146,6 @@ export class Renderer {
     }
     this.applyCellBg(key, inst, cs, ctx.palette, out, ctx.state.cellRounded, ctx.state.cellGutter);
     this.applyInstance(node, inst, cs, inst.color ?? colorAt(ctx.palette, inst.colorIndex), out, assetId);
-  }
-
-  /** "shuffle" idle: pick a glyph from the pool that changes over time, staggered
-   *  per cell so they don't all flip on the same beat. `amount` (0..1) sets pace. */
-  private shuffledAsset(inst: Instance, T: number, amount: number, ids: string[]): string {
-    // amount 0 = calm (~0.7s/swap), 1 = frantic (~0.12s/swap).
-    const interval = 0.7 - 0.58 * Math.max(0, Math.min(1, amount));
-    const phase = (inst.seed >>> 0) % 997; // per-cell offset so flips desync
-    const step = Math.floor(T / interval) + phase;
-    return ids[hash2(inst.col, inst.row, step) % ids.length];
   }
 
   /** Draw (or remove) the colored cell-background square behind an instance.
