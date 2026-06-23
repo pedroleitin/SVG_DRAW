@@ -1021,6 +1021,24 @@ body.perf-noblur .dd-menu {
   align-items: start;
 }
 
+/* Palette heading row: title + "Import .ase" button. */
+.pal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ase-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+/* Drag-and-drop feedback when dropping an .ase onto the Colors panel. */
+.drag-over {
+  outline: 2px dashed var(--accent, #888);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
 /* Always-on brush bar (Draw/Erase): two titled groups in a row. */
 /* Shared Brush/Size/Cell footer inside the context box (below the panel). */
 #ctx-brush {

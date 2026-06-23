@@ -2,6 +2,7 @@ import type { Store } from "../store/store";
 import type { Renderer } from "../render/renderer";
 import type { Palette, SceneState } from "../scene/types";
 import { paletteById } from "../features/palette";
+import { parseAse } from "../features/aseImport";
 
 const DEFAULT_BG = "#f7f5ef";
 
@@ -22,10 +23,14 @@ export class ColorsPanel {
       <h2>Colors</h2>
       <div class="colors-cols">
         <div class="colors-left">
-          <h3 class="exp-sub">Palette</h3>
+          <div class="pal-head">
+            <h3 class="exp-sub">Palette</h3>
+            <button id="ase-import" class="tool-btn ase-btn" title="Import an Adobe .ase swatch file (or drop one here)">Import .ase</button>
+          </div>
           <div class="palette-list"></div>
           <div class="swatches"></div>
           <label class="hex-row"><span>Hex</span><input type="text" id="color-hex" class="hex-input" spellcheck="false" maxlength="7" /></label>
+          <input type="file" id="ase-file" accept=".ase" hidden />
         </div>
         <div class="colors-right">
           <h3 class="exp-sub">Canvas background</h3>
@@ -60,7 +65,7 @@ export class ColorsPanel {
       const s = this.store.get();
       const active = paletteById(s.palettes, s.activePaletteId);
       const hex = parseHex(this.colorHex.value);
-      if (hex) this.editColor(active, s.activeColorIndex, hex);
+      if (hex) this.editColor(active.id, s.activeColorIndex, hex);
       else this.colorHex.value = toHex(active.colors[s.activeColorIndex] ?? "").toUpperCase();
     });
 
@@ -71,6 +76,27 @@ export class ColorsPanel {
         this.store.set({ activeBgIndex: btn.dataset.bg === "random" ? "random" : null }),
       );
     }
+
+    // Import .ase swatch files — via the button or by dropping onto the panel.
+    const aseFile = this.root.querySelector("#ase-file") as HTMLInputElement;
+    this.root.querySelector("#ase-import")!.addEventListener("click", () => aseFile.click());
+    aseFile.addEventListener("change", () => {
+      if (aseFile.files?.[0]) this.importAse(aseFile.files[0]);
+      aseFile.value = ""; // allow re-importing the same file
+    });
+    this.root.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      this.root.classList.add("drag-over");
+    });
+    this.root.addEventListener("dragleave", (e) => {
+      if (e.target === this.root) this.root.classList.remove("drag-over");
+    });
+    this.root.addEventListener("drop", (e) => {
+      e.preventDefault();
+      this.root.classList.remove("drag-over");
+      const file = [...(e.dataTransfer?.files ?? [])].find((f) => /\.ase$/i.test(f.name));
+      if (file) this.importAse(file);
+    });
 
     this.render(store.get());
     store.subscribe((s) => this.render(s));
@@ -136,7 +162,7 @@ export class ColorsPanel {
       input.type = "color";
       input.value = toHex(color);
       input.title = `Color ${i} — click to use, edit to recolor`;
-      input.addEventListener("input", () => this.editColor(active, i, input.value));
+      input.addEventListener("input", () => this.editColor(active.id, i, input.value));
       input.addEventListener("click", () => this.store.set({ activeColorIndex: i }));
       wrap.appendChild(input);
       if (active.colors.length > 1) {
@@ -145,7 +171,7 @@ export class ColorsPanel {
         del.textContent = "×";
         del.addEventListener("click", (e) => {
           e.stopPropagation();
-          this.removeColor(active, i);
+          this.removeColor(active.id, i);
         });
         wrap.appendChild(del);
       }
@@ -155,33 +181,64 @@ export class ColorsPanel {
     add.className = "swatch-add";
     add.textContent = "+";
     add.title = "Add color";
-    add.addEventListener("click", () => this.addColor(active));
+    add.addEventListener("click", () => this.addColor(active.id));
     swatches.appendChild(add);
   }
 
-  private mutatePalette(active: Palette, colors: string[]): void {
-    const palettes = this.store.get().palettes.map((p) => (p.id === active.id ? { ...p, colors } : p));
+  // Read the palette fresh from the store by id (never a captured snapshot): the
+  // swatch handlers are built once and reused across edits, so a captured palette
+  // would be stale and editing a 2nd color would revert the 1st.
+  private mutatePalette(paletteId: string, colors: string[]): void {
+    const palettes = this.store.get().palettes.map((p) => (p.id === paletteId ? { ...p, colors } : p));
     this.store.set({ palettes });
     this.renderer.invalidate();
   }
 
-  private editColor(active: Palette, i: number, value: string): void {
-    const colors = active.colors.slice();
+  private editColor(paletteId: string, i: number, value: string): void {
+    const cur = paletteById(this.store.get().palettes, paletteId);
+    const colors = cur.colors.slice();
     colors[i] = value;
-    this.mutatePalette(active, colors);
+    this.mutatePalette(paletteId, colors);
   }
 
-  private addColor(active: Palette): void {
-    this.mutatePalette(active, [...active.colors, "#ffffff"]);
+  private addColor(paletteId: string): void {
+    const cur = paletteById(this.store.get().palettes, paletteId);
+    this.mutatePalette(paletteId, [...cur.colors, "#ffffff"]);
   }
 
-  private removeColor(active: Palette, i: number): void {
-    const colors = active.colors.slice();
+  private removeColor(paletteId: string, i: number): void {
+    const cur = paletteById(this.store.get().palettes, paletteId);
+    const colors = cur.colors.slice();
     colors.splice(i, 1);
     if (this.store.get().activeColorIndex >= colors.length) {
       this.store.set({ activeColorIndex: colors.length - 1 });
     }
-    this.mutatePalette(active, colors);
+    this.mutatePalette(paletteId, colors);
+  }
+
+  /** Read an .ase file, add its colors as a new palette, and make it active. */
+  private importAse(file: File): void {
+    file.arrayBuffer().then((buf) => {
+      const colors = parseAse(buf).map((c) => c.hex);
+      if (!colors.length) return;
+      const base = file.name.replace(/\.ase$/i, "").trim();
+      const id = this.uniqueId(base);
+      const palette: Palette = { id, name: base || "Imported", colors };
+      this.store.set({
+        palettes: [...this.store.get().palettes, palette],
+        activePaletteId: id,
+        activeColorIndex: 0,
+      });
+      this.renderer.invalidate();
+    });
+  }
+
+  private uniqueId(base: string): string {
+    const slug = base.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "ase";
+    const taken = new Set(this.store.get().palettes.map((p) => p.id));
+    let id = slug;
+    for (let n = 2; taken.has(id); n++) id = `${slug}-${n}`;
+    return id;
   }
 }
 
