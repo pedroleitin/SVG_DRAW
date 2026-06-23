@@ -89,8 +89,8 @@ export const ORDER_MODES: OrderMode[] = [
   "halftone",
 ];
 
-export type PlaybackMode = "loop" | "pingpong" | "once";
-export const PLAYBACK_MODES: PlaybackMode[] = ["loop", "pingpong", "once"];
+export type PlaybackMode = "loop" | "pingpong" | "once" | "sweep";
+export const PLAYBACK_MODES: PlaybackMode[] = ["loop", "pingpong", "once", "sweep"];
 
 export type EnterExit = "none" | "fade" | "scale" | "pop" | "rotate";
 export const ENTER_EXITS: EnterExit[] = ["none", "fade", "scale", "pop", "rotate"];
@@ -145,6 +145,11 @@ function transition(style: EnterExit, k: number): AnimOutput {
 /** Total length of one cycle in seconds (exit:none = reveal-and-stay). */
 export function cycleLength(c: AnimationConfig): number {
   const exit = c.exit === "none" ? 0 : c.exitDur;
+  // "sweep" plays a full reveal sweep, then a full erase sweep in the SAME order
+  // direction — so the stagger (spread) is paid twice (once per sweep).
+  if (c.playback === "sweep") {
+    return Math.max(0.0001, c.spread + c.enterDur + c.hold + c.spread + exit);
+  }
   return Math.max(0.0001, c.spread + c.enterDur + c.hold + exit);
 }
 
@@ -181,6 +186,7 @@ export function sampleLifecycle(
   tcyc: number,
   idleT: number,
 ): LifeOutput {
+  if (c.playback === "sweep") return sampleSweep(c, o, tcyc, idleT);
   const start = o * c.spread;
   const p = tcyc - start;
   if (p < 0) return { hidden: true, opacity: 0 };
@@ -200,6 +206,33 @@ export function sampleLifecycle(
   }
   if (p < exitEnd) {
     const k = c.exitDur > 0 ? 1 - (p - holdEnd) / c.exitDur : 0;
+    return transition(c.exit, k);
+  }
+  return { hidden: true, opacity: 0 };
+}
+
+/** "sweep" playback: two distinct passes in the SAME order direction. First the
+ *  whole scene reveals (each instance enters at o·spread); after a hold, the
+ *  whole scene erases — again low-order first — so a left→right reveal is undone
+ *  left→right (not mirrored like ping-pong). */
+function sampleSweep(c: AnimationConfig, o: number, tcyc: number, idleT: number): LifeOutput {
+  const idle = ANIMATIONS[c.idle] ?? ANIMATIONS.none;
+  const enterStart = o * c.spread;
+  // Erase pass begins after every instance has fully entered, plus the hold.
+  const eraseBase = c.spread + c.enterDur + c.hold;
+  const exitStart = eraseBase + o * c.spread; // same forward order as the reveal
+
+  if (tcyc < enterStart) return { hidden: true, opacity: 0 };
+  if (tcyc < enterStart + c.enterDur) {
+    const k = c.enterDur > 0 ? (tcyc - enterStart) / c.enterDur : 1;
+    return transition(c.enter, k);
+  }
+  // Fully visible until this instance's erase turn.
+  if (tcyc < exitStart) return idle(idleT, c.idleAmount);
+  // No exit style -> hard cut (instant wipe) at the erase turn.
+  if (c.exit === "none") return { hidden: true, opacity: 0 };
+  if (tcyc < exitStart + c.exitDur) {
+    const k = c.exitDur > 0 ? 1 - (tcyc - exitStart) / c.exitDur : 0;
     return transition(c.exit, k);
   }
   return { hidden: true, opacity: 0 };
