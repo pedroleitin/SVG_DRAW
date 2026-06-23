@@ -657,6 +657,19 @@ export class Renderer {
     const off = Math.floor((span - 1) / 2);
     const bcol = anchor.col - off;
     const brow = anchor.row - off;
+    // Random size: the placed span varies per cell (seeded like paintAt). For the
+    // single-cell bg/ghost preview, anchor at the cell under the cursor and size
+    // it to that cell's random span instead of the (overridden) Size slider.
+    const randDraw = drawing && state.brushRandomSize;
+    const rsSeed = (state.mask.seed ^ 0x5f3a) >>> 0;
+    let pCol = bcol;
+    let pRow = brow;
+    let pSpan = span;
+    if (randDraw) {
+      pCol = anchor.col;
+      pRow = anchor.row;
+      pSpan = 1 + (hash2(anchor.col, anchor.row, rsSeed) % 3);
+    }
     // ~3px gap, but never more than 40% of a cell — otherwise (very zoomed out,
     // where 1px is many world units) the rect width cs - inset*2 goes negative.
     const inset = Math.min(3 * px, cs * 0.4);
@@ -679,12 +692,13 @@ export class Renderer {
         ch: span,
       }));
     } else if (drawing) {
-      slots = brushBlocks(pt.cx, pt.cy, state.brushSize, state.brushShape, span).map((b) => ({
-        col: b.col,
-        row: b.row,
-        cw: span,
-        ch: span,
-      }));
+      // Random size: tile into unit cells, each grown to its per-cell random span
+      // (1–3) — same seeding as paintAt, so the preview matches what's placed.
+      const tspan = randDraw ? 1 : span;
+      slots = brushBlocks(pt.cx, pt.cy, state.brushSize, state.brushShape, tspan).map((b) => {
+        const bs = randDraw ? 1 + (hash2(b.col, b.row, rsSeed) % 3) : span;
+        return { col: b.col, row: b.row, cw: bs, ch: bs };
+      });
     } else {
       slots = brushCells(pt.cx, pt.cy, state.brushSize, state.brushShape).map((c) => ({
         col: c.col,
@@ -711,10 +725,10 @@ export class Renderer {
     const palette = paletteById(state.palettes, state.activePaletteId);
     if (showPreview && state.activeBgIndex != null) {
       const bgIdx = state.activeBgIndex === "random" ? 0 : state.activeBgIndex;
-      this.hoverBg.setAttribute("x", String(bcol * cs));
-      this.hoverBg.setAttribute("y", String(brow * cs));
-      this.hoverBg.setAttribute("width", String(span * cs));
-      this.hoverBg.setAttribute("height", String(span * cs));
+      this.hoverBg.setAttribute("x", String(pCol * cs));
+      this.hoverBg.setAttribute("y", String(pRow * cs));
+      this.hoverBg.setAttribute("width", String(pSpan * cs));
+      this.hoverBg.setAttribute("height", String(pSpan * cs));
       this.hoverBg.setAttribute("fill", colorAt(palette, bgIdx));
       this.hoverBg.style.display = "";
     } else {
@@ -727,9 +741,9 @@ export class Renderer {
     const assetId = picks.length === 1 ? picks[0] : "";
     if (showPreview && assetId && this.library.get(assetId)) {
       this.ensureSymbol(assetId);
-      const size = span * cs * 0.85;
-      const x = (bcol + span / 2) * cs - size / 2;
-      const y = (brow + span / 2) * cs - size / 2;
+      const size = pSpan * cs * 0.85;
+      const x = (pCol + pSpan / 2) * cs - size / 2;
+      const y = (pRow + pSpan / 2) * cs - size / 2;
       this.hoverGhost.setAttribute("href", `#sym-${assetId}`);
       this.hoverGhost.setAttribute("x", String(x));
       this.hoverGhost.setAttribute("y", String(y));
