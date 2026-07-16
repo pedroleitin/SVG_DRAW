@@ -45,29 +45,46 @@ export class AnimPanel {
 
     const selHost = panel.querySelector("#anim-selects")!;
     // "free" is the hand-drawn path mode — show it as "draw path".
-    this.addSelect(selHost, "order", "Order", ORDER_MODES, { free: "draw path", all: "all at once" });
-    this.addSelect(selHost, "direction", "Dir", DIRECTIONS);
-    this.addSelect(selHost, "enter", "Intro", ENTER_EXITS);
-    this.addSelect(selHost, "exit", "Outro", ENTER_EXITS);
-    this.addSelect(selHost, "playback", "Playback", PLAYBACK_MODES);
-    this.addSelect(selHost, "idle", "Idle", IDLE_IDS);
+    this.addSelect(selHost, "order", "Order", ORDER_MODES, { free: "draw path", all: "all at once" },
+      "Order in which shapes are revealed: how the intro sweeps the grid (linear, radial, sequential, random, all at once) or follows a hand-drawn path");
+    this.addSelect(selHost, "direction", "Dir", DIRECTIONS, {},
+      "Sweep direction when the order is linear (e.g. left→right, top→bottom)");
+    this.addSelect(selHost, "enter", "Intro", ENTER_EXITS, {},
+      "How each shape forms in as it enters (fade, scale, pop, rotate)");
+    this.addSelect(selHost, "exit", "Outro", ENTER_EXITS, {},
+      "How each shape breaks down as it leaves (fade, scale, pop, rotate)");
+    this.addSelect(selHost, "playback", "Playback", PLAYBACK_MODES, {},
+      "Cycle repeat: continuous loop, ping-pong (back and forth), or once");
+    this.addSelect(selHost, "idle", "Idle", IDLE_IDS, {},
+      "Ongoing motion at rest, between intro and outro (e.g. shuffle swaps glyphs over time)");
 
     const slHost = panel.querySelector("#anim-sliders")!;
-    this.addSlider(slHost, "speed", "Speed", 0.1, 3, 0.05);
-    this.addSlider(slHost, "spread", "Spread", 0, 6, 0.1);
-    this.addSlider(slHost, "enterDur", "Intro dur", 0, 3, 0.05);
-    this.addSlider(slHost, "hold", "Hold", 0, 10, 0.1);
-    this.addSlider(slHost, "exitDur", "Outro dur", 0, 3, 0.05);
-    this.addSlider(slHost, "idleAmount", "Idle amt", 0, 1, 0.01);
+    this.addSlider(slHost, "speed", "Speed", 0.1, 3, 0.05,
+      "Global animation speed — multiplies the timing of the whole cycle");
+    this.addSlider(slHost, "spread", "Spread", 0, 6, 0.1,
+      "Stagger between cells — how much delay separates one cell's entrance from the next");
+    this.addSlider(slHost, "enterDur", "Intro dur", 0, 3, 0.05,
+      "Duration of each shape's entrance animation, in seconds");
+    this.addSlider(slHost, "hold", "Hold", 0, 10, 0.1,
+      "How long shapes stay fully visible before they start leaving, in seconds");
+    this.addSlider(slHost, "exitDur", "Outro dur", 0, 3, 0.05,
+      "Duration of each shape's exit animation, in seconds");
+    this.addSlider(slHost, "idleAmount", "Idle amt", 0, 1, 0.01,
+      "Strength of the idle motion (0 = still, 1 = maximum)");
 
     // Animated-shape controls: Sync (lockstep vs staggered), Order (how the
     // stagger sweeps the grid), Reverse (play back down), and the Rest hold.
     const shHost = panel.querySelector("#anim-shapes")!;
-    this.addToggle(shHost, "shapeSync", "Sync", "Synced", "Per-shape");
-    this.addSelect(shHost, "shapeOrder", "Order", SHAPE_ORDER_MODES);
-    this.addToggle(shHost, "shapeReverse", "Reverse", "On", "Off");
-    this.addSlider(shHost, "shapeRest", "Rest", 0, 5, 0.05);
-    this.addToggle(shHost, "shapeRestRandom", "Random rest", "On", "Off");
+    this.addToggle(shHost, "shapeSync", "Sync", "Synced", "Per-shape",
+      "Play each shape's internal animation in lockstep (on) or staggered per cell (off)");
+    this.addSelect(shHost, "shapeOrder", "Order", SHAPE_ORDER_MODES, {},
+      "How the internal-animation stagger sweeps the grid — only applies when Sync is off");
+    this.addToggle(shHost, "shapeReverse", "Reverse", "On", "Off",
+      "Play each shape's internal animation backwards");
+    this.addSlider(shHost, "shapeRest", "Rest", 0, 5, 0.05,
+      "Pause at the end of each internal-animation cycle, in seconds");
+    this.addToggle(shHost, "shapeRestRandom", "Random rest", "On", "Off",
+      "Randomize the rest time per shape, breaking the sync");
 
     this.sync(store.get());
     store.subscribe((s) => this.sync(s));
@@ -80,9 +97,11 @@ export class AnimPanel {
     label: string,
     _onLabel: string,
     _offLabel: string,
+    title?: string,
   ): void {
     const wrap = document.createElement("label");
     wrap.className = "chk anim-chk";
+    if (title) wrap.title = title;
     const span = document.createElement("span");
     span.textContent = label;
     const input = document.createElement("input");
@@ -105,12 +124,13 @@ export class AnimPanel {
     prefix: string,
     options: readonly string[],
     labels: Record<string, string> = {},
+    title?: string,
   ): void {
     const dd = createDropdown(
       options.map((o) => ({ value: o, label: labels[o] ?? titleCase(o) })),
       String(this.store.get().animation[key]),
       (v) => this.set({ [key]: v } as Partial<AnimationConfig>),
-      { prefix },
+      { prefix, title },
     );
     this.dropdowns.set(key, { dd, wrap: dd.el });
     host.appendChild(dd.el);
@@ -123,6 +143,7 @@ export class AnimPanel {
     min: number,
     max: number,
     step: number,
+    title?: string,
   ): void {
     const sl = createSlider({
       label,
@@ -132,6 +153,7 @@ export class AnimPanel {
       value: this.store.get().animation[key] as number,
       format: (v) => v.toFixed(2),
       onChange: (v) => this.set({ [key]: v } as Partial<AnimationConfig>),
+      title,
     });
     this.sliders.set(key, sl);
     host.appendChild(sl.el);

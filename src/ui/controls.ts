@@ -36,23 +36,24 @@ interface SliderDef<K> {
   max: number;
   step: number;
   format?: (v: number) => string;
+  title?: string;
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
 const MASK_SLIDERS: SliderDef<MaskKey>[] = [
-  { key: "scale", label: "Scale", min: 1, max: 40, step: 0.5, format: (v) => v.toFixed(1) },
-  { key: "octaves", label: "Octaves", min: 1, max: 6, step: 1, format: (v) => String(v) },
-  { key: "persistence", label: "Roughness", min: 0, max: 1, step: 0.05, format: pct },
-  { key: "contrast", label: "Contrast", min: 0.2, max: 4, step: 0.05, format: (v) => v.toFixed(2) },
-  { key: "brightness", label: "Brightness", min: -0.5, max: 0.5, step: 0.01, format: (v) => v.toFixed(2) },
-  { key: "threshold", label: "Threshold", min: 0, max: 1, step: 0.01, format: pct },
+  { key: "scale", label: "Scale", min: 1, max: 40, step: 0.5, format: (v) => v.toFixed(1), title: "Noise feature size — larger values zoom into bigger blobs" },
+  { key: "octaves", label: "Octaves", min: 1, max: 6, step: 1, format: (v) => String(v), title: "Layers of noise detail stacked together" },
+  { key: "persistence", label: "Roughness", min: 0, max: 1, step: 0.05, format: pct, title: "How much each finer octave contributes — higher is grainier" },
+  { key: "contrast", label: "Contrast", min: 0.2, max: 4, step: 0.05, format: (v) => v.toFixed(2), title: "Steepen the noise's light/dark falloff" },
+  { key: "brightness", label: "Brightness", min: -0.5, max: 0.5, step: 0.01, format: (v) => v.toFixed(2), title: "Shift the whole noise field lighter or darker" },
+  { key: "threshold", label: "Threshold", min: 0, max: 1, step: 0.01, format: pct, title: "Cutoff that decides which cells the stencil opens" },
 ];
 
 const STRIPE_SLIDERS: SliderDef<StripeKey>[] = [
-  { key: "angle", label: "Angle", min: 0, max: 180, step: 5, format: (v) => `${v}°` },
-  { key: "period", label: "Period", min: 2, max: 20, step: 1, format: (v) => String(v) },
-  { key: "ratio", label: "Lit", min: 0.1, max: 0.9, step: 0.05, format: pct },
+  { key: "angle", label: "Angle", min: 0, max: 180, step: 5, format: (v) => `${v}°`, title: "Rotation of the stripe pattern" },
+  { key: "period", label: "Period", min: 2, max: 20, step: 1, format: (v) => String(v), title: "Stripe repeat width, in cells" },
+  { key: "ratio", label: "Lit", min: 0.1, max: 0.9, step: 0.05, format: pct, title: "Fraction of each stripe cycle that opens the stencil" },
 ];
 
 const IMAGE_THRESHOLD: SliderDef<"threshold"> = {
@@ -62,6 +63,7 @@ const IMAGE_THRESHOLD: SliderDef<"threshold"> = {
   max: 1,
   step: 0.01,
   format: pct,
+  title: "Brightness cutoff between opened and closed cells",
 };
 
 const TEXT_SIZE: SliderDef<"size"> = {
@@ -71,14 +73,15 @@ const TEXT_SIZE: SliderDef<"size"> = {
   max: 30,
   step: 1,
   format: (v) => String(v),
+  title: "Text height, in grid cells",
 };
 
 /** Stencil sources (Image / Text are placeholders until wired up). */
-const SOURCES: { type: StencilType; label: string; soon?: boolean }[] = [
-  { type: "noise", label: "Noise" },
-  { type: "stripes", label: "Stripes" },
-  { type: "image", label: "Image" },
-  { type: "text", label: "Text" },
+const SOURCES: { type: StencilType; label: string; soon?: boolean; tip: string }[] = [
+  { type: "noise", label: "Noise", tip: "Perlin-noise mask — organic blobby openings" },
+  { type: "stripes", label: "Stripes", tip: "Repeating parallel stripes at any angle" },
+  { type: "image", label: "Image", tip: "Use an uploaded image's brightness as the mask" },
+  { type: "text", label: "Text", tip: "Type text and use its silhouette as the mask" },
 ];
 
 const PREVIEW_RES = 80; // sampled pixels per side
@@ -121,7 +124,7 @@ export class Controls {
     panel.innerHTML = `
       <div class="panel-head">
         <h2>Stencil</h2>
-        <label class="chk"><input type="checkbox" id="stencil-add" /> <span>Add mode</span></label>
+        <label class="chk" title="Add to the existing stencil instead of replacing it"><input type="checkbox" id="stencil-add" /> <span>Add mode</span></label>
       </div>
       <div class="seg stencil-src" id="stencil-src"></div>
       <div id="src-noise">
@@ -149,25 +152,25 @@ export class Controls {
           </div>
           <div class="noise-right">
             <div class="sliders" id="image-sliders"></div>
-            <label class="chk"><span>Invert</span><input type="checkbox" id="img-invert" /></label>
+            <label class="chk" title="Swap dark and light regions of the image mask"><span>Invert</span><input type="checkbox" id="img-invert" /></label>
           </div>
         </div>
       </div>
       <div id="src-text">
-        <input class="text-input" id="stencil-text" type="text" placeholder="Type text…" maxlength="40" />
+        <input class="text-input" id="stencil-text" type="text" placeholder="Type text…" maxlength="40" title="Text whose silhouette becomes the stencil opening" />
         <div class="noise-right">
           <div class="sliders" id="text-sliders"></div>
           <div class="text-fontrow">
             <div id="text-font-slot"></div>
-            <label class="chk"><span>Bold</span><input type="checkbox" id="text-bold" /></label>
+            <label class="chk" title="Render the stencil text in bold"><span>Bold</span><input type="checkbox" id="text-bold" /></label>
           </div>
         </div>
       </div>
-      <label class="chk stencil-lock"><input type="checkbox" id="stencil-lock" />
+      <label class="chk stencil-lock" title="Pin the stencil to the world so panning moves the view but not the mask"><input type="checkbox" id="stencil-lock" />
         <span>Lock projection (pan moves the view, the stencil stays put)</span></label>
       <div class="noise-actions">
-        <button id="mask-apply">Apply to view</button>
-        <button id="mask-reseed">Reseed</button>
+        <button id="mask-apply" title="Stamp the current stencil onto the grid">Apply to view</button>
+        <button id="mask-reseed" title="Generate a fresh random variation of the noise">Reseed</button>
       </div>`;
     host.appendChild(panel);
     // The scrollable body wrapper (parent of this panel) is the morph target
@@ -181,7 +184,7 @@ export class Controls {
       b.className = "seg-btn";
       b.textContent = src.label;
       b.disabled = !!src.soon;
-      b.title = src.soon ? `${src.label} — coming soon` : src.label;
+      b.title = src.soon ? `${src.label} — coming soon` : src.tip;
       b.addEventListener("click", () => {
         if (b.disabled) return;
         if (src.type === "text") return this.updateText({}); // (re)render + select
@@ -208,6 +211,7 @@ export class Controls {
         value: this.store.get().mask[def.key],
         format: def.format ?? ((v) => v.toFixed(2)),
         onChange: (v) => this.setMask(def.key, v),
+        title: def.title,
       });
       this.maskSliders.set(def.key, sl);
       slHost.appendChild(sl.el);
@@ -223,6 +227,7 @@ export class Controls {
         value: this.store.get().stencil.stripes[def.key],
         format: def.format ?? ((v) => v.toFixed(2)),
         onChange: (v) => this.setStripe(def.key, v),
+        title: def.title,
       });
       this.stripeSliders.set(def.key, sl);
       stripeHost.appendChild(sl.el);
@@ -237,6 +242,7 @@ export class Controls {
       value: this.store.get().stencil.image.threshold,
       format: IMAGE_THRESHOLD.format!,
       onChange: (v) => this.setImage({ threshold: v }),
+      title: IMAGE_THRESHOLD.title,
     });
     panel.querySelector("#image-sliders")!.appendChild(this.imgThreshold.el);
     this.imgInvert = panel.querySelector("#img-invert") as HTMLInputElement;
@@ -272,7 +278,7 @@ export class Controls {
       STENCIL_FONTS,
       this.store.get().stencil.text.font,
       (v) => this.updateText({ font: v }),
-      { prefix: "Font" },
+      { prefix: "Font", title: "Typeface used to render the stencil text" },
     );
     panel.querySelector("#text-font-slot")!.append(this.textFont.el);
     this.textSize = createSlider({
@@ -283,6 +289,7 @@ export class Controls {
       value: this.store.get().stencil.text.size,
       format: TEXT_SIZE.format!,
       onChange: (v) => this.updateText({ size: v }),
+      title: TEXT_SIZE.title,
     });
     panel.querySelector("#text-sliders")!.appendChild(this.textSize.el);
 

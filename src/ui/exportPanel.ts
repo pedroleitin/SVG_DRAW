@@ -55,15 +55,15 @@ export class ExportPanel {
           <div id="exp-res-slot"></div>
         </div>
         <div class="exp-toggles">
-          <label class="chk"><input type="checkbox" id="exp-snap" /> Snap to grid</label>
-          <label class="chk"><input type="checkbox" id="exp-transp" /> Background transparent</label>
+          <label class="chk" title="Align the export frame to the cell grid so nothing is cut mid-cell"><input type="checkbox" id="exp-snap" /> Snap to grid</label>
+          <label class="chk" title="Export with no background fill (transparent PNG / SVG)"><input type="checkbox" id="exp-transp" /> Background transparent</label>
         </div>
         <div class="noise-actions" id="exp-fit-row">
-          <button id="exp-fit">Fit to view</button>
+          <button id="exp-fit" title="Resize the export frame to match the current view">Fit to view</button>
         </div>
         <div class="noise-actions exp-save">
-          <button id="exp-svg">⬇ SVG</button>
-          <button id="exp-png">⬇ PNG</button>
+          <button id="exp-svg" title="Download the framed scene as a lossless vector SVG">⬇ SVG</button>
+          <button id="exp-png" title="Download the framed scene as a raster PNG at the chosen resolution">⬇ PNG</button>
         </div>
        </div>
        <div class="exp-col">
@@ -82,8 +82,8 @@ export class ExportPanel {
         </div>
         <div class="exp-progress" id="exp-progress"></div>
         <div class="noise-actions exp-save">
-          <button id="exp-seq">⬇ PNG Seq</button>
-          <button id="exp-mp4">⬇ MP4</button>
+          <button id="exp-seq" title="Download an animated pass as a ZIP of numbered PNG frames">⬇ PNG Seq</button>
+          <button id="exp-mp4" title="Download an animated pass as an MP4 video (needs WebCodecs)">⬇ MP4</button>
         </div>
        </div>
       </div>`;

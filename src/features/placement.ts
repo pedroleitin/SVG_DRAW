@@ -9,18 +9,35 @@ let idCounter = 0;
 const nextId = () => `i${(idCounter++).toString(36)}`;
 
 /** Pick one asset id from the selected shapes (a random one); "random" or an
- *  empty selection means any shape from the library. */
-export function pickAsset(brushAssets: string[], library: Library, rng: () => number): string {
+ *  empty selection means any non-animated shape from the library, unless
+ *  `includeAnimated` is set (then animated shapes join the random pool). Pick a
+ *  specific animated shape to always draw it regardless of the flag. */
+export function pickAsset(
+  brushAssets: string[],
+  library: Library,
+  rng: () => number,
+  includeAnimated = false,
+): string {
   const pool = brushAssets.filter((id) => id !== "random" && library.get(id));
-  if (brushAssets.includes("random") || pool.length === 0) return pick(rng, library.ids());
+  if (brushAssets.includes("random") || pool.length === 0) {
+    return pick(rng, includeAnimated ? library.ids() : library.staticIds());
+  }
   return pool.length === 1 ? pool[0] : pool[randInt(rng, 0, pool.length - 1)];
 }
 
-/** The pool the Shuffle idle draws from: the selected shapes, or every library
- *  asset when "random"/none is selected (mirrors pickAsset's pool). */
-export function shufflePool(brushAssets: string[], library: Library): string[] {
+/** The pool the Shuffle idle draws from: the selected shapes, or the library's
+ *  random pool (static-only, or all when `includeAnimated`) when "random"/none
+ *  is selected (mirrors pickAsset). */
+export function shufflePool(
+  brushAssets: string[],
+  library: Library,
+  includeAnimated = false,
+): string[] {
   const pool = brushAssets.filter((id) => id !== "random" && library.get(id));
-  return brushAssets.includes("random") || pool.length === 0 ? library.ids() : pool;
+  if (brushAssets.includes("random") || pool.length === 0) {
+    return includeAnimated ? library.ids() : library.staticIds();
+  }
+  return pool;
 }
 
 /** Shuffle idle: the asset shown at time `T`, picked from `pool` and changing
@@ -53,7 +70,7 @@ export function buildInstance(
   const seed = hash2(col, row, state.mask.seed);
   const rng = mulberry32(seed);
 
-  const assetId = pickAsset(state.brushAssets, library, rng);
+  const assetId = pickAsset(state.brushAssets, library, rng, state.brushRandomAnimated);
 
   // Spread colors across the active palette, deterministically per cell.
   const palette = state.palettes.find((p) => p.id === state.activePaletteId);

@@ -171,6 +171,9 @@ export interface SceneState {
   /** When true, Draw ignores brushSpan and gives each placed cell a random span
    *  (1..3), seeded per cell so the scene still reproduces exactly. */
   brushRandomSize: boolean;
+  /** When true, the "random" brush pool also includes animated shapes; by
+   *  default random draws from static shapes only. */
+  brushRandomAnimated: boolean;
   /** Brush footprint shape. */
   brushShape: BrushShape;
   /** Round the cell-background squares (border radius). */

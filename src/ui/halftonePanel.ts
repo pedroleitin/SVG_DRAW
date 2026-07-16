@@ -18,18 +18,18 @@ import {
   halftonePlayhead,
 } from "../features/halftone";
 
-const MODES: { mode: HalftoneMode; label: string }[] = [
-  { mode: "halftone", label: "Halftone" },
-  { mode: "bayer", label: "Bayer" },
-  { mode: "floyd", label: "Floyd" },
-  { mode: "atkinson", label: "Atkinson" },
-  { mode: "jarvis", label: "Jarvis" },
+const MODES: { mode: HalftoneMode; label: string; tip: string }[] = [
+  { mode: "halftone", label: "Halftone", tip: "Classic halftone: dot size grows with darkness" },
+  { mode: "bayer", label: "Bayer", tip: "Ordered Bayer dithering — a fixed, patterned threshold" },
+  { mode: "floyd", label: "Floyd", tip: "Floyd–Steinberg error-diffusion dithering" },
+  { mode: "atkinson", label: "Atkinson", tip: "Atkinson dithering — lighter, high-contrast look" },
+  { mode: "jarvis", label: "Jarvis", tip: "Jarvis error-diffusion dithering — smooth gradients" },
 ];
 
-const TARGETS: { target: HalftoneTarget; label: string }[] = [
-  { target: "glyph", label: "Gliph" },
-  { target: "cell", label: "Cell" },
-  { target: "both", label: "Both" },
+const TARGETS: { target: HalftoneTarget; label: string; tip: string }[] = [
+  { target: "glyph", label: "Gliph", tip: "Render the image with the shape glyphs only" },
+  { target: "cell", label: "Cell", tip: "Render the image with cell backgrounds only" },
+  { target: "both", label: "Both", tip: "Render with both shape glyphs and cell backgrounds" },
 ];
 
 const PREVIEW_RES = 80;
@@ -73,13 +73,13 @@ export class HalftonePanel {
             <div class="noise-right">
               <div class="seg" id="ht-target"></div>
               <div class="sliders" id="ht-sliders"></div>
-              <label class="chk"><span>Invert</span><input type="checkbox" id="ht-invert" /></label>
-              <label class="chk"><span>Shape by luminance</span><input type="checkbox" id="ht-shapelum" /></label>
+              <label class="chk" title="Swap dark and light — render the negative of the source"><span>Invert</span><input type="checkbox" id="ht-invert" /></label>
+              <label class="chk" title="Pick the shape per cell by its brightness (darker cells get denser glyphs)"><span>Shape by luminance</span><input type="checkbox" id="ht-shapelum" /></label>
             </div>
           </div>
           <div class="noise-actions">
-            <button id="ht-apply">Apply to view</button>
-            <button id="ht-export">Send to Export →</button>
+            <button id="ht-apply" title="Stamp the halftone result onto the grid as real cells">Apply to view</button>
+            <button id="ht-export" title="Bake the result and jump to Export, framed to cover every glyph">Send to Export →</button>
           </div>
         </div>
         <div class="ht-shapes" id="ht-shapes"></div>
@@ -90,7 +90,7 @@ export class HalftonePanel {
       const b = document.createElement("button");
       b.className = "seg-btn";
       b.textContent = m.label;
-      b.title = m.label;
+      b.title = m.tip;
       b.addEventListener("click", () => this.setHt({ mode: m.mode }));
       this.modeBtns.set(m.mode, b);
       modeHost.appendChild(b);
@@ -101,7 +101,7 @@ export class HalftonePanel {
       const b = document.createElement("button");
       b.className = "seg-btn";
       b.textContent = t.label;
-      b.title = `Fill the ${t.label.toLowerCase()}`;
+      b.title = t.tip;
       b.addEventListener("click", () => this.setHt({ target: t.target }));
       this.targetBtns.set(t.target, b);
       tgtHost.appendChild(b);
@@ -116,6 +116,7 @@ export class HalftonePanel {
       value: store.get().halftone.contrast,
       format: (v) => v.toFixed(1),
       onChange: (v) => this.setHt({ contrast: v }),
+      title: "Push the source's tonal contrast before it's dithered into shapes",
     });
     slHost.appendChild(this.contrast.el);
     this.sizeSlider = createSlider({
@@ -126,6 +127,7 @@ export class HalftonePanel {
       value: store.get().halftone.scale,
       format: (v) => `${Math.round(v * 100)}%`,
       onChange: (v) => this.setHt({ scale: v }),
+      title: "Scale of each placed shape relative to its cell",
     });
     slHost.appendChild(this.sizeSlider.el);
 

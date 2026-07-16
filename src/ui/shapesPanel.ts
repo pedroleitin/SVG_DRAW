@@ -25,6 +25,7 @@ const DICE_ICON = `<svg viewBox="0 0 24 24" fill="none">
 export class ShapesPanel {
   private root: HTMLElement;
   private sig = "";
+  private animChk!: HTMLInputElement;
   /** Live-animated preview elements collected from the drawer (rebuilt each
    *  render); driven by a single ambient rAF so the thumbnails move. */
   private animPreviews: { el: Element; track: AssetAnim }[] = [];
@@ -35,6 +36,7 @@ export class ShapesPanel {
     this.root.innerHTML = `
       <div class="shapes-head">
         <h2>Shapes</h2>
+        <label class="chk" title="Include animated shapes when the brush picks a random shape"><input type="checkbox" id="shapes-anim" /> <span>Animated in random</span></label>
         <button id="shapes-all" class="tool-btn">Select all</button>
       </div>
       <div class="asset-row">
@@ -45,12 +47,18 @@ export class ShapesPanel {
         </label>
       </div>`;
     this.root.querySelector("#shapes-all")!.addEventListener("click", () => this.selectAll());
+    this.animChk = this.root.querySelector("#shapes-anim") as HTMLInputElement;
+    this.animChk.checked = store.get().brushRandomAnimated;
+    this.animChk.addEventListener("change", () =>
+      this.store.set({ brushRandomAnimated: this.animChk.checked }),
+    );
     this.wireUpload();
     this.render(store.get());
     store.subscribe((s) => this.render(s));
   }
 
   private render(s: SceneState): void {
+    if (this.animChk) this.animChk.checked = s.brushRandomAnimated;
     const sig = [s.brushAssets.join(","), this.library.ids().join(",")].join("|");
     if (sig === this.sig) return;
     this.sig = sig;
@@ -113,10 +121,11 @@ export class ShapesPanel {
     this.store.set({ brushAssets: this.library.ids() });
   }
 
-  private assetButton(id: string, inner: string, title: string, active: boolean, asset?: Asset): HTMLElement {
+  private assetButton(id: string, inner: string, _title: string, active: boolean, asset?: Asset): HTMLElement {
     const btn = document.createElement("button");
     btn.className = "asset-btn" + (active ? " active" : "");
-    btn.title = title;
+    // Only the "random" tile keeps a tooltip; shape tiles would just repeat their name.
+    if (id === "random") btn.title = "Draw a random shape from the selected set";
     btn.innerHTML = inner;
     btn.addEventListener("click", () => this.toggle(id));
     if (asset?.anim?.length) {

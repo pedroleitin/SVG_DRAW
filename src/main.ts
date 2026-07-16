@@ -68,6 +68,7 @@ const initial: SceneState = {
   brushSize: 1,
   brushSpan: 1,
   brushRandomSize: false,
+  brushRandomAnimated: false,
   brushShape: "square",
   cellRounded: false,
   cellGutter: false,

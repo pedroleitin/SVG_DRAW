@@ -52,12 +52,16 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   botão. Cobre todos os botões com título, essencial no modo ícones para saber o que é cada
   glyph. `btn()` do shell agora sempre define um `title` com o label (mesmo em modo texto).
   - Arquivos: [src/ui/tooltip.ts](src/ui/tooltip.ts) (novo), [src/main.ts](src/main.ts) (`initTooltips`), [src/ui/shell.ts](src/ui/shell.ts), [src/ui/styles/app.css](src/ui/styles/app.css) (`#tooltip`).
-- [ ] 🟡 **Revisar cobertura dos tooltips** — passar por toda a UI conferindo os `title`:
-  alguns controles ainda não têm tooltip (ex.: alguns segments/checkboxes, o input `Dur`
-  do Export, os swatches/paletas do Colors, botões de ação como Fit/Save). Escrever textos
-  descritivos onde faltam e, em **casos específicos, remover** o tooltip (onde o próprio
-  rótulo já é claro e a bolha só polui — ex.: botões de texto óbvios, itens duplicados).
-  - Arquivos: [src/ui/](src/ui/) (call sites de `createDropdown`/`createSlider`, painéis), [src/ui/tooltip.ts](src/ui/tooltip.ts).
+- [x] 🟡 **Revisar cobertura dos tooltips** — _feito._ Passada por toda a UI escrevendo `title`
+  descritivos (não só o nome) e removendo onde o rótulo já basta. **Tooltip agora com texto
+  centralizado e quebra de linha** (`white-space: normal` + `overflow-wrap` + `text-align: center`;
+  antes `nowrap` fazia o texto vazar da caixa). Cobertos: **Animate** (Order/Dir/Intro/Outro/
+  Playback/Idle + sliders + Sync/Reverse/Random rest + botões Play/Path), **Stencil** (fontes,
+  todos os sliders, Add/Invert/Bold/Lock, Font, campo de texto, Apply/Reseed), **Export** (Snap/
+  Transparent/Fit/SVG/PNG/PNG Seq/MP4), **Halftone** (modos, targets, sliders, Invert/Shape by
+  luminance, Apply/Send to Export), **Cell background**. Removidos: tiles de Shape (só o **Random**
+  mantém) e os sliders **Brush**/**Size** do footer. Todos os textos em inglês.
+  - Arquivos: [src/ui/animPanel.ts](src/ui/animPanel.ts), [src/ui/controls.ts](src/ui/controls.ts), [src/ui/exportPanel.ts](src/ui/exportPanel.ts), [src/ui/halftonePanel.ts](src/ui/halftonePanel.ts), [src/ui/shapesPanel.ts](src/ui/shapesPanel.ts), [src/ui/brushPanel.ts](src/ui/brushPanel.ts), [src/ui/shell.ts](src/ui/shell.ts), [src/ui/styles/app.css](src/ui/styles/app.css) (`#tooltip`).
 - [ ] 🟡 **Cursor por estado/ferramenta** — o ponteiro do mouse muda conforme o modo
   e a função ativa (ex.: crosshair no Draw, borracha no Erase, grab/grabbing no Pan,
   cursor de caminho no Order, move/resize no frame, brush quando houver brush size).
@@ -92,6 +96,14 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   Falta: grid retangular (largura ≠ altura de célula), offset de origem do grid,
   opacidade das linhas.
   - Arquivos: [src/scene/geom.ts](src/scene/geom.ts) (`cellBgRect`/`instanceGeom`), [src/render/renderer.ts](src/render/renderer.ts), [src/ui/gridPanel.ts](src/ui/gridPanel.ts), [src/scene/types.ts](src/scene/types.ts), [src/export/svgExport.ts](src/export/svgExport.ts)
+- [x] 🟡 **Conteúdo da célula clipado à cell box (rounded/gutter)** — _feito._ Cada instância
+  agora é recortada à **caixa da sua célula** (respeitando **rounded** + **gutter**): o conteúdo
+  nunca transborda o grid (bug do `cellFill` alto vazando pra vizinhas) e **rounded/gutter passam
+  a moldar o conteúdo**, não só o fundo. Cada `<use>` fica num `<g>` wrapper **sem transform** que
+  carrega um `clip-path` por célula (evita a rotação do `<use>` arrastar o clip); o rect do
+  clipPath é mantido em sincronia com `cellBgRect` via dirty-sig, reciclado junto com os nós.
+  Espelhado no **export** (`<g clip-path>` + clipPath por instância nos defs) pra paridade.
+  - Arquivos: [src/render/renderer.ts](src/render/renderer.ts) (`applyContentClip`/wraps/clips), [src/export/svgExport.ts](src/export/svgExport.ts).
 - [x] 🟡 **Hover no grid** — feito: highlight da célula sob o cursor (contorno +
   leve fill; vermelho no Erase) + **ghost** esmaecido do asset do pincel na cor ativa.
   - Arquivos: [src/render/renderer.ts](src/render/renderer.ts) (`setHover`/`renderHover`), [src/tools/tools.ts](src/tools/tools.ts).
@@ -302,6 +314,14 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
     - Arquivos: [src/features/svgAnim.ts](src/features/svgAnim.ts) (`restBasisForBucket`), [src/anim/animations.ts](src/anim/animations.ts) (`shapeRestRandom`),
       [src/render/renderer.ts](src/render/renderer.ts) + [src/export/svgExport.ts](src/export/svgExport.ts) (rest por bucket), [src/ui/animPanel.ts](src/ui/animPanel.ts) (toggle),
       [src/ui/shapesPanel.ts](src/ui/shapesPanel.ts) (preview rAF), [index.html](index.html) + [src/ui/styles/app.css](src/ui/styles/app.css) (fonte).
+  - _Leva 6 concluída (animados fora do random por padrão + toggle):_
+    - O brush **"random"** agora sorteia só de **shapes estáticos** por padrão
+      (`library.staticIds()`); shapes animados só entram no pool com o checkbox
+      **"Animated in random"** (painel Shapes, desmarcado por padrão → `brushRandomAnimated`).
+      Selecionar um shape animado específico continua desenhando ele sempre. Threaded em
+      `pickAsset`/`shufflePool` (draw, swap no Edit, shuffle idle no render + export).
+    - Arquivos: [src/features/library.ts](src/features/library.ts) (`staticIds`), [src/features/placement.ts](src/features/placement.ts) (`pickAsset`/`shufflePool` + `includeAnimated`),
+      [src/scene/types.ts](src/scene/types.ts) (`brushRandomAnimated`), [src/main.ts](src/main.ts) (default), [src/ui/shapesPanel.ts](src/ui/shapesPanel.ts) (checkbox), [src/tools/tools.ts](src/tools/tools.ts) + [src/render/renderer.ts](src/render/renderer.ts) + [src/export/svgExport.ts](src/export/svgExport.ts).
   - Futuro: mais features Lottie (rotate/opacity/path morph) e um formato de sprite-frames.
 - [ ] ⚪ **Presets de animação salvos + combinar animações por instância.**
 - [ ] 🟡 **Animar a máscara no tempo** — mover o offset do noise por `t` para uma

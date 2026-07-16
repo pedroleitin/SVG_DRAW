@@ -611,7 +611,7 @@ function editInstance(state: SceneState, library: Library, inst: Instance): Inst
     case "rotate":
       return { ...inst, rotation: (inst.rotation + 90) % 360 };
     case "swap":
-      return { ...inst, assetId: pickAsset(state.brushAssets, library, Math.random) };
+      return { ...inst, assetId: pickAsset(state.brushAssets, library, Math.random, state.brushRandomAnimated) };
     case "recolor-item":
       return { ...inst, colorIndex: recolorIndex() };
     case "recolor-cell": {

@@ -34,7 +34,7 @@ export function buildSceneSVG(
   const tcyc = animate ? mapCycleTime(state.animation, T) : 0;
   // Shuffle idle swaps each glyph over time — apply it so exports match the canvas.
   const shuffle =
-    animate && state.animation.idle === "shuffle" ? shufflePool(state.brushAssets, library) : null;
+    animate && state.animation.idle === "shuffle" ? shufflePool(state.brushAssets, library, state.brushRandomAnimated) : null;
   // Per-cell phase field for animated shapes (mirrors the renderer): built while
   // unsynced, or synced with random rest (so each cell gets its own rest bucket).
   const shapeOrderOf =
@@ -47,6 +47,10 @@ export function buildSceneSVG(
   // renderer).
   const usedSyms = new Map<string, { assetId: string; phase01: number; restBasis: number }>();
   const uses: string[] = [];
+  // Per-instance clipPaths that bound content to the cell box (rounded/gutter),
+  // mirroring the renderer so exports match the canvas.
+  const clipDefs: string[] = [];
+  let clipN = 0;
 
   for (const inst of Object.values(state.instances)) {
     const cx = (inst.col + 0.5) * cs;
@@ -86,8 +90,14 @@ export function buildSceneSVG(
         symId = `sym-${assetId}~${bucket}`;
       }
       if (!usedSyms.has(symId)) usedSyms.set(symId, { assetId, phase01, restBasis });
+      const cb = cellBgRect(inst.col, inst.row, cs, state.cellRounded, state.cellGutter, inst.cw ?? 1, inst.ch ?? 1);
+      const cid = `cc${clipN++}`;
+      const crx = cb.rx ? ` rx="${cb.rx}" ry="${cb.rx}"` : "";
+      clipDefs.push(
+        `<clipPath id="${cid}" clipPathUnits="userSpaceOnUse"><rect x="${r(cb.x)}" y="${r(cb.y)}" width="${r(cb.w)}" height="${r(cb.h)}"${crx}/></clipPath>`,
+      );
       uses.push(
-        `<use href="#${symId}" x="${r(g.x)}" y="${r(g.y)}" width="${r(g.size)}" height="${r(g.size)}" style="color:${color}"${transform}${op}/>`,
+        `<g clip-path="url(#${cid})"><use href="#${symId}" x="${r(g.x)}" y="${r(g.y)}" width="${r(g.size)}" height="${r(g.size)}" style="color:${color}"${transform}${op}/></g>`,
       );
     }
   }
@@ -114,7 +124,7 @@ export function buildSceneSVG(
   return (
     `<svg xmlns="${SVGNS}" width="${outW}" height="${outH}" ` +
     `viewBox="${r(f.x)} ${r(f.y)} ${r(f.w)} ${r(f.h)}">` +
-    `<defs>${defs}</defs>${bg}${uses.join("")}</svg>`
+    `<defs>${defs}${clipDefs.join("")}</defs>${bg}${uses.join("")}</svg>`
   );
 }
 

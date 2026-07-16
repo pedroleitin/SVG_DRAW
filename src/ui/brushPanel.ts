@@ -25,7 +25,7 @@ export class BrushPanel {
       <div class="brush-group">
         <span class="brush-title">Cell</span>
         <div class="brush-controls">
-          <label class="chk"><span>Cell background</span><input type="checkbox" id="cell-bg" /></label>
+          <label class="chk" title="Fill each painted cell with a background square (random palette color)"><span>Cell background</span><input type="checkbox" id="cell-bg" /></label>
         </div>
       </div>`;
 
@@ -40,6 +40,7 @@ export class BrushPanel {
       value: s.brushSize,
       format: (v) => String(v),
       onChange: (v) => this.store.set({ brushSize: v }),
+      title: "",
     });
     host.querySelector("#brush-size")!.appendChild(this.sizeSlider.el);
 
@@ -52,6 +53,7 @@ export class BrushPanel {
       value: s.brushSpan,
       format: (v) => String(v),
       onChange: (v) => this.store.set({ brushSpan: v }),
+      title: "",
     });
     host.querySelector("#brush-span")!.appendChild(this.spanSlider.el);
 

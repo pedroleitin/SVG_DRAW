@@ -254,6 +254,13 @@ export class Renderer {
   private frameLayer: SVGGElement;
   private frameRects: SVGRectElement[] = [];
   private nodes = new Map<string, SVGUseElement>(); // cellKey -> <use>
+  /** cellKey -> the clip wrapper <g> that constrains the <use> to its cell box
+   *  (rounded/gutter), so content never spills past the grid and rounded/gutter
+   *  shape the artwork. The <use> lives inside so its own rotate transform never
+   *  drags the clip out of world alignment. */
+  private wraps = new Map<string, SVGGElement>();
+  /** cellKey -> the per-cell clipPath + its rect (kept in sync with cellBgRect). */
+  private clips = new Map<string, { clip: SVGClipPathElement; rect: SVGRectElement }>();
   private registeredSymbols = new Set<string>();
   /** Animated symbols: symbol id -> the `<g data-anim>` elements + their track,
    *  plus the phase this variant renders. Updated once per frame. */
@@ -1183,7 +1190,7 @@ export class Renderer {
     const tcyc = animate ? mapCycleTime(anim, T) : 0;
     // Shuffle idle: pre-fetch the asset pool (selected shapes) once per frame.
     const shuffleIds =
-      animate && anim.idle === "shuffle" ? shufflePool(state.brushAssets, this.library) : null;
+      animate && anim.idle === "shuffle" ? shufflePool(state.brushAssets, this.library, state.brushRandomAnimated) : null;
     const ctx: RenderCtx = { state, palette, range: r, animate, orderOf, shapeOrderOf, T, tcyc, seen, shuffleIds };
     this.animShapesInView = false;
 
@@ -1208,7 +1215,11 @@ export class Renderer {
     // Recycle nodes that scrolled out of view or were erased.
     for (const [key, node] of this.nodes) {
       if (!seen.has(key)) {
-        node.remove();
+        (this.wraps.get(key) ?? node).remove();
+        this.wraps.delete(key);
+        const clip = this.clips.get(key);
+        if (clip) clip.clip.remove();
+        this.clips.delete(key);
         this.nodes.delete(key);
       }
     }
@@ -1246,9 +1257,21 @@ export class Renderer {
     const symId = this.ensureSymbolVariant(assetId, bucket);
     let node = this.nodes.get(key);
     if (!node) {
+      const wrap = document.createElementNS(SVGNS, "g");
       node = document.createElementNS(SVGNS, "use");
-      this.content.appendChild(node);
+      wrap.appendChild(node);
+      const clip = document.createElementNS(SVGNS, "clipPath");
+      const clipId = `cclip-${key.replace(/,/g, "-")}`;
+      clip.setAttribute("id", clipId);
+      clip.setAttribute("clipPathUnits", "userSpaceOnUse");
+      const rect = document.createElementNS(SVGNS, "rect");
+      clip.appendChild(rect);
+      this.defs.appendChild(clip);
+      wrap.setAttribute("clip-path", `url(#${clipId})`);
+      this.content.appendChild(wrap);
       this.nodes.set(key, node);
+      this.wraps.set(key, wrap);
+      this.clips.set(key, { clip, rect });
     }
     const cs = ctx.state.cellSize;
     // Sample this instance's lifecycle at the current cycle time (order from the
@@ -1258,7 +1281,38 @@ export class Renderer {
       out = sampleLifecycle(ctx.state.animation, ctx.orderOf(inst), ctx.tcyc, ctx.T);
     }
     this.applyCellBg(key, inst, cs, ctx.palette, out, ctx.state.cellRounded, ctx.state.cellGutter);
+    this.applyContentClip(key, inst, cs, ctx.state.cellRounded, ctx.state.cellGutter);
     this.applyInstance(node, inst, cs, inst.color ?? colorAt(ctx.palette, inst.colorIndex), out, symId);
+  }
+
+  /** Keep an instance's clip rect in sync with its cell box (rounded/gutter), so
+   *  the artwork is bounded by the grid and shaped like the cell background. */
+  private applyContentClip(
+    key: string,
+    inst: Instance,
+    cellSize: number,
+    rounded: boolean,
+    gutter: boolean,
+  ): void {
+    const entry = this.clips.get(key);
+    if (!entry) return;
+    const box = cellBgRect(inst.col, inst.row, cellSize, rounded, gutter, inst.cw ?? 1, inst.ch ?? 1);
+    const sig = `${box.x}|${box.y}|${box.w}|${box.h}|${box.rx}`;
+    const dirty = entry.rect as unknown as { __csig?: string };
+    if (dirty.__csig === sig) return;
+    dirty.__csig = sig;
+    const { rect } = entry;
+    rect.setAttribute("x", String(box.x));
+    rect.setAttribute("y", String(box.y));
+    rect.setAttribute("width", String(box.w));
+    rect.setAttribute("height", String(box.h));
+    if (box.rx) {
+      rect.setAttribute("rx", String(box.rx));
+      rect.setAttribute("ry", String(box.rx));
+    } else {
+      rect.removeAttribute("rx");
+      rect.removeAttribute("ry");
+    }
   }
 
   /** Draw (or remove) the colored cell-background square behind an instance.
@@ -1350,7 +1404,11 @@ export class Renderer {
 
   /** Force a full rebuild (e.g. after palette swap that changes every color). */
   invalidate(): void {
+    for (const wrap of this.wraps.values()) wrap.remove();
+    for (const { clip } of this.clips.values()) clip.remove();
     for (const node of this.nodes.values()) node.remove();
+    this.wraps.clear();
+    this.clips.clear();
     this.nodes.clear();
     for (const rect of this.cellBgNodes.values()) rect.remove();
     this.cellBgNodes.clear();

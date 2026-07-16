@@ -41,4 +41,9 @@ export class Library {
   ids(): string[] {
     return [...this.map.keys()];
   }
+  /** Ids of non-animated assets — the pool "random" draws from by default, so
+   *  animated shapes start deselected and only appear when picked explicitly. */
+  staticIds(): string[] {
+    return [...this.map.values()].filter((a) => !a.anim?.length).map((a) => a.id);
+  }
 }

@@ -346,6 +346,7 @@ export class Shell {
         add(
           this.btn(playing ? "⏸ Pause" : "▶ Play", {
             active: playing,
+            title: "Start or pause animation playback (intro, hold, outro and idle)",
             // Read the live animation state (the toolbox isn't rebuilt when the
             // order combobox changes, so a captured `s` would revert it).
             onClick: () => {
@@ -357,7 +358,7 @@ export class Shell {
             // Arm the path tool AND switch the order to "draw path" (free) so the
             // combobox stays in sync.
             active: s.tool === "path",
-            title: "Draw reveal order: START→FINISH",
+            title: "Hand-draw the path that sets the reveal order (START→FINISH)",
             onClick: () => {
               const a = this.store.get().animation;
               this.store.set({ tool: "path", animation: { ...a, order: "free" } });
