@@ -1,6 +1,7 @@
 import type { Store } from "../store/store";
 import type { EditOp, SceneState } from "../scene/types";
 import { paletteById } from "../features/palette";
+import { applyBtnContent } from "./icons";
 
 /** Vector die (5 pips) for the "random color" swatch. */
 const DICE_ICON = `<svg viewBox="0 0 24 24" fill="none">
@@ -18,9 +19,9 @@ const NONE_ICON = `<svg viewBox="0 0 24 24" fill="none">
   <line x1="5" y1="19" x2="19" y2="5" stroke="#e03131" stroke-width="2.5" stroke-linecap="round"/>
 </svg>`;
 
-const TARGETS: { op: EditOp; label: string; hint: string }[] = [
-  { op: "recolor-item", label: "Gliph", hint: "Recolor the icon with the selected color" },
-  { op: "recolor-cell", label: "Cell", hint: "Recolor the cell background with the selected color" },
+const TARGETS: { op: EditOp; label: string; hint: string; iconKey?: string }[] = [
+  { op: "recolor-item", label: "Gliph", hint: "Recolor the icon with the selected color", iconKey: "gliph" },
+  { op: "recolor-cell", label: "Cell", hint: "Recolor the cell background with the selected color", iconKey: "cell" },
   { op: "recolor-both", label: "Both", hint: "Recolor the icon and the cell background together" },
 ];
 
@@ -51,13 +52,15 @@ export class EditPanel {
       </div>`;
 
     const s = store.get();
-    this.addOp(host.querySelector("#edit-rotate") as HTMLButtonElement, "rotate", "Click an item to turn it 90°");
-    this.addOp(host.querySelector("#edit-swap") as HTMLButtonElement, "swap", "Replace the item with a shape selected in Shapes");
+    this.addOp(host.querySelector("#edit-rotate") as HTMLButtonElement, "rotate", "Click an item to turn it 90°", "Rotate", "rotate");
+    this.addOp(host.querySelector("#edit-swap") as HTMLButtonElement, "swap", "Replace the item with a shape selected in Shapes", "Swap", "swap");
     const tgtHost = host.querySelector("#edit-targets") as HTMLElement;
     for (const o of TARGETS) {
       const b = document.createElement("button");
       b.className = "tool-btn";
       b.textContent = o.label;
+      b.dataset.text = o.label;
+      if (o.iconKey) b.dataset.iconKey = o.iconKey;
       b.title = o.hint;
       b.addEventListener("click", () => this.store.set({ editOp: o.op }));
       this.btns.set(o.op, b);
@@ -69,14 +72,19 @@ export class EditPanel {
     store.subscribe((st) => this.sync(st));
   }
 
-  private addOp(btn: HTMLButtonElement, op: EditOp, hint: string): void {
+  private addOp(btn: HTMLButtonElement, op: EditOp, hint: string, text: string, iconKey: string): void {
     btn.title = hint;
+    btn.dataset.text = text;
+    btn.dataset.iconKey = iconKey;
     btn.addEventListener("click", () => this.store.set({ editOp: op }));
     this.btns.set(op, btn);
   }
 
   private sync(s: SceneState): void {
-    for (const [op, b] of this.btns) b.classList.toggle("active", s.editOp === op);
+    for (const [op, b] of this.btns) {
+      applyBtnContent(b, b.dataset.text ?? "", b.dataset.iconKey, s.labels);
+      b.classList.toggle("active", s.editOp === op);
+    }
 
     const active = paletteById(s.palettes, s.activePaletteId);
     const sig = [s.activePaletteId, JSON.stringify(active.colors)].join("|");

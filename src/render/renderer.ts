@@ -6,7 +6,7 @@ import { paletteById, colorAt } from "../features/palette";
 import { stencilLit } from "../features/stencil";
 import { mapCycleTime, sampleLifecycle } from "../anim/animations";
 import type { AnimOutput } from "../anim/animations";
-import { buildOrderField } from "../anim/order";
+import { buildOrderField, buildShapeOrderField } from "../anim/order";
 import { instanceGeom, cellBgRect } from "../scene/geom";
 import type { Box } from "../scene/geom";
 import { brushCells, brushBlocks } from "../scene/grid";
@@ -20,10 +20,24 @@ import {
   advanceHalftone,
 } from "../features/halftone";
 import { FILL_SCALE, shufflePool, shuffledAssetId } from "../features/placement";
+import {
+  transformListToString,
+  sampleTrack,
+  sampleVisibility,
+  hasTransformTrack,
+  hasVisibilityTrack,
+  shapePlayhead,
+  restBasisForBucket,
+  type AssetAnim,
+} from "../features/svgAnim";
 import { hash2, mulberry32, randInt } from "../util/rng";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 const EMPTY_ANIM: AnimOutput = {};
+/** Phase-bucket count for unsynced internal shape animation: each animated shape
+ *  is quantized to one of N phase offsets, so many <use>s still share a small
+ *  set of <symbol> variants (per bucket) instead of one symbol per cell. */
+const PHASE_BUCKETS = 24;
 const ORDER_COLOR = "#e03131";
 /** Largest multi-cell block span (brush Size ≤ 6, divider ≤ ~9). The visible-cell
  *  scan looks back this many cells up/left to catch blocks anchored off-screen. */
@@ -39,6 +53,9 @@ interface RenderCtx {
   range: { minCol: number; maxCol: number; minRow: number; maxRow: number };
   animate: boolean;
   orderOf: ((inst: Instance) => number) | null;
+  /** Phase field (0..1) for the internal shape animation (radial/random/etc.);
+   *  null when the scene has no animated shapes. */
+  shapeOrderOf: ((inst: Instance) => number) | null;
   T: number;
   tcyc: number;
   seen: Set<string>;
@@ -238,6 +255,15 @@ export class Renderer {
   private frameRects: SVGRectElement[] = [];
   private nodes = new Map<string, SVGUseElement>(); // cellKey -> <use>
   private registeredSymbols = new Set<string>();
+  /** Animated symbols: symbol id -> the `<g data-anim>` elements + their track,
+   *  plus the phase this variant renders. Updated once per frame. */
+  private animatedSymbols = new Map<
+    string,
+    { entries: { el: Element; track: AssetAnim; hasTf: boolean; hasVis: boolean }[]; phase01: number; restBasis: number }
+  >();
+  /** True while the last render placed at least one animated-shape instance in
+   *  view — gates the always-on ambient loop so it stops when none are shown. */
+  private animShapesInView = false;
   /** Global cell-fill multiplier for this render pass (state.cellFill / FILL_SCALE). */
   private fillMul = 1;
 
@@ -419,16 +445,88 @@ export class Renderer {
 
   /** Register an asset as a <symbol> once; instanced via <use href="#sym-…">. */
   private ensureSymbol(assetId: string): void {
-    if (this.registeredSymbols.has(assetId)) return;
+    this.ensureSymbolVariant(assetId, null);
+  }
+
+  /** Register a symbol (or a phase-shifted variant) once and return its id.
+   *  Animated shapes get one <symbol> per phase bucket when unsynced, so many
+   *  <use>s still share a handful of symbols instead of inlining per cell. */
+  private ensureSymbolVariant(assetId: string, bucket: number | null): string {
+    const symId = bucket == null ? `sym-${assetId}` : `sym-${assetId}~${bucket}`;
+    if (this.registeredSymbols.has(symId)) return symId;
     const asset = this.library.get(assetId);
-    if (!asset) return;
+    if (!asset) return symId;
     const sym = document.createElementNS(SVGNS, "symbol");
-    sym.setAttribute("id", `sym-${assetId}`);
+    sym.setAttribute("id", symId);
     sym.setAttribute("viewBox", asset.viewBox);
     sym.setAttribute("overflow", "visible");
     sym.innerHTML = asset.markup;
     this.defs.appendChild(sym);
-    this.registeredSymbols.add(assetId);
+    this.registeredSymbols.add(symId);
+    // Capture internally-animated elements so we can drive them per frame.
+    if (asset.anim && asset.anim.length) {
+      const tracks = new Map(asset.anim.map((t) => [t.index, t]));
+      const entries: { el: Element; track: AssetAnim; hasTf: boolean; hasVis: boolean }[] = [];
+      for (const el of Array.from(sym.querySelectorAll("[data-anim]"))) {
+        const track = tracks.get(Number(el.getAttribute("data-anim")));
+        if (track) {
+          entries.push({
+            el,
+            track,
+            hasTf: hasTransformTrack(track),
+            hasVis: hasVisibilityTrack(track),
+          });
+        }
+      }
+      if (entries.length) {
+        const phase01 = bucket == null ? 0 : bucket / PHASE_BUCKETS;
+        const restBasis = bucket == null ? 0 : restBasisForBucket(bucket);
+        this.animatedSymbols.set(symId, { entries, phase01, restBasis });
+      }
+    }
+    return symId;
+  }
+
+  /** Whether any animated-shape symbol is currently registered (drives the
+   *  always-on ambient loop in main.ts). */
+  hasAnimatedShapes(): boolean {
+    return this.animShapesInView;
+  }
+
+  /** Public entry for the ambient loop: drive internal shape animations at the
+   *  (speed-scaled) time T, independent of the lifecycle Play state. */
+  tickShapes(T: number, anim: SceneState["animation"]): void {
+    this.updateAnimatedSymbols(T, anim);
+  }
+
+  /** Drive internal SVG animations: set each animated element's transform to its
+   *  sampled value at time T (seconds), honoring the shape playback config. Each
+   *  symbol variant carries its own phase so unsynced cells desync. */
+  private updateAnimatedSymbols(T: number, anim: SceneState["animation"]): void {
+    if (!this.animatedSymbols.size) return;
+    for (const { entries, phase01, restBasis } of this.animatedSymbols.values()) {
+      const ph = anim.shapeSync ? 0 : phase01;
+      const rest = anim.shapeRestRandom ? restBasis * anim.shapeRest : anim.shapeRest;
+      const opts = { reverse: anim.shapeReverse, rest };
+      for (const { el, track, hasTf, hasVis } of entries) {
+        const p = shapePlayhead(opts, T, track.dur, ph);
+        const dirty = el as unknown as { __anim?: string; __vis?: string };
+        if (hasTf) {
+          const tf = transformListToString(sampleTrack(track, p));
+          if (dirty.__anim !== tf) {
+            dirty.__anim = tf;
+            el.setAttribute("transform", tf);
+          }
+        }
+        if (hasVis) {
+          const vis = sampleVisibility(track, p) ?? "visible";
+          if (dirty.__vis !== vis) {
+            dirty.__vis = vis;
+            el.setAttribute("visibility", vis);
+          }
+        }
+      }
+    }
   }
 
   render(state: SceneState, time = 0): void {
@@ -1075,12 +1173,19 @@ export class Renderer {
     // animated Halftone source takes priority on Play, so the scene stays static.
     const animate = anim.playing && !halftoneIsAnimated();
     const orderOf = animate ? buildOrderField(state) : null;
+    // Shape phase is independent of Play (shapes animate ambiently), so build it
+    // whenever unsynced animated shapes could be on screen — and also while
+    // synced with random rest, so each cell lands in a bucket (its phase stays 0
+    // but its rest varies).
+    const shapeOrderOf =
+      !anim.shapeSync || anim.shapeRestRandom ? buildShapeOrderField(state) : null;
     const T = time * anim.speed;
     const tcyc = animate ? mapCycleTime(anim, T) : 0;
     // Shuffle idle: pre-fetch the asset pool (selected shapes) once per frame.
     const shuffleIds =
       animate && anim.idle === "shuffle" ? shufflePool(state.brushAssets, this.library) : null;
-    const ctx: RenderCtx = { state, palette, range: r, animate, orderOf, T, tcyc, seen, shuffleIds };
+    const ctx: RenderCtx = { state, palette, range: r, animate, orderOf, shapeOrderOf, T, tcyc, seen, shuffleIds };
+    this.animShapesInView = false;
 
     // Incremental: scan the visible cell range (+ a back-margin for multi-cell
     // blocks anchored off-screen) so a dense scene viewed up close costs
@@ -1130,7 +1235,15 @@ export class Renderer {
     const assetId = ctx.shuffleIds
       ? shuffledAssetId(inst, ctx.shuffleIds, ctx.T, ctx.state.animation.idleAmount)
       : inst.assetId;
-    this.ensureSymbol(assetId);
+    // Animated shape + unsynced: use the phase-bucket variant so this cell keeps
+    // its own timing (staggered by shapeOrder); otherwise the base symbol.
+    const asset = this.library.get(assetId);
+    if (asset?.anim?.length) this.animShapesInView = true;
+    const bucket =
+      asset?.anim?.length && ctx.shapeOrderOf
+        ? Math.floor(ctx.shapeOrderOf(inst) * PHASE_BUCKETS) % PHASE_BUCKETS
+        : null;
+    const symId = this.ensureSymbolVariant(assetId, bucket);
     let node = this.nodes.get(key);
     if (!node) {
       node = document.createElementNS(SVGNS, "use");
@@ -1145,7 +1258,7 @@ export class Renderer {
       out = sampleLifecycle(ctx.state.animation, ctx.orderOf(inst), ctx.tcyc, ctx.T);
     }
     this.applyCellBg(key, inst, cs, ctx.palette, out, ctx.state.cellRounded, ctx.state.cellGutter);
-    this.applyInstance(node, inst, cs, inst.color ?? colorAt(ctx.palette, inst.colorIndex), out, assetId);
+    this.applyInstance(node, inst, cs, inst.color ?? colorAt(ctx.palette, inst.colorIndex), out, symId);
   }
 
   /** Draw (or remove) the colored cell-background square behind an instance.
@@ -1214,16 +1327,16 @@ export class Renderer {
     cellSize: number,
     color: string,
     anim: AnimOutput,
-    assetId: string = inst.assetId,
+    symId: string = `sym-${inst.assetId}`,
   ): void {
     const g = instanceGeom(inst, cellSize, anim, this.fillMul, this.scratchBox);
     // Dirty-check: skip all DOM writes when nothing this node shows changed
     // (e.g. a pan only moves the viewBox; static instances during animation).
-    const sig = `${assetId}|${g.x}|${g.y}|${g.size}|${g.rot}|${g.cx}|${g.cy}|${g.opacity}|${color}|${inst.id}`;
+    const sig = `${symId}|${g.x}|${g.y}|${g.size}|${g.rot}|${g.cx}|${g.cy}|${g.opacity}|${color}|${inst.id}`;
     const dirty = node as unknown as { __sig?: string };
     if (dirty.__sig === sig) return;
     dirty.__sig = sig;
-    node.setAttribute("href", `#sym-${assetId}`);
+    node.setAttribute("href", `#${symId}`);
     node.setAttribute("x", String(g.x));
     node.setAttribute("y", String(g.y));
     node.setAttribute("width", String(g.size));

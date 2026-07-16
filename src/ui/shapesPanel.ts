@@ -3,6 +3,12 @@ import type { Library } from "../features/library";
 import type { Asset, SceneState } from "../scene/types";
 import { importSvgFile } from "../features/svgImport";
 import { saveUserAsset, deleteUserAsset } from "../store/persistence";
+import {
+  sampleTrack,
+  sampleVisibility,
+  transformListToString,
+  type AssetAnim,
+} from "../features/svgAnim";
 
 /** Vector die (5 pips) for the "random" tile. */
 const DICE_ICON = `<svg viewBox="0 0 24 24" fill="none">
@@ -19,6 +25,10 @@ const DICE_ICON = `<svg viewBox="0 0 24 24" fill="none">
 export class ShapesPanel {
   private root: HTMLElement;
   private sig = "";
+  /** Live-animated preview elements collected from the drawer (rebuilt each
+   *  render); driven by a single ambient rAF so the thumbnails move. */
+  private animPreviews: { el: Element; track: AssetAnim }[] = [];
+  private raf = 0;
 
   constructor(host: HTMLElement, private store: Store, private library: Library) {
     this.root = host;
@@ -47,6 +57,7 @@ export class ShapesPanel {
     const sel = new Set(s.brushAssets);
     const grid = this.root.querySelector(".asset-list") as HTMLElement;
     grid.innerHTML = "";
+    this.animPreviews = [];
     grid.appendChild(this.assetButton("random", DICE_ICON, "Random", sel.has("random")));
     const sep = document.createElement("div");
     sep.className = "asset-sep";
@@ -56,7 +67,33 @@ export class ShapesPanel {
         this.assetButton(asset.id, this.preview(asset), asset.name, sel.has(asset.id), asset),
       );
     }
+    this.ensurePreviewLoop();
   }
+
+  /** Start the ambient preview loop if any animated thumbnails are present. */
+  private ensurePreviewLoop(): void {
+    if (this.raf || !this.animPreviews.length) return;
+    this.raf = requestAnimationFrame(this.tickPreviews);
+  }
+
+  /** Sample each animated preview's track at wall-clock time and write the SVG
+   *  transform/visibility — identical to how the renderer drives the canvas, so
+   *  the thumbnail matches the placed shape. Continuous forward loop. */
+  private tickPreviews = (): void => {
+    if (!this.animPreviews.length) {
+      this.raf = 0;
+      return;
+    }
+    const T = performance.now() / 1000;
+    for (const { el, track } of this.animPreviews) {
+      const p = (((T / (track.dur > 0 ? track.dur : 1)) % 1) + 1) % 1;
+      const fns = sampleTrack(track, p);
+      if (fns.length) el.setAttribute("transform", transformListToString(fns));
+      const vis = sampleVisibility(track, p);
+      if (vis) el.setAttribute("visibility", vis);
+    }
+    this.raf = requestAnimationFrame(this.tickPreviews);
+  };
 
   /** Toggle a shape in/out of the selection. "random" is exclusive; picking a
    *  shape drops "random"; deselecting the last shape falls back to "random". */
@@ -82,6 +119,19 @@ export class ShapesPanel {
     btn.title = title;
     btn.innerHTML = inner;
     btn.addEventListener("click", () => this.toggle(id));
+    if (asset?.anim?.length) {
+      // Collect this preview's animated elements + their tracks for the loop.
+      const tracks = new Map(asset.anim.map((t) => [t.index, t]));
+      for (const el of Array.from(btn.querySelectorAll("[data-anim]"))) {
+        const track = tracks.get(Number(el.getAttribute("data-anim")));
+        if (track) this.animPreviews.push({ el, track });
+      }
+      const badge = document.createElement("span");
+      badge.className = "anim-badge";
+      badge.textContent = "A";
+      badge.title = "Animated shape";
+      btn.appendChild(badge);
+    }
     if (asset?.user) {
       const del = document.createElement("span");
       del.className = "del-badge";

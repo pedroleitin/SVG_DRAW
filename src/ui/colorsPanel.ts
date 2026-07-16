@@ -3,6 +3,7 @@ import type { Renderer } from "../render/renderer";
 import type { Palette, SceneState } from "../scene/types";
 import { paletteById } from "../features/palette";
 import { parseAse } from "../features/aseImport";
+import { applyBtnContent } from "./icons";
 
 const DEFAULT_BG = "#f7f5ef";
 
@@ -14,6 +15,7 @@ export class ColorsPanel {
   private bgHex!: HTMLInputElement;
   private colorHex!: HTMLInputElement;
   private cellSegBtns!: HTMLButtonElement[];
+  private resetBtn!: HTMLButtonElement;
   private paletteSig = "";
   private swatchSig = "";
 
@@ -51,9 +53,8 @@ export class ColorsPanel {
 
     this.bgInput = this.root.querySelector("#bg-color") as HTMLInputElement;
     this.bgInput.addEventListener("input", () => this.store.set({ bgColor: this.bgInput.value }));
-    this.root.querySelector("#bg-reset")!.addEventListener("click", () =>
-      this.store.set({ bgColor: DEFAULT_BG }),
-    );
+    this.resetBtn = this.root.querySelector("#bg-reset") as HTMLButtonElement;
+    this.resetBtn.addEventListener("click", () => this.store.set({ bgColor: DEFAULT_BG }));
 
     // Hex fields (type an exact color; the native picker lacks a hex field).
     this.bgHex = this.root.querySelector("#bg-hex") as HTMLInputElement;
@@ -104,6 +105,7 @@ export class ColorsPanel {
   }
 
   private render(s: SceneState): void {
+    applyBtnContent(this.resetBtn, "Reset", "reset", s.labels);
     if (this.bgInput.value.toLowerCase() !== s.bgColor.toLowerCase()) this.bgInput.value = s.bgColor;
     const active = paletteById(s.palettes, s.activePaletteId);
     // Sync hex fields (skip the one being typed in).

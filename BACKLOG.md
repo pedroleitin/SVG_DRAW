@@ -38,6 +38,26 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   com **cell background** deslizam ao trocar **gutter** ou **rounded** (transição CSS
   nas geometrias do rect, ativada só na troca via classe `.animating`).
   - Arquivos: [src/ui/styles/app.css](src/ui/styles/app.css), [src/render/renderer.ts](src/render/renderer.ts) (`glideCellShape`).
+- [x] 🟡 **Labels on/off (texto ↔ ícones)** — _feito._ Toggle **Labels** (1º item do menu
+  Grid, **desligado por padrão** → interface abre em ícones). Ligado, mostra os rótulos de
+  texto. Desligado, os botões trocam por **ícones Material Symbols** (draw/erase/line/block/
+  stencil/shapes/colors, grid/clear, rotate/swap/gliph/cell no Edit, reset no Colors,
+  sun/moon + som/mute no topbar). undo/redo/pan/fit são sempre ícones. Ícones filled
+  (cell/gliph/reset) usam `.msym.fill`. Botões sem ícone (Both, Play/Pause, Size, +/−)
+  permanecem texto.
+  - Arquivos: [src/ui/icons.ts](src/ui/icons.ts) (novo: `ICON_MAP`/`icon`/`applyBtnContent`), [src/ui/shell.ts](src/ui/shell.ts), [src/ui/editPanel.ts](src/ui/editPanel.ts), [src/ui/colorsPanel.ts](src/ui/colorsPanel.ts), [src/ui/gridPanel.ts](src/ui/gridPanel.ts), [src/scene/types.ts](src/scene/types.ts), [src/main.ts](src/main.ts), [index.html](index.html) (font link), [src/ui/styles/app.css](src/ui/styles/app.css) (`.msym`).
+- [x] 🟢 **Tooltip customizado no hover** — _feito._ Uma bolha flutuante única (portada ao
+  `<body>`, sem clip pelo overflow das toolboxes) dirigida pelo atributo `title` nativo: no
+  1º hover "rouba" o `title` para `data-tip` (mata o tooltip do SO) e mostra o rótulo do
+  botão. Cobre todos os botões com título, essencial no modo ícones para saber o que é cada
+  glyph. `btn()` do shell agora sempre define um `title` com o label (mesmo em modo texto).
+  - Arquivos: [src/ui/tooltip.ts](src/ui/tooltip.ts) (novo), [src/main.ts](src/main.ts) (`initTooltips`), [src/ui/shell.ts](src/ui/shell.ts), [src/ui/styles/app.css](src/ui/styles/app.css) (`#tooltip`).
+- [ ] 🟡 **Revisar cobertura dos tooltips** — passar por toda a UI conferindo os `title`:
+  alguns controles ainda não têm tooltip (ex.: alguns segments/checkboxes, o input `Dur`
+  do Export, os swatches/paletas do Colors, botões de ação como Fit/Save). Escrever textos
+  descritivos onde faltam e, em **casos específicos, remover** o tooltip (onde o próprio
+  rótulo já é claro e a bolha só polui — ex.: botões de texto óbvios, itens duplicados).
+  - Arquivos: [src/ui/](src/ui/) (call sites de `createDropdown`/`createSlider`, painéis), [src/ui/tooltip.ts](src/ui/tooltip.ts).
 - [ ] 🟡 **Cursor por estado/ferramenta** — o ponteiro do mouse muda conforme o modo
   e a função ativa (ex.: crosshair no Draw, borracha no Erase, grab/grabbing no Pan,
   cursor de caminho no Order, move/resize no frame, brush quando houver brush size).
@@ -216,6 +236,73 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   - Arquivos: [src/anim/animations.ts](src/anim/animations.ts), [src/render/renderer.ts](src/render/renderer.ts)
 - [ ] 🟡 **Gatilho / trigger** — "algo que se liga": disparar a animação por evento
   (hover, clique, ao entrar na viewport) além do Play global.
+- [x] 🟡 **Shapes com SVG animado interno** — assets curados (embutidos em `assets/`)
+  cujo próprio SVG anima via CSS `@keyframes` de `transform` (ex: `anim-square.svg`,
+  quadrado com scale-Y). Importados como Asset comum, mas o `<style>`/keyframes é
+  parseado numa **função pura do tempo** (reimplementa `cubic-bezier`) e o `<style>` é
+  removido; cada elemento animado recebe `data-anim="i"`. O renderer atualiza o
+  `transform` dos `<g data-anim>` dentro do `<symbol>` 1×/frame (lockstep entre todas as
+  instâncias, dirigido pelo clock do engine → respeita Play/pause/speed), e o export
+  MP4/PNG **bakeia** o transform amostrado por frame (frame-accurate). Recoloração pela
+  paleta continua (fill/stroke → currentColor). Sem dependência nova.
+  - Arquivos: [src/features/svgAnim.ts](src/features/svgAnim.ts) (novo — parser + `sampleTrack`/`transformAt`/`shapePlayhead`),
+    [src/features/svgImport.ts](src/features/svgImport.ts) (`extractAnim`), [src/scene/types.ts](src/scene/types.ts) (`Asset.anim`),
+    [src/render/renderer.ts](src/render/renderer.ts) (`updateAnimatedSymbols`), [src/export/svgExport.ts](src/export/svgExport.ts) (`animatedMarkup`), [assets/anim-square.svg](assets/anim-square.svg).
+  - _Leva 2 concluída (fase/sync/reverse/rest + badge):_
+    - **Badge "A"** no preview do shape na gaveta de Shapes (canto sup-esq, sempre visível).
+    - **Fase por célula**: cada instância anima no seu próprio tempo via _phase buckets_
+      (N=24 variantes de `<symbol>` quantizadas por `phaseOf(inst) = seed % 997`), mantendo
+      o instancing (24 símbolos em vez de 1 por célula).
+    - **Sync** (toggle no Animate → seção "Animated shapes"): ligado = todos em lockstep
+      (símbolo base único); desligado = cada um na sua fase.
+    - **Reverse**: após a intro, segura por `Rest` segundos e toca a animação de volta
+      (período = `dur + rest + dur`). Sem reverse = loop sawtooth.
+    - **Rest**: slider 0–3s do hold entre intro e reverse (escurecido quando reverse off).
+    - Export considera o loop do shape (`shapeLoopDuration`): duração = `max(loopDuration,
+      shapeLoopDuration)`, então cenas só com shapes animados exportam um ciclo completo.
+    - Arquivos: [src/ui/shapesPanel.ts](src/ui/shapesPanel.ts) (badge), [src/ui/animPanel.ts](src/ui/animPanel.ts) (seção + toggles),
+      [src/anim/animations.ts](src/anim/animations.ts) (`shapeSync`/`shapeReverse`/`shapeRest`), [src/ui/exportPanel.ts](src/ui/exportPanel.ts) (`autoDuration`).
+  - _Leva 3 concluída (ambient play / hold / rest / order):_
+    - **Toca o tempo todo**: os shapes internos animam mesmo sem Play global, por um
+      **loop ambiente** (rAF dedicado com clock de wall-time, `renderer.tickShapes` +
+      `hasAnimatedShapes`) — independente do lifecycle (Play move a revelação). O loop
+      se auto-desliga quando nenhum shape animado está em vista.
+    - **Hold** do lifecycle vai até **10s**.
+    - **Rest** agora funciona **sem reverse** também: segura no topo por `rest` segundos
+      antes de reiniciar o loop (período sem reverse = `dur + rest`); com reverse = `dur +
+      rest + dur`. Slider 0–5s, não mais atrelado ao reverse.
+    - **Order dos shapes animados** (`shapeOrder`): dropdown na seção que decide como a
+      **fase** dos shapes se espalha pela grade — radial (ondulação do centro), random
+      (espalhado), linear (varre por direção), sequential (ordem de colocação). Reaproveita
+      o campo de order (`buildShapeOrderField` em [order.ts](src/anim/order.ts), memoizado à parte) → bucket de fase.
+    - Arquivos: [src/main.ts](src/main.ts) (loop ambiente), [src/features/svgAnim.ts](src/features/svgAnim.ts) (`shapePlayhead` c/ rest),
+      [src/anim/order.ts](src/anim/order.ts) (`buildShapeOrderField`), [src/render/renderer.ts](src/render/renderer.ts) (`shapeOrderOf`, `tickShapes`),
+      [src/export/svgExport.ts](src/export/svgExport.ts), [src/ui/animPanel.ts](src/ui/animPanel.ts) (Order + Hold 10).
+  - _Leva 4 concluída (multi-track + visibility):_
+    - Suporte a **múltiplos `<g>` animados aninhados** por asset (cada um com seu keyframe
+      de `transform`), já usado por `anim-square-02` (translate + rotate + scale).
+    - **Animação de `visibility`** (propriedade em degrau, não interpolada): keyframes com
+      `visibility: visible/hidden` são amostradas por `sampleVisibility` e aplicadas como
+      atributo. Permite o truque de **duas camadas que se alternam** no meio do ciclo (uma
+      cresce e some, a outra aparece invertida e encolhe) — `anim-square-02` v2.
+    - Export estático (SVG/PNG single-frame) agora **bakeia o quadro em t=0** para shapes
+      animados, evitando camadas de visibility sobrepostas no still.
+    - Arquivos: [src/features/svgAnim.ts](src/features/svgAnim.ts) (`AnimStop.vis`, `sampleVisibility`, `hasTransformTrack`/`hasVisibilityTrack`),
+      [src/render/renderer.ts](src/render/renderer.ts) (aplica visibility), [src/export/svgExport.ts](src/export/svgExport.ts) (baked + still t=0), [assets/anim-square-02.svg](assets/anim-square-02.svg).
+  - _Leva 5 concluída (random rest + preview animado + fonte mono):_
+    - **Random rest** (toggle no Animate): quando ligado, cada shape recebe um `rest`
+      aleatório em `[0, Rest]`, espalhado por bucket de fase de forma determinística
+      (`restBasisForBucket`) — mantém a instanciação. Ligar Random rest com Sync ainda
+      gera buckets (fase fica 0, só o rest varia), então funciona sincado ou não.
+    - **Preview animado na gaveta de Shapes**: as miniaturas dos shapes animados agora
+      tocam ao vivo, dirigidas por um rAF único que amostra os mesmos tracks do canvas
+      (`sampleTrack`/`sampleVisibility`) — paridade exata com o placed.
+    - **Ubuntu Mono** (Google Fonts) para todo número, input de texto e slider
+      (`--font-mono` em `.rng-content`, `.num-field input`, `input[type=text|number|search]`).
+    - Arquivos: [src/features/svgAnim.ts](src/features/svgAnim.ts) (`restBasisForBucket`), [src/anim/animations.ts](src/anim/animations.ts) (`shapeRestRandom`),
+      [src/render/renderer.ts](src/render/renderer.ts) + [src/export/svgExport.ts](src/export/svgExport.ts) (rest por bucket), [src/ui/animPanel.ts](src/ui/animPanel.ts) (toggle),
+      [src/ui/shapesPanel.ts](src/ui/shapesPanel.ts) (preview rAF), [index.html](index.html) + [src/ui/styles/app.css](src/ui/styles/app.css) (fonte).
+  - Futuro: mais features Lottie (rotate/opacity/path morph) e um formato de sprite-frames.
 - [ ] ⚪ **Presets de animação salvos + combinar animações por instância.**
 - [ ] 🟡 **Animar a máscara no tempo** — mover o offset do noise por `t` para uma
   máscara "viva" (revela/apaga células progressivamente).

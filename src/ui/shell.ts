@@ -7,6 +7,7 @@ import { ClearAll } from "../commands/sceneCommands";
 import { makeCamera, zoomOf, zoomAt } from "../scene/camera";
 import { createDropdown } from "./widgets";
 import type { DropdownHandle } from "./widgets";
+import { icon, useIconFor } from "./icons";
 import { morphResize, morphOpen, morphClose } from "./morph";
 import type { AudioEngine } from "../features/audio";
 import { BrushPanel } from "./brushPanel";
@@ -31,22 +32,6 @@ const MODES: { id: Mode; label: string }[] = [
 
 /** Contexts whose menu carries the shared Brush / Size / Cell footer. */
 const BRUSH_CONTEXTS = new Set<ContextPanel>(["stencil", "divider", "seamless", "block", "edit"]);
-
-/** Minimal line icons (inherit currentColor). */
-const SVG = (inner: string) =>
-  `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
-const ICONS = {
-  undo: SVG(`<polyline points="9 14 4 9 9 4"/><path d="M4 9h11a5 5 0 0 1 0 10H8"/>`),
-  redo: SVG(`<polyline points="15 14 20 9 15 4"/><path d="M20 9H9a5 5 0 0 0 0 10h7"/>`),
-  hand: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 0 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>`,
-  fit: SVG(`<path d="M4 9V5a1 1 0 0 1 1-1h4"/><path d="M20 9V5a1 1 0 0 0-1-1h-4"/><path d="M4 15v4a1 1 0 0 0 1 1h4"/><path d="M20 15v4a1 1 0 0 1-1 1h-4"/>`),
-  sun: SVG(
-    `<circle cx="12" cy="12" r="4"/><path d="M12 3v1.6M12 19.4V21M4.6 4.6l1.1 1.1M18.3 18.3l1.1 1.1M3 12h1.6M19.4 12H21M4.6 19.4l1.1-1.1M18.3 5.7l1.1-1.1"/>`,
-  ),
-  moon: SVG(`<path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/>`),
-  soundOn: SVG(`<polygon points="4 9 8 9 13 4 13 20 8 15 4 15"/><path d="M17 8a5 5 0 0 1 0 8"/><path d="M19.5 5.5a9 9 0 0 1 0 13"/>`),
-  soundOff: SVG(`<polygon points="4 9 8 9 13 4 13 20 8 15 4 15"/><path d="M22 9l-5 6M17 9l5 6"/>`),
-};
 
 const THEME_BG: Record<string, string> = { light: "#f7f5ef", dark: "#111110" };
 
@@ -73,6 +58,7 @@ export class Shell {
   private prevToolboxMode: Mode | undefined;
   private prevCtxShown: boolean | undefined;
   private prevBodySig: string | null | undefined;
+  private prevLabels: boolean | undefined;
 
   constructor(
     private store: Store,
@@ -122,7 +108,7 @@ export class Shell {
     const btn = document.getElementById("theme-toggle") as HTMLButtonElement;
     const render = () => {
       const dark = document.documentElement.getAttribute("data-theme") === "dark";
-      btn.innerHTML = dark ? ICONS.sun : ICONS.moon;
+      btn.innerHTML = dark ? icon("sun") : icon("moon");
     };
     render();
     btn.addEventListener("click", () => {
@@ -143,7 +129,7 @@ export class Shell {
   private buildSound(): void {
     const btn = document.getElementById("sound-toggle") as HTMLButtonElement;
     const render = () => {
-      btn.innerHTML = this.audio.muted ? ICONS.soundOff : ICONS.soundOn;
+      btn.innerHTML = this.audio.muted ? icon("soundOff") : icon("soundOn");
       btn.title = this.audio.muted ? "Sound off" : "Sound on";
     };
     render();
@@ -231,18 +217,21 @@ export class Shell {
   // ---- Toolbox (per mode) ----
   private btn(
     label: string,
-    opts: { title?: string; active?: boolean; icon?: boolean; onClick: () => void },
+    opts: { title?: string; active?: boolean; icon?: boolean; iconKey?: string; onClick: () => void },
   ): HTMLButtonElement {
     const b = document.createElement("button");
-    b.className = "tool-btn" + (opts.icon ? " icon-btn" : "") + (opts.active ? " active" : "");
-    b.innerHTML = label;
+    const asIcon = useIconFor(opts.iconKey, this.store.get().labels);
+    b.className = "tool-btn" + (opts.icon || asIcon ? " icon-btn" : "") + (opts.active ? " active" : "");
+    b.innerHTML = asIcon ? icon(opts.iconKey as string) : label;
+    const isHtmlLabel = /^\s*</.test(label);
     if (opts.title) b.title = opts.title;
+    else if (!isHtmlLabel) b.title = label;
     b.addEventListener("click", opts.onClick);
     return b;
   }
 
   private ctxBtn(label: string, key: Exclude<ContextPanel, null>, s: SceneState, title?: string): HTMLButtonElement {
-    return this.btn(label, { title, active: s.contextPanel === key, onClick: () => this.toggleContext(key) });
+    return this.btn(label, { title, iconKey: key, active: s.contextPanel === key, onClick: () => this.toggleContext(key) });
   }
 
   private sep(): HTMLElement {
@@ -255,8 +244,8 @@ export class Shell {
   private buildEdits(): void {
     this.editsEl.innerHTML = "";
     this.editsEl.append(
-      this.btn(ICONS.undo, { title: "Undo (⌘Z)", icon: true, onClick: () => this.history.undo() }),
-      this.btn(ICONS.redo, { title: "Redo (⌘⇧Z)", icon: true, onClick: () => this.history.redo() }),
+      this.btn(icon("undo"), { title: "Undo (⌘Z)", icon: true, onClick: () => this.history.undo() }),
+      this.btn(icon("redo"), { title: "Redo (⌘⇧Z)", icon: true, onClick: () => this.history.redo() }),
     );
   }
 
@@ -276,10 +265,12 @@ export class Shell {
     this.playBtn.style.display = "none";
     // Grid appearance toggle (global).
     this.gridBtn = this.btn("Grid", {
+      iconKey: "grid",
       title: "Grid & cell appearance",
       onClick: () => this.toggleContext("grid"),
     });
     const clear = this.btn("Clear", {
+      iconKey: "clear",
       title: "Clear all",
       onClick: () => {
         if (Object.keys(this.store.get().instances).length) this.history.dispatch(new ClearAll());
@@ -289,7 +280,7 @@ export class Shell {
       [128, 64, 32, 16].map((n) => ({ value: String(n) })),
       String(this.store.get().cellSize),
       (v) => this.store.set({ cellSize: Number(v) }),
-      { prefix: "Size" },
+      { prefix: "Size", title: "Cell size in pixels" },
     );
     this.settingsEl.append(this.playBtn, this.gridBtn, this.sizeDD.el, clear);
   }
@@ -304,16 +295,18 @@ export class Shell {
         // Draw/Erase are painting modes; opening Shapes/Colors deselects them
         // (and clicking either closes the open context menu).
         const painting = s.contextPanel === null;
-        const paintBtn = (label: string, tool: ToolId) =>
+        const paintBtn = (label: string, tool: ToolId, iconKey: string) =>
           this.btn(label, {
+            iconKey,
             active: painting && s.tool === tool,
             onClick: () => this.store.set({ tool, contextPanel: null }),
           });
         add(
-          paintBtn("Draw", "draw"),
-          paintBtn("Erase", "erase"),
-          paintBtn("Line", "line"),
+          paintBtn("Draw", "draw", "draw"),
+          paintBtn("Erase", "erase", "erase"),
+          paintBtn("Line", "line", "line"),
           this.btn("Block", {
+            iconKey: "block",
             // Stays the active tool while its own panel (or none) is open, but
             // dims when another context takes over — like Draw/Erase do.
             active: s.tool === "block" && (s.contextPanel === "block" || s.contextPanel === null),
@@ -333,6 +326,7 @@ export class Shell {
         const seamOpen = s.contextPanel === "seamless";
         add(
           this.btn("Seamless", {
+            iconKey: "seamless",
             active: seamOpen,
             title: "Seamless tile pattern",
             onClick: () =>
@@ -386,12 +380,12 @@ export class Shell {
 
   // ---- Status (bottom-left) ----
   private buildStatus(): void {
-    this.statusEl.innerHTML = `<span id="sh-coords">cell 0,0</span> · <span id="sh-count">0</span>`;
+    this.statusEl.innerHTML = `cell <span id="sh-coords">0,0</span> · <span id="sh-count">0</span>`;
   }
 
   setCoords(col: number, row: number): void {
     const el = this.statusEl.querySelector("#sh-coords");
-    if (el) el.textContent = `cell ${col},${row}`;
+    if (el) el.textContent = `${col},${row}`;
   }
 
   private refreshStatus(): void {
@@ -405,7 +399,7 @@ export class Shell {
       const h = this.renderer.hostSize;
       this.store.set({ camera: zoomAt(this.store.get().camera, h, h.width / 2, h.height / 2, factor) });
     };
-    const pan = this.btn(ICONS.hand, {
+    const pan = this.btn(icon("hand"), {
       title: "Pan (Space)",
       icon: true,
       onClick: () => this.store.set({ tool: this.store.get().tool === "pan" ? "draw" : "pan" }),
@@ -422,7 +416,7 @@ export class Shell {
       this.btn("−", { title: "Zoom out", onClick: zoom(1 / 1.2) }),
       label,
       this.btn("+", { title: "Zoom in", onClick: zoom(1.2) }),
-      this.btn(ICONS.fit, {
+      this.btn(icon("fit"), {
         title: "Reset view",
         icon: true,
         onClick: () => this.store.set({ camera: makeCamera(this.renderer.hostSize, 1) }),
@@ -475,6 +469,19 @@ export class Shell {
 
   // ---- Reactive sync ----
   private sync(s: SceneState): void {
+    // Labels toggle swaps text ↔ icons on the fixed boxes; rebuild them and force
+    // the toolbox to rebuild (its buttons carry labels too).
+    if (this.prevLabels !== s.labels) {
+      const first = this.prevLabels === undefined;
+      this.prevLabels = s.labels;
+      if (!first) {
+        this.buildEdits();
+        this.buildSettings();
+        this.buildZoom();
+        this.toolboxSig = "";
+      }
+    }
+
     // Modes highlight.
     this.modesEl.querySelectorAll<HTMLButtonElement>(".mode-btn").forEach((b) =>
       b.classList.toggle("active", b.dataset.mode === s.mode),
@@ -483,7 +490,7 @@ export class Shell {
     // Toolbox: morph (fade out → resize → fade in) only when the MODE changes —
     // within a mode the buttons are the same set (just the active highlight
     // moves), so rebuild instantly.
-    const sig = [s.mode, s.tool, s.contextPanel, s.cellSize, s.animation.playing, s.frame.show, s.showGrid, s.mask.seamless].join("|");
+    const sig = [s.mode, s.tool, s.contextPanel, s.cellSize, s.animation.playing, s.frame.show, s.showGrid, s.mask.seamless, s.labels].join("|");
     if (sig !== this.toolboxSig) {
       const first = this.toolboxSig === "";
       const modeChanged = this.prevToolboxMode !== s.mode;

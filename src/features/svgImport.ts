@@ -1,4 +1,5 @@
 import type { Asset } from "../scene/types";
+import { parseStyle, type AssetAnim } from "./svgAnim";
 
 /** Parse, sanitize, and normalize an uploaded SVG file into an Asset.
  *  Sanitization strips scripts, event handlers, and external/remote refs so
@@ -35,12 +36,47 @@ export function parseSvg(text: string, name: string): Asset | null {
   sanitize(svg);
   forceCurrentColor(svg);
   inheritRootPaint(svg);
+  const anim = extractAnim(svg);
 
   const viewBox = resolveViewBox(svg);
   const markup = svg.innerHTML.trim();
   if (!markup) return null;
 
-  return { id: slugId(name || "asset"), name: name || "Untitled", viewBox, markup, user: true };
+  return { id: slugId(name || "asset"), name: name || "Untitled", viewBox, markup, user: true, anim };
+}
+
+/** Read any embedded `<style>` for CSS-keyframes transforms, tag each animated
+ *  element with `data-anim="i"` (so the renderer/export can target it), then
+ *  drop the `<style>` so its CSS can't run in parallel with our time-driven
+ *  sampling. Returns the parsed tracks, or undefined when there's no animation. */
+function extractAnim(svg: SVGSVGElement): AssetAnim[] | undefined {
+  const styles = Array.from(svg.querySelectorAll("style"));
+  if (!styles.length) return undefined;
+  const css = styles.map((s) => s.textContent ?? "").join("\n");
+  const model = parseStyle(css);
+  if (!model.animByClass.size || !model.keyframes.size) {
+    for (const s of styles) s.remove();
+    return undefined;
+  }
+
+  const tracks: AssetAnim[] = [];
+  const walk = (el: Element) => {
+    for (const cls of Array.from(el.classList)) {
+      const ref = model.animByClass.get(cls);
+      const stops = ref && model.keyframes.get(ref.name);
+      if (ref && stops && stops.length) {
+        const index = tracks.length;
+        el.setAttribute("data-anim", String(index));
+        tracks.push({ index, stops, dur: ref.dur });
+        break; // one track per element
+      }
+    }
+    for (const c of Array.from(el.children)) walk(c);
+  };
+  walk(svg);
+
+  for (const s of styles) s.remove();
+  return tracks.length ? tracks : undefined;
 }
 
 /** Recursively remove forbidden elements and dangerous attributes. */

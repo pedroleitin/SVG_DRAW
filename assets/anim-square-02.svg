@@ -1,0 +1,72 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    :root { --dur: 2s; }
+    /* transform-origin 0 0 matches SVG's transform-attribute origin, so the
+       engine bakes each track's transform directly (no origin compensation).
+       Two layers swap via `visibility` at the midpoint to fake a flip. */
+    .aL2-sc { animation: kf-aL2-sc var(--dur) linear infinite; transform-origin: 0 0; }
+    .aL2-rot { animation: kf-aL2-rot var(--dur) linear infinite; transform-origin: 0 0; }
+    .aL2-tr { animation: kf-aL2-tr var(--dur) linear infinite; }
+    .aL2-vis { animation: kf-aL2-vis var(--dur) linear infinite; }
+    .aL1-sc { animation: kf-aL1-sc var(--dur) linear infinite; transform-origin: 0 0; }
+    .aL1-vis { animation: kf-aL1-vis var(--dur) linear infinite; }
+    @keyframes kf-aL2-sc {
+      0% { transform: scale(1, 0); animation-timing-function: cubic-bezier(0.8, 0, 0.2, 1); }
+      50% { transform: scale(1, 1); }
+      100% { transform: scale(1, 1); }
+    }
+    @keyframes kf-aL2-rot {
+      0% { transform: rotate(0deg); }
+      50% { transform: rotate(0deg); }
+      100% { transform: rotate(0deg); }
+    }
+    @keyframes kf-aL2-tr {
+      0% { transform: translate(64px, 128px); }
+      50% { transform: translate(64px, 128px); }
+      100% { transform: translate(64px, 128px); }
+    }
+    @keyframes kf-aL2-vis {
+      0% { visibility: visible; }
+      50% { visibility: visible; }
+      50.001% { visibility: hidden; }
+      100% { visibility: hidden; }
+    }
+    @keyframes kf-aL1-sc {
+      0% { transform: scale(1, 1); }
+      50% { transform: scale(1, 1); animation-timing-function: cubic-bezier(0.8, 0, 0.2, 1); }
+      100% { transform: scale(1, 0); }
+    }
+    @keyframes kf-aL1-vis {
+      0% { visibility: hidden; }
+      49.999% { visibility: hidden; }
+      50% { visibility: visible; }
+      100% { visibility: visible; }
+    }
+  </style>
+  <g class="layer-2">
+    <g class="aL2-vis">
+      <g class="aL2-tr">
+        <g class="aL2-rot">
+          <g class="aL2-sc">
+            <g transform="translate(0 -64)">
+              <rect x="-64" y="-64" width="128" height="128" fill="#000000" stroke="#000000" stroke-width="2" stroke-linejoin="miter" stroke-linecap="butt"/>
+            </g>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+  <g class="layer-1">
+    <g class="aL1-vis">
+      <g transform="translate(64 0)">
+        <g transform="rotate(180)">
+          <g class="aL1-sc">
+            <g transform="translate(0 -64)">
+              <rect x="-64" y="-64" width="128" height="128" fill="#000000" stroke="#000000" stroke-width="2" stroke-linejoin="miter" stroke-linecap="butt"/>
+            </g>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

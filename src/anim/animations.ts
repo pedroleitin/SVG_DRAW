@@ -112,6 +112,20 @@ export interface AnimationConfig {
   // idle motion during hold
   idle: string;
   idleAmount: number;
+  // internal shape animation (shapes whose own SVG animates, e.g. anim-square)
+  /** true = every animated shape plays in lockstep; false = each cell is phased
+   *  by `shapeOrder` so they animate in their own time. */
+  shapeSync: boolean;
+  /** Ordering that staggers the internal shape animation across the grid when
+   *  unsynced (radial ripple, random scatter, linear sweep, placement order). */
+  shapeOrder: OrderMode;
+  /** Play the shape's internal track forward then backward (else it loops). */
+  shapeReverse: boolean;
+  /** Seconds to hold at the end (top) before restarting / reversing. */
+  shapeRest: number;
+  /** When true, each shape gets a random rest in [0, shapeRest] (scattered per
+   *  phase bucket) instead of the same rest for all. */
+  shapeRestRandom: boolean;
 }
 
 // ---- Sampling ----

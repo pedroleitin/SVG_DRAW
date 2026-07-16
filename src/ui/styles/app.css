@@ -17,6 +17,8 @@
   --glass-solid: rgba(245, 242, 236, 0.94);
   --glass-border: rgba(255, 255, 255, 0.5);
   --shadow: rgba(60, 50, 30, 0.14);
+  /* Monospace for numbers, text inputs and sliders. */
+  --font-mono: "Ubuntu Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
 
 [data-theme="dark"] {
@@ -92,6 +94,31 @@ body.perf-noblur .dd-menu {
 #zoombox,
 #topbar {
   position: absolute;
+}
+
+/* Floating tooltip (custom, driven by title attrs — see ui/tooltip.ts). */
+#tooltip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  max-width: 240px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: var(--glass-solid);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px var(--shadow);
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+#tooltip.show {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* Top-right settings box (sound + theme) — compact. */
@@ -206,6 +233,11 @@ body.perf-noblur .dd-menu {
   font-size: 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* Inline numeric run in mono (e.g. the Export output dimensions). */
+.mono {
+  font-family: var(--font-mono);
 }
 
 /* Wider, more horizontal layouts (width on the body; the box follows). */
@@ -340,6 +372,50 @@ body.perf-noblur .dd-menu {
   gap: 2px 18px;
 }
 
+/* Animated-shape subsection: heading + inline toggles + rest slider. */
+.anim-sub {
+  margin: 14px 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted, #888);
+}
+
+.anim-shapes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+
+.anim-shapes .rng {
+  flex: 1 1 160px;
+  min-width: 160px;
+  height: 36px;
+  margin-bottom: 0;
+}
+
+.anim-shapes .dd {
+  flex: 0 0 auto;
+  min-width: 150px;
+}
+
+.anim-shapes .anim-chk {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 4px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.anim-shapes .anim-chk:hover {
+  color: var(--text);
+}
+
 .noise-left .mask-preview {
   margin-bottom: 8px;
 }
@@ -404,6 +480,29 @@ body.perf-noblur .dd-menu {
   display: block;
 }
 
+/* Material Symbols icon glyph (used on toolbar buttons when Labels is off, and
+   always on undo/redo/pan/fit). Inherits currentColor. */
+.msym {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 24;
+}
+
+.msym.fill {
+  font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24;
+}
+
 .tool-btn:hover {
   background: var(--hover);
 }
@@ -464,6 +563,14 @@ body.perf-noblur .dd-menu {
   text-align: center;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* Numeric values in the bottom-left status share the zoom label's mono look. */
+#sh-coords,
+#sh-count {
+  font-family: var(--font-mono);
 }
 
 /* Custom "Size N" dropdown */
@@ -500,6 +607,7 @@ body.perf-noblur .dd-menu {
   color: var(--text);
   font-weight: 700;
   font-size: 13px;
+  font-family: var(--font-mono);
   -moz-appearance: textfield;
 }
 
@@ -507,6 +615,13 @@ body.perf-noblur .dd-menu {
 .num-field input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* Ubuntu Mono for any text / number input across the UI. */
+input[type="text"],
+input[type="number"],
+input[type="search"] {
+  font-family: var(--font-mono);
 }
 
 .dd-label {
@@ -529,6 +644,10 @@ body.perf-noblur .dd-menu {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dd-btn b.mono {
+  font-family: var(--font-mono);
 }
 
 .dd-caret {
@@ -577,6 +696,10 @@ body.perf-noblur .dd-menu {
 
 .dd-item:hover {
   background: var(--hover);
+}
+
+.dd-item.mono {
+  font-family: var(--font-mono);
 }
 
 .dd-item.active {
@@ -690,6 +813,26 @@ body.perf-noblur .dd-menu {
 
 .del-badge:hover {
   background: #c92a2a;
+}
+
+/* Animated-shape marker — top-left corner, accent-colored, always visible. */
+.anim-badge {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 2px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  z-index: 2;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 /* Upload tile (last in the row): two tiles wide, with a label. */
@@ -834,6 +977,7 @@ body.perf-noblur .dd-menu {
 
 .rng-val {
   font-weight: 700;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 

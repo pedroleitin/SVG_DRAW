@@ -11,12 +11,14 @@ export class GridPanel {
   private gutterChk: HTMLInputElement;
   private showChk: HTMLInputElement;
   private blockersChk: HTMLInputElement;
+  private labelsChk: HTMLInputElement;
   private fillSlider: SliderHandle;
 
   constructor(host: HTMLElement, private store: Store) {
     host.innerHTML = `
       <h2>Grid</h2>
       <div class="grid-opts">
+        <label class="chk"><input type="checkbox" id="grid-labels" /> Labels</label>
         <label class="chk"><input type="checkbox" id="grid-rounded" /> Rounded cells</label>
         <label class="chk"><input type="checkbox" id="grid-gutter" /> Gutter</label>
         <label class="chk"><input type="checkbox" id="grid-show" /> Show grid</label>
@@ -49,6 +51,10 @@ export class GridPanel {
     this.blockersChk.addEventListener("change", () =>
       this.store.set({ showBlockers: this.blockersChk.checked }),
     );
+    this.labelsChk = host.querySelector("#grid-labels") as HTMLInputElement;
+    this.labelsChk.addEventListener("change", () =>
+      this.store.set({ labels: this.labelsChk.checked }),
+    );
 
     this.sync(store.get());
     store.subscribe((s) => this.sync(s));
@@ -59,6 +65,7 @@ export class GridPanel {
     this.gutterChk.checked = s.cellGutter;
     this.showChk.checked = s.showGrid;
     this.blockersChk.checked = s.showBlockers;
+    this.labelsChk.checked = s.labels;
     this.fillSlider.setValue(s.cellFill);
   }
 }

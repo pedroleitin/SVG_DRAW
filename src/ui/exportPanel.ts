@@ -4,7 +4,7 @@ import type { Instance, SceneState } from "../scene/types";
 import { cellKey } from "../scene/types";
 import { ASPECT_IDS, fitFrame, outSize, snapFrame } from "../export/frame";
 import type { AspectId } from "../export/frame";
-import { buildSceneSVG } from "../export/svgExport";
+import { buildSceneSVG, shapeLoopDuration } from "../export/svgExport";
 import { svgBlob, downloadBlob, svgToPngBlob } from "../export/raster";
 import { exportPngSequence } from "../export/sequence";
 import { exportMp4, isVideoExportSupported } from "../export/video";
@@ -101,25 +101,25 @@ export class ExportPanel {
       ASPECT_IDS.map((a) => ({ value: a, label: a === "free" ? "Free Form" : a })),
       f.aspect,
       (v) => this.changeAspect(v as AspectId),
-      { prefix: "Aspect" },
+      { prefix: "Aspect", title: "Aspect ratio of the export frame" },
     );
     panel.querySelector("#exp-aspect-slot")!.append(this.aspectDD.el);
     this.resDD = createDropdown(
       RESOLUTIONS.map((r) => ({ value: String(r), label: `${r}px` })),
       String(f.outHeight),
       (v) => this.setFrame({ outHeight: Number(v) }),
-      { prefix: "Res" },
+      { prefix: "Res", title: "Output resolution (height in pixels)" },
     );
     panel.querySelector("#exp-res-slot")!.append(this.resDD.el);
     const fpsDD = createDropdown(
       FPS_OPTIONS.map((x) => ({ value: String(x) })),
       String(this.fps),
       (v) => (this.fps = Number(v)),
-      { prefix: "FPS" },
+      { prefix: "FPS", title: "Frames per second (animated export)" },
     );
     panel.querySelector("#exp-fps-slot")!.append(fpsDD.el);
 
-    this.duration = clampDur(loopDuration(this.store.get().animation));
+    this.duration = clampDur(this.autoDuration());
     this.durInput.value = this.duration.toFixed(1);
 
     this.snapChk.addEventListener("change", () => this.toggleSnap(this.snapChk.checked));
@@ -229,7 +229,7 @@ export class ExportPanel {
     // Entering Export refreshes the duration to the full animation length, so
     // it always exports a complete pass (like the old "Loop length").
     if (s.mode === "export" && this.prevMode !== "export") {
-      this.duration = clampDur(loopDuration(s.animation));
+      this.duration = clampDur(this.autoDuration());
       this.durInput.value = this.duration.toFixed(1);
     }
     this.prevMode = s.mode;
@@ -247,7 +247,15 @@ export class ExportPanel {
     const htRow = this.htChk.closest(".chk") as HTMLElement;
     if (htRow) htRow.style.opacity = htAnim ? "" : "0.45";
     const { outW, outH } = outSize(s.frame);
-    this.dims.textContent = `Output: ${outW} × ${outH} px`;
+    this.dims.innerHTML = `Output: <span class="mono">${outW} × ${outH}</span> px`;
+  }
+
+  /** Natural export length: the longer of the lifecycle loop and the internal
+   *  shape-animation loop, so animated shapes export a full cycle even when the
+   *  scene reveal is short/static. */
+  private autoDuration(): number {
+    const s = this.store.get();
+    return Math.max(loopDuration(s.animation), shapeLoopDuration(s, this.library));
   }
 
   /** Frame the union of every source frame's glyphs (Free Form), so the crop

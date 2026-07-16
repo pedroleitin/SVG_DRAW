@@ -2,38 +2,62 @@ import type { SceneState, Instance, Point } from "../scene/types";
 import { directionPhase } from "./animations";
 import { halftoneLastBox, sampleHalftoneLum, hasHalftoneImage } from "../features/halftone";
 
-/** Builds a function instance → order∈[0,1] for the active OrderMode.
- *  Memoized on (instances ref, order, direction, path) so during playback —
- *  when the scene doesn't change — it's computed once, not per frame. */
-let cache: {
+/** Builds a function instance → order∈[0,1] for a given OrderMode + Direction.
+ *  Two memo slots (lifecycle reveal + animated-shape phase) keep it computed
+ *  once per change instead of per frame while the scene is static. */
+interface OrderCache {
   ref: unknown;
   order: string;
   dir: string;
   pathRef: unknown;
   fn: (inst: Instance) => number;
-} | null = null;
+}
+let cacheLifecycle: OrderCache | null = null;
+let cacheShape: OrderCache | null = null;
 
+/** Reveal-order field (lifecycle): uses `animation.order` + `direction`. */
 export function buildOrderField(state: SceneState): (inst: Instance) => number {
   const a = state.animation;
+  cacheLifecycle = memoField(cacheLifecycle, state, a.order, a.direction);
+  return cacheLifecycle.fn;
+}
+
+/** Animated-shape phase field: uses `animation.shapeOrder` + `direction` so the
+ *  internal shape animation can ripple/scatter/sweep across the grid. */
+export function buildShapeOrderField(state: SceneState): (inst: Instance) => number {
+  const a = state.animation;
+  cacheShape = memoField(cacheShape, state, a.shapeOrder, a.direction);
+  return cacheShape.fn;
+}
+
+function memoField(
+  cache: OrderCache | null,
+  state: SceneState,
+  order: string,
+  direction: string,
+): OrderCache {
   const ref = state.instances;
   const pathRef = state.orderPath;
-  if (
-    cache &&
-    cache.ref === ref &&
-    cache.order === a.order &&
-    cache.dir === a.direction &&
-    cache.pathRef === pathRef
-  ) {
-    return cache.fn;
+  if (cache && cache.ref === ref && cache.order === order && cache.dir === direction && cache.pathRef === pathRef) {
+    return cache;
   }
+  const fn = makeOrderField(state, order, direction);
+  return { ref, order, dir: direction, pathRef, fn };
+}
 
+function makeOrderField(
+  state: SceneState,
+  order: string,
+  direction: string,
+): (inst: Instance) => number {
+  const ref = state.instances;
   const insts = Object.values(ref);
   const cellSize = state.cellSize;
 
   // Centroid (for radial ordering).
   let cx = 0;
   let cy = 0;
-  if (a.order === "radial" && insts.length) {
+  if (order === "radial" && insts.length) {
     for (const i of insts) {
       cx += i.col;
       cy += i.row;
@@ -44,11 +68,11 @@ export function buildOrderField(state: SceneState): (inst: Instance) => number {
 
   // Precompute the polyline's cumulative arc-lengths (for "free" order).
   const path = state.orderPath;
-  const usePath = a.order === "free" && path.length >= 2;
+  const usePath = order === "free" && path.length >= 2;
   const cum = usePath ? cumulativeLengths(path) : null;
 
   const raw = (inst: Instance): number => {
-    switch (a.order) {
+    switch (order) {
       case "all":
         // No reveal sequence — every instance starts together (o=0 for all),
         // so the scene shows everything at once (pairs with Shuffle / idle).
@@ -80,7 +104,7 @@ export function buildOrderField(state: SceneState): (inst: Instance) => number {
       }
       case "linear":
       default:
-        return directionPhase(inst.col, inst.row, a.direction);
+        return directionPhase(inst.col, inst.row, direction as Parameters<typeof directionPhase>[2]);
     }
   };
 
@@ -93,10 +117,7 @@ export function buildOrderField(state: SceneState): (inst: Instance) => number {
     if (r > max) max = r;
   }
   const span = max - min || 1;
-  const fn = (inst: Instance) => (raw(inst) - min) / span;
-
-  cache = { ref, order: a.order, dir: a.direction, pathRef, fn };
-  return fn;
+  return (inst: Instance) => (raw(inst) - min) / span;
 }
 
 /** Deterministic [0,1) from an instance seed. */

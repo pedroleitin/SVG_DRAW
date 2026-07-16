@@ -89,6 +89,9 @@ export interface Asset {
   markup: string;
   /** true for user-uploaded assets (persisted in IndexedDB). */
   user?: boolean;
+  /** Internal CSS-keyframes animation tracks (one per animated `<g data-anim>`),
+   *  parsed to pure functions of time. Absent for static shapes. */
+  anim?: import("../features/svgAnim").AssetAnim[];
 }
 
 /** A single placed instance, keyed in the scene by its cell. */
@@ -155,6 +158,9 @@ export interface SceneState {
   showGrid: boolean;
   /** Show the blocked-cells overlay (the Block tool's red zones). */
   showBlockers: boolean;
+  /** Show text labels on toolbar buttons; when false, labelled buttons show an
+   *  icon instead (Grid → Labels toggle). */
+  labels: boolean;
   /** Selected brush asset ids — a random one is placed per cell. The special
    *  id "random" (or an empty list) means "any shape from the library". */
   brushAssets: string[];

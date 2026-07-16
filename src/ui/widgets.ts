@@ -28,7 +28,7 @@ export function createDropdown(
   options: DropdownOption[],
   value: string,
   onChange: (v: string) => void,
-  opts: { prefix?: string } = {},
+  opts: { prefix?: string; title?: string } = {},
 ): DropdownHandle {
   const dd = document.createElement("div");
   dd.className = "dd";
@@ -36,12 +36,16 @@ export function createDropdown(
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "tool-btn dd-btn";
+  const tip = opts.title ?? opts.prefix;
+  if (tip) btn.title = tip;
 
   let current = value;
   const labelFor = (v: string) => options.find((o) => o.value === v)?.label ?? v;
   const render = () => {
     const prefix = opts.prefix ? `<span class="dd-prefix">${opts.prefix}</span>` : "";
-    btn.innerHTML = `<span class="dd-label">${prefix}<b>${labelFor(current)}</b></span><span class="dd-caret">▾</span>`;
+    const label = labelFor(current);
+    const mono = /\d/.test(label) ? " mono" : "";
+    btn.innerHTML = `<span class="dd-label">${prefix}<b class="${mono.trim()}">${label}</b></span><span class="dd-caret">▾</span>`;
   };
   render();
 
@@ -51,8 +55,10 @@ export function createDropdown(
     for (const o of options) {
       const item = document.createElement("button");
       item.type = "button";
-      item.className = "dd-item" + (o.value === current ? " active" : "");
-      item.textContent = o.label ?? o.value;
+      const label = o.label ?? o.value;
+      const mono = /\d/.test(label) ? " mono" : "";
+      item.className = "dd-item" + (o.value === current ? " active" : "") + mono;
+      item.textContent = label;
       item.addEventListener("click", (e) => {
         e.stopPropagation();
         current = o.value;
@@ -104,6 +110,7 @@ export interface SliderOptions {
   step: number;
   value: number;
   format?: (v: number) => string;
+  title?: string;
   onChange: (v: number) => void;
 }
 
@@ -118,6 +125,7 @@ export function createSlider(opts: SliderOptions): SliderHandle {
   const root = document.createElement("div");
   root.className = "rng";
   root.tabIndex = 0;
+  root.title = opts.title ?? label;
   root.innerHTML = `
     <div class="rng-content"><span>${label}</span><span class="rng-val"></span></div>
     <div class="rng-fill"><div class="rng-content rng-content--light"><span>${label}</span><span class="rng-val"></span></div></div>`;

@@ -7,9 +7,13 @@ import {
   ENTER_EXITS,
   IDLE_IDS,
 } from "../anim/animations";
-import type { AnimationConfig } from "../anim/animations";
+import type { AnimationConfig, OrderMode } from "../anim/animations";
 import { createDropdown, createSlider } from "./widgets";
 import type { DropdownHandle, SliderHandle } from "./widgets";
+
+/** Order modes offered for the animated-shape phase stagger (a sensible subset
+ *  of the reveal orders — no "all"/"free"/"halftone"). */
+const SHAPE_ORDER_MODES: OrderMode[] = ["random", "radial", "linear", "sequential"];
 
 /** "left-right" -> "Left-Right", "linear" -> "Linear". */
 const titleCase = (s: string): string =>
@@ -23,6 +27,7 @@ const titleCase = (s: string): string =>
 export class AnimPanel {
   private dropdowns = new Map<keyof AnimationConfig, { dd: DropdownHandle; wrap: HTMLElement }>();
   private sliders = new Map<keyof AnimationConfig, SliderHandle>();
+  private toggles = new Map<keyof AnimationConfig, { btn: HTMLElement; paint: () => void }>();
 
   constructor(host: HTMLElement, private store: Store) {
     const panel = document.createElement("section");
@@ -33,7 +38,9 @@ export class AnimPanel {
       <div class="anim-cols">
         <div class="anim-selects" id="anim-selects"></div>
         <div class="anim-sliders" id="anim-sliders"></div>
-      </div>`;
+      </div>
+      <h3 class="anim-sub">Animated shapes</h3>
+      <div class="anim-shapes" id="anim-shapes"></div>`;
     host.appendChild(panel);
 
     const selHost = panel.querySelector("#anim-selects")!;
@@ -49,12 +56,47 @@ export class AnimPanel {
     this.addSlider(slHost, "speed", "Speed", 0.1, 3, 0.05);
     this.addSlider(slHost, "spread", "Spread", 0, 6, 0.1);
     this.addSlider(slHost, "enterDur", "Intro dur", 0, 3, 0.05);
-    this.addSlider(slHost, "hold", "Hold", 0, 5, 0.1);
+    this.addSlider(slHost, "hold", "Hold", 0, 10, 0.1);
     this.addSlider(slHost, "exitDur", "Outro dur", 0, 3, 0.05);
     this.addSlider(slHost, "idleAmount", "Idle amt", 0, 1, 0.01);
 
+    // Animated-shape controls: Sync (lockstep vs staggered), Order (how the
+    // stagger sweeps the grid), Reverse (play back down), and the Rest hold.
+    const shHost = panel.querySelector("#anim-shapes")!;
+    this.addToggle(shHost, "shapeSync", "Sync", "Synced", "Per-shape");
+    this.addSelect(shHost, "shapeOrder", "Order", SHAPE_ORDER_MODES);
+    this.addToggle(shHost, "shapeReverse", "Reverse", "On", "Off");
+    this.addSlider(shHost, "shapeRest", "Rest", 0, 5, 0.05);
+    this.addToggle(shHost, "shapeRestRandom", "Random rest", "On", "Off");
+
     this.sync(store.get());
     store.subscribe((s) => this.sync(s));
+  }
+
+  /** A checkbox (GG2 switch, `.chk`) bound to a boolean config key. */
+  private addToggle(
+    host: Element,
+    key: keyof AnimationConfig,
+    label: string,
+    _onLabel: string,
+    _offLabel: string,
+  ): void {
+    const wrap = document.createElement("label");
+    wrap.className = "chk anim-chk";
+    const span = document.createElement("span");
+    span.textContent = label;
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    const paint = () => {
+      input.checked = this.store.get().animation[key] as boolean;
+    };
+    input.addEventListener("change", () => {
+      this.set({ [key]: input.checked } as Partial<AnimationConfig>);
+    });
+    wrap.append(span, input);
+    paint();
+    this.toggles.set(key, { btn: wrap, paint });
+    host.appendChild(wrap);
   }
 
   private addSelect(
@@ -116,9 +158,14 @@ export class AnimPanel {
   private sync(s: SceneState): void {
     const a = s.animation;
     for (const [key, { dd }] of this.dropdowns) dd.setValue(String(a[key]));
-    // Direction only matters for linear order — dim it otherwise.
-    this.dropdowns.get("direction")!.wrap.style.opacity = a.order === "linear" ? "1" : "0.4";
+    // Direction matters for a linear order (reveal or shape phase) — dim otherwise.
+    const dirUsed = a.order === "linear" || (!a.shapeSync && a.shapeOrder === "linear");
+    this.dropdowns.get("direction")!.wrap.style.opacity = dirUsed ? "1" : "0.4";
+    // Shape Order only applies when unsynced — dim it while Synced.
+    const shapeOrderDd = this.dropdowns.get("shapeOrder");
+    if (shapeOrderDd) shapeOrderDd.wrap.style.opacity = a.shapeSync ? "0.4" : "1";
 
     for (const [key, sl] of this.sliders) sl.setValue(a[key] as number);
+    for (const [, t] of this.toggles) t.paint();
   }
 }

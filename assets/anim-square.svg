@@ -1,0 +1,17 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    :root { --dur: 1s; }
+    .aL1-sc { animation: kf-aL1-sc var(--dur) linear infinite; }
+    @keyframes kf-aL1-sc {
+      0% { transform: translate(64px, 128px) scale(1, 0) translate(-64px, -128px); animation-timing-function: cubic-bezier(0.8, 0, 0.2, 1); }
+      100% { transform: translate(64px, 128px) scale(1, 1) translate(-64px, -128px); animation-timing-function: linear; }
+    }
+  </style>
+  <g class="layer-1">
+    <g class="aL1-sc">
+      <g transform="translate(64 128)">
+        <rect transform="translate(0 -64)" x="-64" y="-64" width="128" height="128" fill="#000000" stroke="#000000" stroke-width="2" stroke-linejoin="miter" stroke-linecap="butt"/>
+      </g>
+    </g>
+  </g>
+</svg>

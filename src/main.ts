@@ -5,6 +5,7 @@ import { Library } from "./features/library";
 import { Renderer } from "./render/renderer";
 import { InputController } from "./tools/tools";
 import { Shell } from "./ui/shell";
+import { initTooltips } from "./ui/tooltip";
 import { FrameController } from "./ui/frameController";
 import { TileFrameController } from "./ui/tileFrameController";
 import { AnimationEngine } from "./anim/engine";
@@ -62,6 +63,7 @@ const initial: SceneState = {
   ambient: false,
   showGrid: true,
   showBlockers: true,
+  labels: false,
   brushAssets: ["random"],
   brushSize: 1,
   brushSpan: 1,
@@ -123,6 +125,11 @@ const initial: SceneState = {
     exitDur: 0.5,
     idle: "none",
     idleAmount: 0.6,
+    shapeSync: true,
+    shapeOrder: "random",
+    shapeReverse: false,
+    shapeRest: 0,
+    shapeRestRandom: false,
   },
   orderPath: [],
   frame: { aspect: "1:1", ...fitFrame(camera0, "1:1"), outHeight: 1080, show: false, snap: true },
@@ -159,10 +166,33 @@ stage.style.backgroundColor = initial.bgColor;
 
 let prevPaletteId = initial.activePaletteId;
 
-const paint = (t: number) => renderer.render(store.get(), t);
+const paint = (t: number) => {
+  renderer.render(store.get(), t);
+  ensureShapeLoop();
+};
 
 // The engine owns the clock while playing and paints every frame.
 const engine = new AnimationEngine(paint);
+
+// --- Ambient internal-shape animation ---
+// Shapes whose own SVG animates (e.g. anim-square) play the whole time, off a
+// dedicated wall-clock — independent of global Play (which drives the lifecycle
+// reveal). The loop self-stops when no animated shape is on screen.
+let shapeRaf = 0;
+const shapeClock0 = performance.now();
+const shapeTick = (): void => {
+  if (!renderer.hasAnimatedShapes()) {
+    shapeRaf = 0;
+    return;
+  }
+  const anim = store.get().animation;
+  const shapeTime = ((performance.now() - shapeClock0) / 1000) * anim.speed;
+  renderer.tickShapes(shapeTime, anim);
+  shapeRaf = requestAnimationFrame(shapeTick);
+};
+function ensureShapeLoop(): void {
+  if (!shapeRaf && renderer.hasAnimatedShapes()) shapeRaf = requestAnimationFrame(shapeTick);
+}
 
 // --- Render loop: while paused, re-render on state change (rAF-coalesced).
 //     While playing, the engine paints continuously. ---
@@ -223,6 +253,7 @@ const audio = new AudioEngine(
 
 // Floating UI shell (modes / toolbox / context / status / zoom).
 const shell = new Shell(store, history, library, renderer, audio);
+initTooltips();
 
 new InputController(store, history, library, renderer, audio, (col, row) => shell.setCoords(col, row));
 new FrameController(store, renderer);
