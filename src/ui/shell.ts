@@ -85,6 +85,8 @@ export class Shell {
     this.buildZoom();
     this.mountContexts(library);
 
+    this.wireModifierHighlight();
+
     history.onChange = () => this.refreshStatus();
     this.store.subscribe((s) => this.sync(s));
     this.sync(store.get());
@@ -146,8 +148,26 @@ export class Shell {
     });
   }
 
-  private setMode(mode: Mode): void {
-    const patch: Partial<SceneState> = { mode, contextPanel: null };
+  /** Highlight the dock button whose momentary tool matches the held modifier:
+   *  Cmd/Ctrl → Shapes (swap), Alt → Colors (recolor), Shift → Erase. Mirrors
+   *  the precedence in tools.ts so the icon shows which override is armed. */
+  private wireModifierHighlight(): void {
+    const apply = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey ? "swap" : e.altKey ? "recolor" : e.shiftKey ? "erase" : null;
+      for (const el of document.querySelectorAll<HTMLElement>("#toolbox [data-mod]")) {
+        el.classList.toggle("mod-hot", el.dataset.mod === mod);
+      }
+    };
+    window.addEventListener("keydown", apply);
+    window.addEventListener("keyup", apply);
+    // Clear highlights if the window loses focus while a key is held.
+    window.addEventListener("blur", () => {
+      for (const el of document.querySelectorAll<HTMLElement>("#toolbox [data-mod]"))
+        el.classList.remove("mod-hot");
+    });
+  }
+
+  private setMode(mode: Mode): void {    const patch: Partial<SceneState> = { mode, contextPanel: null };
     if (mode === "draw" || mode === "compose") patch.tool = "draw";
     // Compose, Animate & Export open with their primary context menu.
     if (mode === "compose") patch.contextPanel = "edit";
@@ -217,7 +237,7 @@ export class Shell {
   // ---- Toolbox (per mode) ----
   private btn(
     label: string,
-    opts: { title?: string; active?: boolean; icon?: boolean; iconKey?: string; onClick: () => void },
+    opts: { title?: string; active?: boolean; icon?: boolean; iconKey?: string; dataMod?: string; onClick: () => void },
   ): HTMLButtonElement {
     const b = document.createElement("button");
     const asIcon = useIconFor(opts.iconKey, this.store.get().labels);
@@ -226,12 +246,13 @@ export class Shell {
     const isHtmlLabel = /^\s*</.test(label);
     if (opts.title) b.title = opts.title;
     else if (!isHtmlLabel) b.title = label;
+    if (opts.dataMod) b.dataset.mod = opts.dataMod;
     b.addEventListener("click", opts.onClick);
     return b;
   }
 
-  private ctxBtn(label: string, key: Exclude<ContextPanel, null>, s: SceneState, title?: string): HTMLButtonElement {
-    return this.btn(label, { title, iconKey: key, active: s.contextPanel === key, onClick: () => this.toggleContext(key) });
+  private ctxBtn(label: string, key: Exclude<ContextPanel, null>, s: SceneState, title?: string, dataMod?: string): HTMLButtonElement {
+    return this.btn(label, { title, iconKey: key, dataMod, active: s.contextPanel === key, onClick: () => this.toggleContext(key) });
   }
 
   private sep(): HTMLElement {
@@ -298,6 +319,7 @@ export class Shell {
         const paintBtn = (label: string, tool: ToolId, iconKey: string) =>
           this.btn(label, {
             iconKey,
+            dataMod: tool === "erase" ? "erase" : undefined,
             active: painting && s.tool === tool,
             onClick: () => this.store.set({ tool, contextPanel: null }),
           });
@@ -315,8 +337,9 @@ export class Shell {
           }),
           this.ctxBtn("Stencil", "stencil", s, "Stencil: paint inside a mask"),
           this.sep(),
-          this.ctxBtn("Shapes", "shapes", s),
-          this.ctxBtn("Colors", "colors", s),
+          this.ctxBtn("Edit", "edit", s, "Edit items: rotate / swap / recolor"),
+          this.ctxBtn("Shapes", "shapes", s, undefined, "swap"),
+          this.ctxBtn("Colors", "colors", s, undefined, "recolor"),
         );
         break;
       }
@@ -337,7 +360,10 @@ export class Shell {
           }),
           this.ctxBtn("Divider", "divider", s, "Recursive subdivision"),
           this.ctxBtn("Halftone", "halftone", s, "Render an image with the shapes"),
+          this.sep(),
           this.ctxBtn("Edit", "edit", s, "Edit items: rotate / swap / recolor"),
+          this.ctxBtn("Shapes", "shapes", s, undefined, "swap"),
+          this.ctxBtn("Colors", "colors", s, undefined, "recolor"),
         );
         break;
       }

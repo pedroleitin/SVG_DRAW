@@ -194,6 +194,8 @@ const shapeTick = (): void => {
 function ensureShapeLoop(): void {
   if (!shapeRaf && renderer.hasAnimatedShapes()) shapeRaf = requestAnimationFrame(shapeTick);
 }
+// A hover ghost of an animated shape can start the loop before any is placed.
+renderer.onAnimActivate = ensureShapeLoop;
 
 // --- Render loop: while paused, re-render on state change (rAF-coalesced).
 //     While playing, the engine paints continuously. ---

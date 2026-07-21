@@ -17,13 +17,16 @@ import type { AudioEngine } from "../features/audio";
 import { screenToWorld, zoomAt, panBy } from "../scene/camera";
 import { worldToCell, brushCells, brushBlocks } from "../scene/grid";
 import { cellKey } from "../scene/types";
-import type { Instance, SceneState } from "../scene/types";
+import type { Instance, SceneState, EditOp } from "../scene/types";
 
 /** Wires pointer + wheel input on the SVG to tools. Draw and erase paint
  *  across cells during a drag and commit as a single undoable command. */
 export class InputController {
   private dragging = false;
   private spaceDown = false;
+  // Held letter keys for wheel-adjusted values: S = Size (span), B = Brush size.
+  private sizeKeyDown = false;
+  private brushKeyDown = false;
   private panning = false;
   private last = { x: 0, y: 0 };
   private strokeCells = new Set<string>();
@@ -48,6 +51,15 @@ export class InputController {
   // Edit tool state.
   private editing = false;
   private editOriginals = new Map<string, Instance>(); // key -> pre-edit instance
+  // Momentary modifier overrides (held key swaps the tool for the stroke):
+  // Shift = erase, Cmd/Ctrl = swap shape, Alt = recolor. Captured on pointerdown.
+  private strokeErase = false;
+  private strokeEditOp: EditOp | null = null;
+  // Shift + wheel rotates the shape under the cursor; accumulate small deltas so
+  // trackpads (many tiny events) and mice (few big notches) both feel right.
+  private wheelRotAccum = 0;
+  // S/B + wheel accumulator (separate so switching between them doesn't carry over).
+  private wheelValAccum = 0;
 
   constructor(
     private store: Store,
@@ -100,6 +112,30 @@ export class InputController {
       this.panning = true;
       this.last = { x: e.clientX, y: e.clientY };
       this.renderer.svg.parentElement?.classList.add("panning");
+      return;
+    }
+    // Momentary modifier tools override whatever tool is active (except pan):
+    // Shift = erase, Cmd/Ctrl = swap shape, Alt = recolor color of the item.
+    const mod = modifierTool(e);
+    if (mod === "erase") {
+      this.dragging = true;
+      this.strokeErase = true;
+      this.strokeCells.clear();
+      this.strokePlaced = [];
+      this.strokeErased = [];
+      this.strokeInstances = { ...this.store.get().instances }; // clone once per stroke
+      this.lastPaintW = null;
+      this.paint(e);
+      return;
+    }
+    if (mod === "swap" || mod === "recolor") {
+      this.editing = true;
+      this.strokeEditOp = mod === "swap" ? "swap" : "recolor-item";
+      this.strokeCells.clear();
+      this.strokePlaced = [];
+      this.editOriginals.clear();
+      this.strokeInstances = { ...this.store.get().instances }; // clone once per stroke
+      this.paintEdit(e);
       return;
     }
     if (tool === "path") {
@@ -238,6 +274,8 @@ export class InputController {
     if (this.dragging) this.commitStroke();
     this.dragging = false;
     this.panning = false;
+    this.strokeErase = false;
+    this.strokeEditOp = null;
     this.renderer.svg.parentElement?.classList.remove("panning");
   };
 
@@ -245,7 +283,9 @@ export class InputController {
    *  Size > 1, Draw stamps non-overlapping N×N SVGs (clearing what's under
    *  them); Erase removes any SVG covering a touched cell (multi-cell aware). */
   private paint(e: PointerEvent) {
-    const state = this.store.get();
+    let state = this.store.get();
+    // Momentary Shift override forces erase for this stroke without touching the store.
+    if (this.strokeErase) state = { ...state, tool: "erase" };
     // Divider context: the brush fills the subdivision block under the cursor
     // with one SVG spanning the whole block (size adapts to the preview).
     if (state.contextPanel === "divider" && state.tool !== "erase") {
@@ -452,7 +492,12 @@ export class InputController {
   /** Edit (rotate / swap / recolor) the instance(s) under the brush footprint.
    *  Deduped by instance so a drag touches each one once per stroke. */
   private paintEdit(e: PointerEvent) {
-    const state = this.store.get();
+    let state = this.store.get();
+    // Momentary Cmd/Ctrl (swap) or Alt (recolor) override the active Edit op.
+    // Alt recolor is always random (independent of the Edit panel's toggle).
+    if (this.strokeEditOp === "swap") state = { ...state, editOp: "swap" };
+    else if (this.strokeEditOp === "recolor-item")
+      state = { ...state, editOp: "recolor-item", editRecolorRandom: true, editRecolorNone: false };
     const cs = state.cellSize;
     const w = this.worldAt(e);
     const cells = brushCells(w.x / cs, w.y / cs, state.brushSize, state.brushShape);
@@ -572,6 +617,16 @@ export class InputController {
 
   private onWheel = (e: WheelEvent) => {
     e.preventDefault();
+    // S / B held → wheel adjusts Size (span, 1..6) / Brush footprint (1..4).
+    if (this.sizeKeyDown || this.brushKeyDown) {
+      this.adjustBrushValue(e);
+      return;
+    }
+    // Shift + wheel rotates the shape under the cursor instead of zooming.
+    if (e.shiftKey) {
+      this.rotateUnderCursor(e);
+      return;
+    }
     const rect = this.renderer.svg.getBoundingClientRect();
     // Normalize the wheel delta across browsers: Chrome reports large pixel deltas,
     // but Safari/Firefox report line/page mode OR tiny pixel deltas — which made the
@@ -593,14 +648,84 @@ export class InputController {
     this.store.set({ camera: cam });
   };
 
+  /** S / B held → wheel steps Size (span 1..6) or Brush footprint (1..4) by one
+   *  per notch. Scroll up = larger. B wins if both keys are held. */
+  private adjustBrushValue(e: WheelEvent) {
+    const unit = e.deltaMode === 1 ? 24 : e.deltaMode === 2 ? this.host().height : 1;
+    const raw = (Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX) * unit;
+    if (Math.abs(raw) < 0.5) return;
+    if (Math.sign(raw) !== Math.sign(this.wheelValAccum)) this.wheelValAccum = 0;
+    this.wheelValAccum += raw;
+    const stepPx = 100;
+    if (Math.abs(this.wheelValAccum) < stepPx) return;
+    const notches = Math.trunc(this.wheelValAccum / stepPx);
+    this.wheelValAccum -= notches * stepPx;
+    const dir = -notches; // scroll up (negative delta) = increase
+    const s = this.store.get();
+    if (this.brushKeyDown) {
+      const v = Math.min(4, Math.max(1, s.brushSize + dir));
+      if (v !== s.brushSize) this.store.set({ brushSize: v });
+    } else {
+      const v = Math.min(6, Math.max(1, s.brushSpan + dir));
+      if (v !== s.brushSpan) this.store.set({ brushSpan: v });
+    }
+  }
+
+  /** Rotate the instance(s) under the cursor by 90° per wheel notch. Uses the
+   *  dominant wheel axis — macOS swaps deltaY→deltaX while Shift is held — and
+   *  accumulates so trackpads (many tiny events) and mice both land one 90° step
+   *  per notch. Each committed rotation is one undoable step. */
+  private rotateUnderCursor(e: WheelEvent) {
+    const unit = e.deltaMode === 1 ? 24 : e.deltaMode === 2 ? this.host().height : 1;
+    // Shift+wheel on macOS reports the scroll on deltaX; pick whichever is bigger.
+    const raw = (Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX) * unit;
+    if (Math.abs(raw) < 0.5) return;
+    // Reset the accumulator when the scroll direction flips so reversing the
+    // wheel rotates back immediately (no leftover from the previous direction).
+    if (Math.sign(raw) !== Math.sign(this.wheelRotAccum)) this.wheelRotAccum = 0;
+    this.wheelRotAccum += raw;
+    const stepPx = 100; // scroll distance per 90° notch (~one mouse notch)
+    if (Math.abs(this.wheelRotAccum) < stepPx) return;
+    const notches = Math.trunc(this.wheelRotAccum / stepPx);
+    this.wheelRotAccum -= notches * stepPx;
+    const state = this.store.get();
+    const cs = state.cellSize;
+    const rect = this.renderer.svg.getBoundingClientRect();
+    const w = screenToWorld(state.camera, this.host(), e.clientX - rect.left, e.clientY - rect.top);
+    const col = Math.floor(w.x / cs);
+    const row = Math.floor(w.y / cs);
+    const keys = coveringKeys(state.instances, col, row);
+    if (!keys.length) return;
+    const step = notches * 90;
+    const rotated = keys.map((k) => {
+      const inst = state.instances[k];
+      return { ...inst, rotation: (((inst.rotation + step) % 360) + 360) % 360 };
+    });
+    this.history.dispatch(new PlaceInstances(rotated));
+  }
+
   private onKey = (e: KeyboardEvent) => {
     if (e.code === "Space") this.spaceDown = e.type === "keydown";
+    // S / B hold to wheel-adjust Size (span) / Brush footprint. Ignore while
+    // typing in an input so text fields still receive the letters.
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as Element)?.tagName ?? "");
+    if (typing) return;
+    if (e.code === "KeyS") this.sizeKeyDown = e.type === "keydown";
+    if (e.code === "KeyB") this.brushKeyDown = e.type === "keydown";
   };
 }
 
+/** Momentary tool from held modifiers (Cmd/Ctrl = swap, Alt = recolor,
+ *  Shift = erase). Cmd/Ctrl wins, then Alt, then Shift. Null = no override. */
+function modifierTool(e: PointerEvent): "erase" | "swap" | "recolor" | null {
+  if (e.metaKey || e.ctrlKey) return "swap";
+  if (e.altKey) return "recolor";
+  if (e.shiftKey) return "erase";
+  return null;
+}
+
 /** Apply the active Edit operation to one instance, returning a new instance. */
-function editInstance(state: SceneState, library: Library, inst: Instance): Instance {
-  // -1 = "none": transparent glyph / no cell background.
+function editInstance(state: SceneState, library: Library, inst: Instance): Instance {  // -1 = "none": transparent glyph / no cell background.
   const recolorIndex = () => {
     if (state.editRecolorNone) return -1;
     if (!state.editRecolorRandom) return state.activeColorIndex;

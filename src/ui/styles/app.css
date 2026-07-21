@@ -516,6 +516,19 @@ body.perf-noblur .dd-menu {
   font-weight: 600;
 }
 
+/* Momentary-modifier highlight: shown while Shift/Alt/Cmd is held so the dock
+ *  signals which override tool (erase / recolor / swap) is armed. Distinct from
+ *  the accent .active state. */
+.tool-btn.mod-hot {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+}
+.tool-btn.mod-hot svg {
+  fill: #fff;
+  stroke: #fff;
+}
+
 .tb-field {
   display: flex;
   align-items: center;

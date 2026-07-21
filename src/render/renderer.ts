@@ -271,6 +271,9 @@ export class Renderer {
   /** True while the last render placed at least one animated-shape instance in
    *  view — gates the always-on ambient loop so it stops when none are shown. */
   private animShapesInView = false;
+  /** Fired when a hover ghost activates an animated shape before any is placed,
+   *  so the host can (re)start the ambient shape loop. */
+  onAnimActivate?: () => void;
   /** Global cell-fill multiplier for this render pass (state.cellFill / FILL_SCALE). */
   private fillMul = 1;
 
@@ -856,6 +859,16 @@ export class Renderer {
       this.hoverGhost.setAttribute("height", String(size));
       this.hoverGhost.style.color = colorAt(palette, state.activeColorIndex);
       this.hoverGhost.style.display = "";
+      // Animated ghost: the base symbol's `data-anim` elements only get their
+      // transform once the ambient loop runs — which normally starts only when a
+      // shape is already placed. Before the first placement the ghost would show
+      // the raw authored pose (visibly displaced), so seed T=0 now and kick the
+      // loop so the preview is positioned and animating from the first hover.
+      if (this.library.get(assetId)?.anim?.length) {
+        this.animShapesInView = true;
+        this.updateAnimatedSymbols(0, state.animation);
+        this.onAnimActivate?.();
+      }
     } else {
       this.hoverGhost.style.display = "none";
     }

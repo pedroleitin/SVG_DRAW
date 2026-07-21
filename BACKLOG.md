@@ -83,6 +83,10 @@ Controle de alterações e ideias futuras. Itens marcados `[ ]` estão pendentes
   Help e/ou como dica (tooltip/legenda) nos próprios botões. Definir novos atalhos úteis
   (trocar de modo, toggles do Grid, Apply, etc.).
   - Arquivos prováveis: [src/tools/tools.ts](src/tools/tools.ts) (handlers de teclado), [src/ui/shell.ts](src/ui/shell.ts), [src/ui/](src/ui/).
+  - Feito: **teclas modificadoras momentâneas** — Shift = borracha, ⌘/Ctrl = trocar shape,
+    Alt = trocar cor (random); o dock destaca o botão correspondente enquanto a tecla é
+    segurada. **Shift + rodinha** rotaciona o shape sob o cursor (90°/notch). **S/B + rodinha**
+    ajustam Size (span) / Brush (footprint). Falta expor esses atalhos na UI/Help.
 
 ## 2. Grid
 
